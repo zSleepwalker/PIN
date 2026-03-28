@@ -94,6 +94,9 @@ message CharacterVisuals {
    WebId glider = 16;
    WebId vehicle = 17;
 }
+message InventoryUpdated {
+   uint64 CharacterGuid = 1;
+}
 message CharacterVisualsUpdated {
    uint64 CharacterGuid = 1;
    CharacterAndBattleframeVisuals CharacterAndBattleframeVisuals = 2;
@@ -119,6 +122,7 @@ message Event {
       ArmyRanksUpdated ArmyRanksUpdated = 11;
       ArmyTagUpdated ArmyTagUpdated = 12;
       CharacterVisualsUpdated CharacterVisualsUpdated = 13;
+      InventoryUpdated InventoryUpdated = 14;
    }
 }
 message PingReq {

@@ -104,6 +104,9 @@ public static class GRPCService
                 case Event.SubtypeOneofCase.CharacterVisualsUpdated:
                     CharacterEventHandler.HandleEvent(evt.CharacterVisualsUpdated, clientMap);
                     break;
+                case Event.SubtypeOneofCase.InventoryUpdated:
+                    await InventoryEventHandler.HandleEvent(evt.InventoryUpdated, clientMap);
+                    break;
                 case Event.SubtypeOneofCase.None:
                 default:
                     break;

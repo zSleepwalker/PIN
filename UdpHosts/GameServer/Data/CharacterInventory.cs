@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading.Tasks;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Data.SDB;
@@ -13,7 +14,7 @@ namespace GameServer.Data;
 
 public class CharacterInventory
 {
-    public bool EnablePartialUpdates = false;
+    public bool EnablePartialUpdates = true;
 
     private Dictionary<ulong, Item> _items; // By guid
     private Dictionary<uint, Resource> _resources; // By typeid
@@ -101,6 +102,56 @@ public class CharacterInventory
         foreach((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
         {
             HardcodedCharacterData.GenerateCharCreateLoadoutAndItems(this, createId, chassisId);
+        }
+    }
+
+    public async Task RefreshFromDatabase()
+    {
+        var charId = (long)((NetworkPlayer)_player).CharacterId + 0xFE;
+        var inventoryData = await GRPCService.GetCharacterInventoryAsync(charId);
+
+        // 1. Sync Resources
+        foreach (var resource in inventoryData.Resources)
+        {
+            if (!_resources.TryGetValue(resource.SdbId, out var existing))
+            {
+                // New resource
+                AddResource(resource.SdbId, resource.Quantity);
+            }
+            else if (existing.Quantity != resource.Quantity)
+            {
+                // Quantity changed (e.g., claimed from mail)
+                existing.Quantity = resource.Quantity;
+                _resources[resource.SdbId] = existing;
+                SendResourceUpdate(resource.SdbId);
+            }
+        }
+
+        // 2. Sync Items
+        foreach (var item in inventoryData.Items)
+        {
+            if (!_items.ContainsKey(item.Guid))
+            {
+                // New unique item claimed from mail
+                var dbItem = new Item
+                {
+                    SdbId = item.SdbId,
+                    GUID = item.Guid,
+                    SubInventory = GetInventoryTypeByItemTypeId(item.SdbId),
+                    Durability = 1000,
+                    DynamicFlags = 0,
+                    TimestampEpoch = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                    Modules = Array.Empty<uint>(),
+                    Unk1 = 0,
+                    Unk3 = 0,
+                    Unk4 = 0,
+                    Unk5 = 0,
+                    Unk6 = Array.Empty<ItemUnkData>(),
+                    Unk7 = 0,
+                };
+                _items.Add(item.Guid, dbItem);
+                SendItemUpdate(item.Guid);
+            }
         }
     }
 
