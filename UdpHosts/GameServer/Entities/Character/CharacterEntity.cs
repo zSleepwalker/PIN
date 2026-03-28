@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -1116,22 +1116,15 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         float weaponAttributeSpread = 1f;
         float weaponAttributeRateOfFire = 1f;
-        try
+
+        if (weaponAttributesDict.TryGetValue((ushort)ItemAttributeId.WeaponSpread, out var spreadAttr))
         {
-            weaponAttributeSpread = weaponAttributesDict[(ushort)ItemAttributeId.WeaponSpread].Value;
-        }
-        catch (Exception)
-        {
-            Console.WriteLine($"Failed to get WeaponSpread Attribute");
+            weaponAttributeSpread = spreadAttr.Value;
         }
 
-        try
+        if (weaponAttributesDict.TryGetValue((ushort)ItemAttributeId.RateOfFire, out var rofAttr))
         {
-            weaponAttributeRateOfFire = weaponAttributesDict[(ushort)ItemAttributeId.RateOfFire].Value;
-        }
-        catch (Exception)
-        {
-            Console.WriteLine($"Failed to get RateOfFire Attribute");
+            weaponAttributeRateOfFire = rofAttr.Value;
         }
 
         // Calculate spread factor using Main even for Underbarrel, based on testing in-game.

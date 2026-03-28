@@ -170,8 +170,35 @@ message WebIdValueColorId {
    int32 id = 1;
    WebColorId color = 2;
 }
+
+message CharacterItem {
+   uint64 guid = 1;
+   uint32 sdb_id = 2;
+}
+
+message CharacterResource {
+   uint32 sdb_id = 1;
+   uint32 quantity = 2;
+}
+
+message CharacterInventoryResponse {
+   repeated CharacterItem items = 1;
+   repeated CharacterResource resources = 2;
+}
+
+message ConsumeResourceReq {
+   uint64 character_id = 1;
+   uint32 sdb_id = 2;
+   uint32 quantity = 3;
+}
+
+message ConsumeResourceResp {
+   bool success = 1;
+}
 service GameServerAPI {
    rpc GetCharacterAndBattleframeVisuals (CharacterID) returns (CharacterAndBattleframeVisuals);
+   rpc GetCharacterInventory (CharacterID) returns (CharacterInventoryResponse);
+   rpc ConsumeCharacterResource (ConsumeResourceReq) returns (ConsumeResourceResp);
    rpc Ping (PingReq) returns (PingResp);
    rpc Stream (stream Command) returns (stream Event);
 }

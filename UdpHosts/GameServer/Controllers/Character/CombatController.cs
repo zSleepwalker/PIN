@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Command;
@@ -161,7 +161,7 @@ public class CombatController : Base
             var initiator = character as IAptitudeTarget;
             var shard = player.CharacterEntity.Shard;
             var targets = new AptitudeTargets();
-            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, targets);
+            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, targets, query.ItemSdbId);
         }
     }
 
@@ -291,5 +291,72 @@ public class CombatController : Base
 
             shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, new AptitudeTargets(targets));
         }
+    }
+
+    [MessageID((byte)Commands.DeactivateAbility)]
+    public void DeactivateAbility(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var deactivateAbility = packet.Unpack<DeactivateAbility>();
+        if (deactivateAbility == null)
+        {
+            return;
+        }
+
+        var character = player.CharacterEntity;
+        var deactivationTime = deactivateAbility.Time;
+
+        // Send cooldown acknowledgement back so the client knows the ability deactivated
+        var message = new AbilityCooldowns
+        {
+            Data = new AbilityCooldownsData
+            {
+                ActiveCooldowns_Group1 = Array.Empty<ActiveCooldown>(),
+                ActiveCooldowns_Group2 = Array.Empty<ActiveCooldown>(),
+                Unk = 0,
+                GlobalCooldown_Activated_Time = deactivationTime,
+                GlobalCooldown_ReadyAgain_Time = deactivationTime,
+            }
+        };
+        character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
+    }
+
+    [MessageID((byte)Commands.ReportProjectileHit)]
+    public void ReportProjectileHit(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var report = packet.Unpack<ReportProjectileHit>();
+        if (report == null)
+        {
+            return;
+        }
+
+        // TODO: feed into hit-detection / damage pipeline
+        _logger.Verbose("ReportProjectileHit from entity {0:x8} at time {1}", entityId, report.ShortTime);
+    }
+
+    [MessageID((byte)Commands.AcquireWeaponTarget)]
+    public void AcquireWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client reporting it locked onto a target
+        _ = packet.Unpack<AcquireWeaponTarget>();
+    }
+
+    [MessageID((byte)Commands.LoseWeaponTarget)]
+    public void LoseWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client reporting it lost weapon lock
+        _ = packet.Unpack<LoseWeaponTarget>();
+    }
+
+    [MessageID((byte)Commands.RequestSelfRevive)]
+    public void RequestSelfRevive(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – validate and process self-revive
+        var response = new SelfReviveResponse
+        {
+            Unk1 = 0,
+            Unk2 = 0,
+            Unk3 = 0,
+        };
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
     }
 }

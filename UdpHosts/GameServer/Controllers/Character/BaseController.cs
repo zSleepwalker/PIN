@@ -1,4 +1,5 @@
-﻿using System;
+using System;
+using System.Linq;
 using System.Numerics;
 using AeroMessages.Common;
 using AeroMessages.GSS.V66;
@@ -487,6 +488,53 @@ public class BaseController : Base
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
     }
 
+    [MessageID((byte)Commands.SlotVisualMultiRequest)]
+    public void SlotVisualMultiRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var request = packet.Unpack<SlotVisualMultiRequest>();
+
+        var response = new SlotVisualMultiResponse
+        {
+            LoadoutId = request.LoadoutId,
+            ConfigId = request.ConfigId,
+            Visuals = request.Visuals,
+            Result = 1,
+        };
+
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
+    }
+
+    [MessageID((byte)Commands.SlotModuleRequest)]
+    public void SlotModuleRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var request = packet.Unpack<SlotModuleRequest>();
+
+        var response = new SlotModuleResponse
+        {
+            ItemGUID = request.ItemGUID,
+            Unk1 = request.Modules
+                         .Select(m => new SlotModuleResponseData { Unk1 = m.SdbId, Unk2 = 1 })
+                         .ToArray(),
+            Unk2 = 1,
+        };
+
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
+    }
+
+    [MessageID((byte)Commands.UnslotAllModulesRequest)]
+    public void UnslotAllModulesRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var request = packet.Unpack<UnslotAllModulesRequest>();
+
+        var response = new UnslotAllModulesResponse
+        {
+            Unk1 = request.ItemGUID,
+            Unk2 = 1,
+        };
+
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
+    }
+
     [MessageID((byte)Commands.NonDevDebugCommand)]
     public void NonDevDebugCommand(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
@@ -519,4 +567,120 @@ public class BaseController : Base
 
         client.AssignedShard.EncounterMan.HandleUiQueryResponse(response, (INetworkPlayer)player);
     }
-}
+
+    [MessageID((byte)Commands.RequestRespawn)]
+    public void RequestRespawn(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        player.Respawn();
+    }
+
+    [MessageID((byte)Commands.AnimationUpdate)]
+    public void AnimationUpdate(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client reporting its current animation state
+    }
+
+    [MessageID((byte)Commands.CollectLoot)]
+    public void CollectLoot(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – delegate to loot system
+        _ = packet.Unpack<CollectLoot>();
+    }
+
+    [MessageID((byte)Commands.CameraPoseUpdate)]
+    public void CameraPoseUpdate(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client notifying server of camera position/orientation
+        _ = packet.Unpack<CameraPoseUpdate>();
+    }
+
+    [MessageID((byte)Commands.ChangeLookAtTarget)]
+    public void ChangeLookAtTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var request = packet.Unpack<ChangeLookAtTarget>();
+        if (request.HaveTarget == 0)
+        {
+            player.CharacterEntity.Character_BaseController.LookAtTargetProp = null;
+        }
+        else
+        {
+            player.CharacterEntity.Character_BaseController.LookAtTargetProp = request.LookAtTarget;
+        }
+    }
+
+    [MessageID((byte)Commands.QueueUnstuck)]
+    public void QueueUnstuck(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client requesting to be unstuck
+    }
+
+    [MessageID((byte)Commands.AcquireWeaponTarget)]
+    public void AcquireWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client reporting it locked onto a target
+        _ = packet.Unpack<AcquireWeaponTarget>();
+    }
+
+    [MessageID((byte)Commands.LoseWeaponTarget)]
+    public void LoseWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – client reporting it lost weapon lock
+        _ = packet.Unpack<LoseWeaponTarget>();
+    }
+
+    [MessageID((byte)Commands.PickupCarryableObjectByProximity)]
+    public void PickupCarryableObjectByProximity(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – handle carryable object pickup
+        _ = packet.Unpack<PickupCarryableObjectByProximity>();
+    }
+
+    [MessageID((byte)Commands.DropCarryableObject)]
+    public void DropCarryableObject(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – handle carryable object drop
+        _ = packet.Unpack<DropCarryableObject>();
+    }
+
+    [MessageID((byte)Commands.DuelRequest)]
+    public void DuelRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – initiate or respond to duel
+        _ = packet.Unpack<DuelRequest>();
+    }
+
+    [MessageID((byte)Commands.NPCApplyEffect)]
+    public void NPCApplyEffect(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – apply an effect to an NPC entity
+        _ = packet.Unpack<NPCApplyEffect>();
+    }
+
+    [MessageID((byte)Commands.NPCRemoveEffect)]
+    public void NPCRemoveEffect(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – remove an effect from an NPC entity
+        _ = packet.Unpack<NPCRemoveEffect>();
+    }
+
+    [MessageID((byte)Commands.NPCInteractWithTarget)]
+    public void NPCInteractWithTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – NPC interacting with another entity
+        _ = packet.Unpack<NPCInteractWithTarget>();
+    }
+
+    [MessageID((byte)Commands.NPCSetInteractionType)]
+    public void NPCSetInteractionType(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – set kind of interaction an NPC offers
+        _ = packet.Unpack<NPCSetInteractionType>();
+    }
+
+    [MessageID((byte)Commands.NPCCombatUpdate)]
+    public void NPCCombatUpdate(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        // TODO: Implement – NPC combat state / AI update
+        _ = packet.Unpack<NPCCombatUpdate>();
+    }
+}

@@ -471,9 +471,19 @@ public class EntityManager
         Shard.Entities.TryGetValue(guid, out IEntity entity);
         if (entity != null)
         {
+            // Notify all scoped players so their clients remove the entity from their local scope.
+            // This must happen before Shard.Entities.Remove so ScopeOut can still read entity state.
+            if (ScopedPlayersByEntity.TryGetValue(guid, out var scopedPlayers))
+            {
+                foreach (var player in scopedPlayers.ToList())
+                {
+                    ScopeOut(player, entity);
+                }
+            }
+
             OnRemovedEntity(entity);
             Shard.Entities.Remove(guid);
-            ScopedPlayersByEntity.TryRemove(guid, out var v);
+            ScopedPlayersByEntity.TryRemove(guid, out _);
         }
     }
 

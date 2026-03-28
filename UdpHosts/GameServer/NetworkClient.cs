@@ -223,6 +223,11 @@ public class NetworkClient : INetworkClient
                 break;
             case MatrixPacketType.EnterZoneAck:
                 Factory.Get<BaseController>().Init(this, Player, AssignedShard, Logger);
+                Factory.Get<CombatController>().Init(this, Player, AssignedShard, Logger);
+                Factory.Get<MissionAndMarkerController>().Init(this, Player, AssignedShard, Logger);
+                Factory.Get<NPCController>().Init(this, Player, AssignedShard, Logger);
+                Factory.Get<LocalEffectsController>().Init(this, Player, AssignedShard, Logger);
+                Factory.Get<SpectatorController>().Init(this, Player, AssignedShard, Logger);
                 Player.EnterZoneAck();
                 break;
             case MatrixPacketType.ExitZoneAck:
@@ -241,7 +246,7 @@ public class NetworkClient : INetworkClient
                     }
                     else
                     {
-                        Console.WriteLine($"KeyframeRequest failed to find {request.Entity} ({typecode})");
+                        Logger.Verbose("KeyframeRequest failed to find {0} ({1}) - entity may have left scope", request.Entity, typecode);
                     }
                 }
 

@@ -31,6 +31,16 @@ public static class GRPCService
         return await _client.GetCharacterAndBattleframeVisualsAsync(new CharacterID { ID = characterId });
     }
 
+    public static async Task<CharacterInventoryResponse> GetCharacterInventoryAsync(long characterId)
+    {
+        return await _client.GetCharacterInventoryAsync(new CharacterID { ID = characterId });
+    }
+
+    public static async Task<ConsumeResourceResp> ConsumeCharacterResourceAsync(ConsumeResourceReq req)
+    {
+        return await _client.ConsumeCharacterResourceAsync(req);
+    }
+
     public static async Task SaveCharacterSessionDataAsync(ulong characterId, uint zoneId, uint outpostId, uint timePlayed)
     {
         var data = new SaveGameSessionData()

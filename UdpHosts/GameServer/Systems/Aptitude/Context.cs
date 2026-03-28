@@ -31,6 +31,7 @@ public class Context
     public uint InitTime { get; set; }
     public Vector3 InitPosition { get; set; }
     public ExecutionHint ExecutionHint { get; set; }
+    public uint ItemId { get; set; }
 
     public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = new Dictionary<ICommand, ICommandActiveContext>();
 
@@ -52,6 +53,7 @@ public class Context
             InitTime = original.InitTime,
             InitPosition = original.InitPosition,
             ExecutionHint = original.ExecutionHint,
+            ItemId = original.ItemId,
         };
     } 
 

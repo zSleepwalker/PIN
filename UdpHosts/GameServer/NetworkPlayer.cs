@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Net;
 using System.Numerics;
 using System.Threading;
@@ -69,18 +69,27 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         // Try to get remote character data
         CharacterAndBattleframeVisuals remoteData = null;
+        CharacterInventoryResponse remoteInventory = null;
         try
         {
             remoteData = await GRPCService.GetCharacterAndBattleframeVisualsAsync((long)characterId);
+            remoteInventory = await GRPCService.GetCharacterInventoryAsync((long)characterId);
         }
-        catch
+        catch (Exception ex)
         {
-            Console.WriteLine($"Could not get character over GRPC, will use fallback");
+            Console.WriteLine($"Could not get character over GRPC, will use fallback. Error: {ex.Message}");
         }
 
         // Load inventory so we get loadouts
         Inventory = new CharacterInventory(AssignedShard, this, CharacterEntity);
-        Inventory.LoadHardcodedInventory();
+        if (remoteInventory != null)
+        {
+            Inventory.LoadDatabaseInventory(remoteInventory);
+        }
+        else
+        {
+            Inventory.LoadHardcodedInventory();
+        }
 
         // Use remote data or fallback to setup character
         bool useRemoteData = true;

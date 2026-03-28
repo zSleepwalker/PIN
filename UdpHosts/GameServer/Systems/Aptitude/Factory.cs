@@ -364,8 +364,8 @@ public class Factory
             //     return new InflictCooldownCommand(SDBInterface.GetInflictCooldownCommandDef(commandId));
             case CommandType.RequireMovestate:
                 return new RequireMovestateCommand(SDBInterface.GetRequireMovestateCommandDef(commandId));
-            // case CommandType.GrantOwnerItem:
-            //     return new GrantOwnerItemCommand(CustomDBInterface.GetGrantOwnerItemCommandDef(commandId));
+            case CommandType.GrantOwnerItem:
+                return new GrantOwnerItemCommand(CustomDBInterface.GetGrantOwnerItemCommandDef(commandId));
             // case CommandType.ShoppingInvitation:
             //     return new ShoppingInvitationCommand(CustomDBInterface.GetShoppingInvitationCommandDef(commandId));
             // case CommandType.SetGuardian:
@@ -478,8 +478,8 @@ public class Factory
             //     return new CalculateTrajectoryCommand(CustomDBInterface.GetCalculateTrajectoryCommandDef(commandId));
             case CommandType.RegisterComparison:
                 return new RegisterComparisonCommand(SDBInterface.GetRegisterComparisonCommandDef(commandId));
-            // case CommandType.ConsumeItem:
-            //     return new ConsumeItemCommand(CustomDBInterface.GetConsumeItemCommandDef(commandId));
+            case CommandType.ConsumeItem:
+                return new ConsumeItemCommand(CustomDBInterface.GetConsumeItemCommandDef(commandId));
             case CommandType.RegisterRandom:
                 return new RegisterRandomCommand(SDBInterface.GetRegisterRandomCommandDef(commandId));
             case CommandType.SetGliderParametersDef:

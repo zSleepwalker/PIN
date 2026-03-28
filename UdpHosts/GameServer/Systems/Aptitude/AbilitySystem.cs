@@ -240,7 +240,7 @@ public class AbilitySystem
         }
     }
 
-    public void HandleActivateAbility(IShard shard, IAptitudeTarget initiator, uint abilityId, uint activationTime, AptitudeTargets targets)
+    public void HandleActivateAbility(IShard shard, IAptitudeTarget initiator, uint abilityId, uint activationTime, AptitudeTargets targets, uint itemId = 0)
     {
         var chainId = SDBInterface.GetAbilityData(abilityId).Chain;
         if (chainId == 0)
@@ -255,7 +255,8 @@ public class AbilitySystem
             AbilityId = abilityId,
             Targets = targets,
             InitTime = activationTime,
-            ExecutionHint = ExecutionHint.Ability
+            ExecutionHint = ExecutionHint.Ability,
+            ItemId = itemId
         });
     }
 

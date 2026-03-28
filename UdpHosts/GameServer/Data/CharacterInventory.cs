@@ -6,6 +6,7 @@ using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Data.SDB;
 using GameServer.Entities.Character;
 using GameServer.Enums;
+using GameServer.GRPC;
 using LoadoutVisualType = AeroMessages.GSS.V66.Character.LoadoutConfig_Visual.LoadoutVisualType;
 
 namespace GameServer.Data;
@@ -44,6 +45,54 @@ public class CharacterInventory
             AddResource(resource, quantity);
         }
 
+        foreach(var data in HardcodedCharacterData.TempHardcodedLoadouts)
+        {
+            HardcodedCharacterData.GenerateLoadoutAndItems(this, data);
+        }
+
+        foreach((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
+        {
+            HardcodedCharacterData.GenerateCharCreateLoadoutAndItems(this, createId, chassisId);
+        }
+    }
+
+    public void LoadDatabaseInventory(GrpcGameServerAPIClient.CharacterInventoryResponse inventoryData)
+    {
+        foreach (var item in inventoryData.Items)
+        {
+            var dbItem = new Item
+            {
+                SdbId = item.SdbId,
+                GUID = item.Guid,
+                SubInventory = GetInventoryTypeByItemTypeId(item.SdbId),
+                Durability = 1000,
+                DynamicFlags = 0,
+                TimestampEpoch = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
+                Modules = Array.Empty<uint>(),
+                Unk1 = 0,
+                Unk3 = 0,
+                Unk4 = 0,
+                Unk5 = 0,
+                Unk6 = Array.Empty<ItemUnkData>(),
+                Unk7 = 0,
+            };
+            _items.Add(item.Guid, dbItem);
+        }
+
+        foreach (var resource in inventoryData.Resources)
+        {
+            var dbResource = new Resource
+            {
+                SdbId = resource.SdbId,
+                Quantity = resource.Quantity,
+                SubInventory = GetInventoryTypeByItemTypeId(resource.SdbId),
+                TextKey = string.Empty,
+                Unk2 = 0
+            };
+            _resources.Add(resource.SdbId, dbResource);
+        }
+
+        // We still need hardcoded loadouts since we haven't modeled them in the database yet
         foreach(var data in HardcodedCharacterData.TempHardcodedLoadouts)
         {
             HardcodedCharacterData.GenerateLoadoutAndItems(this, data);
@@ -178,6 +227,15 @@ public class CharacterInventory
             }
             
             SendResourceUpdate(sdbId);
+
+            // Inform the backend database asynchronously to consume the resource so it persists state
+            _ = GRPCService.ConsumeCharacterResourceAsync(new GrpcGameServerAPIClient.ConsumeResourceReq 
+            { 
+                CharacterId = (ulong)((NetworkPlayer)_player).CharacterId + 0xFE,
+                SdbId = sdbId,
+                Quantity = cost 
+            });
+
             return true;
         }
     }
