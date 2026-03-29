@@ -1,3 +1,4 @@
+using System;
 using GameServer.Data.SDB.Records.customdata;
 
 namespace GameServer.Aptitude;
@@ -14,6 +15,9 @@ public class TargetBySinVulnerableCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
+        // SIN vulnerability system not yet implemented.
+        // Pass through all targets (assume none are SIN-vulnerable by default).
+        Console.WriteLine($"[TargetBySinVulnerable] CMD {Id}: SIN vulnerability system not implemented. Passing through targets.");
         return true;
     }
 }

@@ -1666,21 +1666,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                                             ?.SetValue(Character_MissionAndMarkerController, data);
     }
 
-    public class ActiveStatModifier
-    {
-        public StatModifierIdentifier Stat { get; set; }
-        public byte Op { get; set; }
-        public float Value { get; set; }
-    }
-
-    public class ActiveWeaponDetails
-    {
-        public WeaponTemplateResult Weapon;
-        public uint WeaponId;
-        public uint AmmoId;
-        public float Spread;
-        public float RateOfFire;
-    }
     public void RefreshStats()
     {
         if (CurrentLoadout == null) return;
@@ -1706,7 +1691,21 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 Character_BaseController.MaxShieldsProp = MaxShields;
             }
         }
+    }
 
+    public class ActiveStatModifier
+    {
+        public StatModifierIdentifier Stat { get; set; }
+        public byte Op { get; set; }
+        public float Value { get; set; }
+    }
+
+    public class ActiveWeaponDetails
+    {
+        public WeaponTemplateResult Weapon;
+        public uint WeaponId;
+        public uint AmmoId;
+        public float Spread;
+        public float RateOfFire;
     }
 }
-

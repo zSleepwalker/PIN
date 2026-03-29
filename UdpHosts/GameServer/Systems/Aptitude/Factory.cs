@@ -85,7 +85,8 @@ public class Factory
         switch ((CommandType)commandTypeRec.Id)
         {
             // case CommandType.ActiveInitiation:
-            //     return new ActiveInitiationCommand();
+            // Factory entries for recently activated Aptitude commands
+            // Target Commands
             case CommandType.ImpactApplyEffect:
                 return new ImpactApplyEffectCommand(SDBInterface.GetImpactApplyEffectCommandDef(commandId));
             case CommandType.InstantActivation:

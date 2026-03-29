@@ -42,7 +42,6 @@ public class SDBInterface
     private static Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LevelCategoryScalars;
     private static Dictionary<uint, FrameProgressionLevel> FrameProgressionLevel;
 
-
     // apt
     private static Dictionary<uint, BaseCommandDef> BaseCommandDef;
     private static Dictionary<uint, CommandType> CommandType;

@@ -12,9 +12,9 @@ using GameServer.Data.SDB.Records.customdata;
 using GameServer.GRPC;
 using GameServer.Test;
 using GrpcGameServerAPIClient;
-using CharacterLoadout = GameServer.Data.CharacterLoadout;
 using Serilog;
 using CharacterEntity = GameServer.Entities.Character.CharacterEntity;
+using CharacterLoadout = GameServer.Data.CharacterLoadout;
 
 namespace GameServer;
 

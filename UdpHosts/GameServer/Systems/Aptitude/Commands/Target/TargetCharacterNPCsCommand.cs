@@ -1,3 +1,4 @@
+using System;
 using GameServer.Data.SDB.Records.customdata;
 using GameServer.Entities.Character;
 
@@ -20,15 +21,20 @@ public class TargetCharacterNPCsCommand : Command, ICommand
             return false;
         }
 
+        var newTargets = new AptitudeTargets();
         context.FormerTargets = new AptitudeTargets(context.Targets);
 
-        /*
-        foreach (var npc in player.OwnedNPCs)
+        // Target all NPCs that belong to this player
+        // OwnedNPCs not yet implemented — use owned deployables as a placeholder
+        foreach (var deployable in player.OwnedDeployables)
         {
-            context.Targets.Push(npc);
+            newTargets.Push(deployable);
         }
-        */
 
+        // TODO: Add OwnedNPCs targeting when NPC ownership system is implemented
+        Console.WriteLine($"[TargetCharacterNPCs] CMD {Id}: NPC ownership system not fully implemented. Using OwnedDeployables as proxy ({newTargets.Count} targets).");
+
+        context.Targets = newTargets;
         return true;
     }
 }
