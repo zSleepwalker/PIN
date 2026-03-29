@@ -39,6 +39,9 @@ public class SDBInterface
     private static Dictionary<uint, WeaponUnderbarrel> WeaponUnderbarrel;
     private static Dictionary<uint, Ammo> Ammo;
     private static Dictionary<uint, ResourceNodeBeacon> ResourceNodeBeacon;
+    private static Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LevelCategoryScalars;
+    private static Dictionary<uint, FrameProgressionLevel> FrameProgressionLevel;
+
 
     // apt
     private static Dictionary<uint, BaseCommandDef> BaseCommandDef;
@@ -268,6 +271,9 @@ public class SDBInterface
         WeaponUnderbarrel = loader.LoadWeaponUnderbarrel();
         Ammo = loader.LoadAmmo();
         ResourceNodeBeacon = loader.LoadResourceNodeBeacon();
+        LevelCategoryScalars = loader.LoadLevelCategoryScalars();
+        FrameProgressionLevel = loader.LoadFrameProgressionLevel();
+
 
         // apt
         StatusEffectData = loader.LoadStatusEffectData();
@@ -520,6 +526,9 @@ public class SDBInterface
     public static WeaponUnderbarrel GetWeaponUnderbarrel(uint id) => WeaponUnderbarrel.GetValueOrDefault(id);
     public static Ammo GetAmmo(uint id) => Ammo.GetValueOrDefault(id);
     public static ResourceNodeBeacon GetResourceNodeBeacon(uint id) => ResourceNodeBeacon.GetValueOrDefault(id);
+    public static LevelCategoryScalars GetLevelCategoryScalar(uint attributeCategory, uint level) => LevelCategoryScalars.GetValueOrDefault(new KeyValuePair<uint, uint>(attributeCategory, level));
+    public static FrameProgressionLevel GetFrameProgressionLevel(uint level) => FrameProgressionLevel.GetValueOrDefault(level);
+
 
     // apt
     public static BaseCommandDef GetBaseCommandDef(uint id) => BaseCommandDef.GetValueOrDefault(id);

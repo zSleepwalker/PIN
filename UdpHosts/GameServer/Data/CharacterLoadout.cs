@@ -149,7 +149,9 @@ public class CharacterLoadout
     public uint GliderID { get; set; }
     public uint ChassisID { get; set; }
     public uint BackpackID { get; set; }
+    public byte Level { get; set; } = 1;
     public uint ChassisChangeTime { get; set; } = 0;
+
     public ChassisWarpaintResult ChassisWarpaint { get; set; }
 
     public VisualsBlock GetChassisVisuals()
@@ -392,7 +394,7 @@ public class CharacterLoadout
         }
     }
 
-    private void CalculateItemAttributes()
+    internal void CalculateItemAttributes()
     {
         var attributes = new Dictionary<ushort, float>()
         {
@@ -404,6 +406,33 @@ public class CharacterLoadout
         var characterScalars = new Dictionary<ushort, float>()
         {
         };
+
+        // Get Base Health and Shields from Battleframe
+        var chassis = SDBInterface.GetBattleframe(ChassisID);
+        if (chassis != null)
+        {
+            // Attribute 6 is Max Health
+            if (attributes.ContainsKey(6))
+            {
+                attributes[6] += chassis.BaseHealth;
+            }
+            else
+            {
+                attributes.Add(6, chassis.BaseHealth);
+            }
+
+            // Apply Level Category Scalars for Health (Category 3 usually, but we check definition)
+            var healthDef = SDBInterface.GetAttributeDefinition(6);
+            if (healthDef != null)
+            {
+                var scalar = SDBInterface.GetLevelCategoryScalar(healthDef.AttributeCategory, Level);
+                if (scalar != null)
+                {
+                    attributes[6] *= scalar.Scalar;
+                }
+            }
+        }
+
 
         ApplyItemStats(ChassisID, attributes, moduleScalars, characterScalars);
         foreach (var pair in SlottedItems)
@@ -426,7 +455,7 @@ public class CharacterLoadout
         {
             if (!moduleScalars.ContainsKey(pair.Key))
             {
-                moduleScalars.Add(pair.Key, pair.Value);
+                attributes.Add(pair.Key, pair.Value);
             }
         }
 
@@ -434,7 +463,7 @@ public class CharacterLoadout
         {
             if (!characterScalars.ContainsKey(pair.Key))
             {
-                characterScalars.Add(pair.Key, pair.Value);
+                attributes.Add(pair.Key, pair.Value);
             }
         }
 

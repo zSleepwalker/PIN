@@ -192,9 +192,11 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         baseController.GibVisualsIdProp = new GibVisuals { Id = 0, Time = AssignedShard.CurrentTime + 1 };
         baseController.RespawnTimesProp = new RespawnTimesData(); // Shake it up
         baseController.RespawnTimesProp = null; // It's dirt
-        baseController.CurrentHealthProp = HardcodedCharacterData.MaxHealth;
-        baseController.MaxHealthProp = new MaxVital { Value = HardcodedCharacterData.MaxHealth, Time = AssignedShard.CurrentTime };
-        baseController.CurrentShieldsProp = 0;
+        baseController.CurrentHealthProp = CharacterEntity.MaxHealth.Value;
+        baseController.MaxHealthProp = CharacterEntity.MaxHealth;
+        baseController.CurrentShieldsProp = CharacterEntity.MaxShields.Value;
+        baseController.MaxShieldsProp = CharacterEntity.MaxShields;
+
         baseController.ZoneUnlocksProp = 0xFFFFFFFFFFFFFFFFUL;
         baseController.RegionUnlocksProp = 0xFFFFFFFFFFFFFFFFUL;
         baseController.PersonalFactionStanceProp = new PersonalFactionStanceData

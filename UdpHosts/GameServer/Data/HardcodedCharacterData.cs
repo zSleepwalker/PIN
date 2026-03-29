@@ -960,7 +960,14 @@ public class BasicCharacterInfo
     public ulong ArmyGuid { get; set; }
     public bool ArmyIsOfficer { get; set; }
     public int TimePlayed { get; set; }
+    public uint PvPRank { get; set; }
+    public uint EliteLevel { get; set; }
+    public uint StaffFlags { get; set; }
+    public uint Level { get; set; }
+    public uint EffectiveLevel { get; set; }
+    public uint VipLevel { get; set; }
 }
+
 
 public class BasicCharacterVisuals
 {

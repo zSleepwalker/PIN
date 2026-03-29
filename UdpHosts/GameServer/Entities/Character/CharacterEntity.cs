@@ -109,8 +109,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public ulong CurrentPermissionsValue => GetCurrentPermissionsValue();
 
     public StaticInfoData StaticInfo { get; set; }
+    public byte PvPRank { get; set; }
+    public byte EliteLevel { get; set; }
+    public byte Level { get; set; }
+    public byte EffectiveLevel { get; set; }
+    public uint VipLevel { get; set; }
     public ulong ArmyGUID { get; set; }
     public sbyte ArmyIsOfficer { get; set; }
+
     public CharacterStateData CharacterState { get; set; }
     public int TimePlayed { get; set; }
     public HostilityInfoData HostilityInfo { get; set; }
@@ -345,6 +351,9 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 ArmyTag = remoteData.CharacterInfo.ArmyTag,
                 ArmyIsOfficer = remoteData.CharacterInfo.ArmyIsOfficer,
                 TimePlayed = (int)remoteData.CharacterInfo.TimePlayed,
+                PvPRank = remoteData.CharacterInfo.PvPRank,
+                EliteLevel = remoteData.CharacterInfo.EliteLevel,
+                StaffFlags = remoteData.CharacterInfo.StaffFlags,
             },
             CharacterVisuals = new Data.BasicCharacterVisuals()
             {
@@ -383,7 +392,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             CharInfoId = 1,
             Unk_1 = 0xff,
             TargetFlags = 0,
-            StaffFlags = 0x3,
+            StaffFlags = (byte)info.StaffFlags,
             CharacterTypeId = 0,
             NameLocalizationId = 0,
 
@@ -412,12 +421,29 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 MorphWeights = Array.Empty<HalfFloat>(),
                 Overlays = Array.Empty<VisualsOverlayBlock>()
             },
-            ArmyTag = DataUtils.FormatArmyTag(info.ArmyTag)
+            ArmyTag = DataUtils.FormatArmyTag(info.ArmyTag),
         });
+
+        PvPRank = (byte)info.PvPRank;
+        EliteLevel = (byte)info.EliteLevel;
+        Level = (byte)info.Level;
+        EffectiveLevel = (byte)info.EffectiveLevel;
+        VipLevel = info.VipLevel;
+        ArmyGUID = info.ArmyGuid;
+        ArmyIsOfficer = (sbyte)(info.ArmyIsOfficer ? 1 : 0);
+
 
         SetTimePlayed(info.TimePlayed);
         SetArmyGUID(info.ArmyGuid);
         SetArmyIsOfficer((sbyte)(info.ArmyIsOfficer ? 1 : 0));
+        
+        // Add setters for the new dynamic fields
+        SetPvPRank((byte)info.PvPRank);
+        SetEliteLevel((byte)info.EliteLevel);
+        SetStaffFlags((byte)info.StaffFlags);
+        SetLevel((byte)info.Level);
+        SetEffectiveLevel((byte)info.EffectiveLevel);
+        SetVipLevel(info.VipLevel);
     }
 
     public void ApplyLoadout(CharacterLoadout loadout)
@@ -533,9 +559,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Character_BaseController.SelectedLoadoutProp = SelectedLoadout;
         }
+
+        StatusEffectsChangeTime_0 = loadout.ChassisChangeTime != 0 ? (ushort)loadout.ChassisChangeTime : (ushort)0;
+        
+        RefreshStats();
     }
 
     public float GetItemAttribute(ushort id) => CurrentLoadout.ItemAttributes.GetValueOrDefault(id);
+
 
     public void AddStatModifier(uint reference, ActiveStatModifier mod)
     {
@@ -698,6 +729,76 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Character_BaseController.ArmyIsOfficerProp = ArmyIsOfficer;
         }
+    }
+
+    public void SetPvPRank(byte value)
+    {
+        PvPRank = value;
+        if (Character_BaseController != null)
+        {
+            Character_BaseController.PvPRankProp = value;
+        }
+        if (Character_EquipmentView != null)
+        {
+            Character_EquipmentView.PvPRankProp = value;
+        }
+    }
+
+    public void SetEliteLevel(byte value)
+    {
+        EliteLevel = value;
+        if (Character_BaseController != null)
+        {
+            Character_BaseController.EliteLevelProp = value;
+        }
+        if (Character_EquipmentView != null)
+        {
+            Character_EquipmentView.EliteLevelProp = value;
+        }
+    }
+
+    public void SetLevel(byte value)
+    {
+        Level = value;
+        if (Character_BaseController != null)
+        {
+            Character_BaseController.LevelProp = value;
+        }
+
+        if (Character_EquipmentView != null)
+        {
+            Character_EquipmentView.LevelProp = value;
+        }
+
+        RefreshStats();
+    }
+
+
+    public void SetEffectiveLevel(byte value)
+    {
+        EffectiveLevel = value;
+        if (Character_BaseController != null)
+        {
+            Character_BaseController.EffectiveLevelProp = value;
+        }
+    }
+
+    public void SetVipLevel(uint value)
+    {
+        VipLevel = value;
+        if (Character_BaseController != null)
+        {
+            var loyalty = Character_BaseController.LoyaltyProp;
+            loyalty.Tier = value;
+            Character_BaseController.LoyaltyProp = loyalty;
+        }
+    }
+
+    public void SetStaffFlags(byte value)
+    {
+        var staticInfo = StaticInfo;
+        staticInfo.StaffFlags = value;
+        SetStaticInfo(staticInfo);
     }
 
     public void SetCurrentEquipment(EquipmentData value)
@@ -1181,7 +1282,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         CharacterState = new CharacterStateData { State = CharacterStateData.CharacterStatus.Living, Time = Shard.CurrentTime };
         HostilityInfo = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 };
         MaxShields = new MaxVital { Value = 0, Time = Shard.CurrentTime };
-        MaxHealth = new MaxVital { Value = 19192, Time = Shard.CurrentTime };
+        MaxHealth = new MaxVital { Value = 0, Time = Shard.CurrentTime };
         GibVisualsInfo = new GibVisuals { Id = 0, Time = Shard.CurrentTime };
         ProcessDelay = new ProcessDelayData { Unk1 = 30721, Unk2 = 236 };
         Emote = new EmoteData { Id = 0, Time = 0 };
@@ -1191,19 +1292,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         CurrentEquipment = new EquipmentData { };
         CharacterStats = new CharacterStatsData
         {
-            ItemAttributes = new StatsData[]
-            {
-                new() { Id = 5, Value = 156.414169f }, new() { Id = 6, Value = 1037.8347f }, new() { Id = 7, Value = 177.44128f }, new() { Id = 12, Value = 16.250000f }, new() { Id = 35, Value = 300 },
-                new() { Id = 36, Value = 250 }, new() { Id = 37, Value = 2.092090f }, new() { Id = 142, Value = 12.55f }, new() { Id = 143, Value = 1136 }, new() { Id = 144, Value = 18.433180f },
-                new() { Id = 173, Value = 10 }, new() { Id = 186, Value = 11.40f }, new() { Id = 959, Value = 1 }, new() { Id = 1050, Value = 34.5f }, new() { Id = 1051, Value = 13.824884f },
-                new() { Id = 1052, Value = 5.5f }, new() { Id = 1121, Value = 150 }, new() { Id = 1146, Value = 10.0f }, new() { Id = 1367, Value = 85 }, new() { Id = 1368, Value = 100 },
-                new() { Id = 1370, Value = 65 }, new() { Id = 1371, Value = 120 }, new() { Id = 1372, Value = 140 }, new() { Id = 1377, Value = 140.531250f }, new() { Id = 1395, Value = 75 },
-                new() { Id = 1419, Value = 32.769249f }, new() { Id = 1420, Value = 16901.744141f }, new() { Id = 1439, Value = 15279.667969f }, new() { Id = 1451, Value = 681 },
-                new() { Id = 1583, Value = 1 }, new() { Id = 1620, Value = 5049.767090f }, new() { Id = 1622, Value = 8 }, new() { Id = 1733, Value = 1.800000f }, new() { Id = 1736, Value = 60 },
-                new() { Id = 1737, Value = 5486.919434f }, new() { Id = 1746, Value = 9.320923f }, new() { Id = 1785, Value = 1.084000f }, new() { Id = 1835, Value = 5932.512207f },
-                new() { Id = 1904, Value = 4 }, new() { Id = 1905, Value = 2 }, new() { Id = 1987, Value = 8 }, new() { Id = 2034, Value = 22 }, new() { Id = 2037, Value = 9887.518555f },
-                new() { Id = 2039, Value = 9 }, new() { Id = 2042, Value = 12.252850f }
-            },
+            ItemAttributes = Array.Empty<StatsData>(),
             Unk1 = 0,
             WeaponA = Array.Empty<StatsData>(),
             Unk2 = 0,
@@ -1241,6 +1330,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             Time = Shard.CurrentTime,
             Value = (PermissionFlagsData.CharacterPermissionFlags)GetCurrentPermissionsValue(),
         };
+        
+        Level = 1;
+        EffectiveLevel = 1;
+        VipLevel = 0;
+        PvPRank = 0;
+        EliteLevel = 0;
+        ArmyGUID = 0;
+        ArmyIsOfficer = 0;
     }
 
     private void InitControllers()
@@ -1317,9 +1414,10 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             ReputationVipModifierProp = new StatModifierData { ModifierId = 0, StatValue = 0.0f },
             ReputationEventModifierProp = new StatModifierData { ModifierId = 0, StatValue = 0.0f },
             WalletProp = new WalletData { Beans = 999, Epoch = 1462889864 },
-            LoyaltyProp = new LoyaltyData { Current = 0, Lifetime = 0, Tier = 0 },
-            LevelProp = HardcodedCharacterData.Level,
-            EffectiveLevelProp = HardcodedCharacterData.EffectiveLevel,
+            LoyaltyProp = new LoyaltyData { Current = 0, Lifetime = 0, Tier = VipLevel },
+            LevelProp = Level,
+            EffectiveLevelProp = EffectiveLevel,
+
             LevelResetCountProp = 0,
             OldestDeployablesProp = new OldestDeployablesField { Data = Array.Empty<OldestDeployablesData>() },
             PerkRespecsProp = 0,
@@ -1363,11 +1461,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             FriendCountProp = 0, // :'(
             CAISStatusProp = new CAISStatusData { State = CAISStatusData.CAISState.None, Elapsed = 0 },
             ScalingLevelProp = 0,
-            PvPRankProp = 0,
+            PvPRankProp = PvPRank,
             PvPRankPointsProp = 0,
             PvPTokensProp = 0,
             BountyPointsLastClaimedProp = 0,
-            EliteLevelProp = 1
+            EliteLevelProp = EliteLevel
         };
 
         Character_CombatController = new CombatController
@@ -1463,13 +1561,15 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             VisualOverridesProp = VisualOverrides,
             CurrentEquipmentProp = CurrentEquipment,
-            LevelProp = 1,
             CurrentDurabilityPctProp = 100,
             CharacterStatsProp = CharacterStats,
             ScalingLevelProp = 1,
-            PvPRankProp = 0,
-            EliteLevelProp = 0
+            PvPRankProp = PvPRank,
+            EliteLevelProp = EliteLevel,
+            LevelProp = Level
         };
+
+
         Character_CombatView = new CombatView
         {
             FireMode_0Prop = FireMode_0,
@@ -1581,4 +1681,32 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         public float Spread;
         public float RateOfFire;
     }
+    public void RefreshStats()
+    {
+        if (CurrentLoadout == null) return;
+
+        CurrentLoadout.Level = Level;
+        CurrentLoadout.CalculateItemAttributes();
+
+        if (CurrentLoadout.ItemAttributes.TryGetValue(6, out var maxHealth))
+        {
+            MaxHealth = new MaxVital { Value = (int)maxHealth, Time = Shard.CurrentTime };
+            if (Character_BaseController != null)
+            {
+                Character_BaseController.MaxHealthProp = MaxHealth;
+            }
+        }
+
+        // Shields (Attribute 7 is usually Shields or Regen, I'll check if available)
+        if (CurrentLoadout.ItemAttributes.TryGetValue(7, out var maxShields))
+        {
+            MaxShields = new MaxVital { Value = (int)maxShields, Time = Shard.CurrentTime };
+            if (Character_BaseController != null)
+            {
+                Character_BaseController.MaxShieldsProp = MaxShields;
+            }
+        }
+
+    }
 }
+

@@ -1313,6 +1313,19 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(row => row.Id);
     }
 
+    public Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LoadLevelCategoryScalars()
+    {
+        return LoadStaticDB<LevelCategoryScalars>("dbitems::LevelCategoryScalars")
+            .ToDictionary(row => new KeyValuePair<uint, uint>(row.AttributeCategory, row.Level));
+    }
+
+    public Dictionary<uint, FrameProgressionLevel> LoadFrameProgressionLevel()
+    {
+        return LoadStaticDB<FrameProgressionLevel>("dbitems::FrameProgressionLevel")
+            .ToDictionary(row => row.Level);
+    }
+
+
     private static T[] LoadStaticDB<T>(string tableName)
     where T : class, new()
     {
