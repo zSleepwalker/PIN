@@ -12,6 +12,7 @@ using GameServer.Data.SDB.Records.customdata;
 using GameServer.GRPC;
 using GameServer.Test;
 using GrpcGameServerAPIClient;
+using CharacterLoadout = GameServer.Data.CharacterLoadout;
 using Serilog;
 using CharacterEntity = GameServer.Entities.Character.CharacterEntity;
 
@@ -98,7 +99,6 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         {
             CharacterEntity.LoadRemote(remoteData);
 
-            // Todo: load inventory from db so we can use those loadouts
             loadoutId = Inventory.GetLoadoutIdForChassis(remoteData.CharacterInfo.CurrentBattleframeSDBId);
         }
         else

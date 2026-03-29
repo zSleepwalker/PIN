@@ -72,7 +72,7 @@ public class WeaponSim
         // Console.WriteLine($"Selected weapon {weapon.DebugName} and spread factor {weaponSpreadFactor}");
 
         // Ammo
-        var ammo = SDBInterface.GetAmmo(weapon.AmmoId); // TODO: Handle ammo overrides
+        var ammo = SDBInterface.GetAmmo(activeWeaponDetails.AmmoId);
         
         // Projectile origin
         var origin = entity.GetProjectileOrigin(localAimDir);

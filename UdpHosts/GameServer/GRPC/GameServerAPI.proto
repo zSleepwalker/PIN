@@ -185,9 +185,17 @@ message CharacterResource {
    uint32 quantity = 2;
 }
 
+message CharacterLoadout {
+   int32 loadout_id = 1;
+   int32 chassis_sdb_id = 2;
+   string visuals = 3;
+   string slotted_items = 4;
+}
+
 message CharacterInventoryResponse {
    repeated CharacterItem items = 1;
    repeated CharacterResource resources = 2;
+   repeated CharacterLoadout loadouts = 3;
 }
 
 message ConsumeResourceReq {
@@ -199,10 +207,22 @@ message ConsumeResourceReq {
 message ConsumeResourceResp {
    bool success = 1;
 }
+
+message ConsumeItemReq {
+   uint64 character_id = 1;
+   uint32 sdb_id = 2;
+   uint32 quantity = 3;
+}
+
+message ConsumeItemResp {
+   bool success = 1;
+}
+
 service GameServerAPI {
    rpc GetCharacterAndBattleframeVisuals (CharacterID) returns (CharacterAndBattleframeVisuals);
    rpc GetCharacterInventory (CharacterID) returns (CharacterInventoryResponse);
    rpc ConsumeCharacterResource (ConsumeResourceReq) returns (ConsumeResourceResp);
+   rpc ConsumeCharacterItem (ConsumeItemReq) returns (ConsumeItemResp);
    rpc Ping (PingReq) returns (PingResp);
    rpc Stream (stream Command) returns (stream Event);
 }

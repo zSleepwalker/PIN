@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using GameServer.Data.SDB.Records.customdata;
 using GameServer.Entities.Character;
 
@@ -27,9 +27,13 @@ public class UnpackItemCommand : Command, ICommand
             return false;
         }
 
-        // todo: consume package by sdb_id and give item by sdb_id to self
-        character.Player.Inventory.CreateItem(Params.ItemSdbId);
+        // consume package by sdb_id and give item by sdb_id to self
+        if (character.Player.Inventory.ConsumeItem(Params.PackageSdbId, 1))
+        {
+            character.Player.Inventory.CreateItem(Params.ItemSdbId);
+            return true;
+        }
 
-        return true;
+        return false;
     }
 }

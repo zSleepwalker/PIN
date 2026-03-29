@@ -1,4 +1,5 @@
 using GameServer.Data.SDB.Records.aptfs;
+using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
@@ -14,6 +15,14 @@ public class ApplyAmmoRiderCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
+        foreach (var target in context.Targets)
+        {
+            if (target is CharacterEntity character)
+            {
+                character.AmmoOverride = Params.AmmoId;
+            }
+        }
+
         return true;
     }
 }

@@ -676,8 +676,8 @@ public class Factory
             //     return new TargetAiTargetCommand(CustomDBInterface.GetTargetAiTargetCommandDef(commandId));
             // case CommandType.ModifyDamageForInflict:
             //     return new ModifyDamageForInflictCommand(CustomDBInterface.GetModifyDamageForInflictCommandDef(commandId));
-            // case CommandType.ApplyAmmoRider:
-            //     return new ApplyAmmoRiderCommand(SDBInterface.GetApplyAmmoRiderCommandDef(commandId));
+            case CommandType.ApplyAmmoRider:
+                return new ApplyAmmoRiderCommand(SDBInterface.GetApplyAmmoRiderCommandDef(commandId));
             case CommandType.TargetFilterByRange:
                 return new TargetFilterByRangeCommand(SDBInterface.GetTargetFilterByRangeCommandDef(commandId));
             // case CommandType.OverrideCollision:

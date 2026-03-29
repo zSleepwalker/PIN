@@ -17,6 +17,7 @@ using GameServer.Enums;
 using GameServer.Systems.Encounters;
 using GameServer.Test;
 using GrpcGameServerAPIClient;
+using CharacterLoadout = GameServer.Data.CharacterLoadout;
 using LoadoutVisualType = AeroMessages.GSS.V66.Character.LoadoutConfig_Visual.LoadoutVisualType;
 
 namespace GameServer.Entities.Character;
@@ -136,6 +137,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public IEntity AttachedToEntity { get; set; } = null;
     public int SelectedLoadout { get; set; }
     public List<DeployableEntity> OwnedDeployables { get; set; } = new List<DeployableEntity>();
+    public uint AmmoOverride { get; set; } = 0;
 
     public ushort StatusEffectsChangeTime_0 { get; set; }
     public ushort StatusEffectsChangeTime_1 { get; set; }
@@ -1135,6 +1137,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Weapon = weapon,
             WeaponId = weaponId,
+            AmmoId = AmmoOverride != 0 ? AmmoOverride : weapon.AmmoId,
             Spread = spreadFactor,
             RateOfFire = weaponAttributeRateOfFire,
         };
@@ -1231,7 +1234,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         EffectsFlags = 0;
         FireMode_0 = new FireModeData { Mode = 0, Time = Shard.CurrentTime };
         FireMode_1 = new FireModeData { Mode = 0, Time = Shard.CurrentTime };
-        WeaponIndex = new WeaponIndexData { Index = 0, Unk1 = 1, Unk2 = 0, Time = Shard.CurrentTime };
+        WeaponIndex = new WeaponIndexData { Index = 1, Unk1 = 1, Unk2 = 0, Time = Shard.CurrentTime };
 
         PermissionFlags = new PermissionFlagsData
         {
@@ -1574,6 +1577,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     {
         public WeaponTemplateResult Weapon;
         public uint WeaponId;
+        public uint AmmoId;
         public float Spread;
         public float RateOfFire;
     }

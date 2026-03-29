@@ -41,6 +41,11 @@ public static class GRPCService
         return await _client.ConsumeCharacterResourceAsync(req);
     }
 
+    public static async Task<ConsumeItemResp> ConsumeCharacterItemAsync(ConsumeItemReq req)
+    {
+        return await _client.ConsumeCharacterItemAsync(req);
+    }
+
     public static async Task SaveCharacterSessionDataAsync(ulong characterId, uint zoneId, uint outpostId, uint timePlayed)
     {
         var data = new SaveGameSessionData()

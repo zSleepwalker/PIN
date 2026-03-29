@@ -93,16 +93,87 @@ public class CharacterInventory
             _resources.Add(resource.SdbId, dbResource);
         }
 
-        // We still need hardcoded loadouts since we haven't modeled them in the database yet
-        foreach(var data in HardcodedCharacterData.TempHardcodedLoadouts)
+        foreach (var loadoutData in inventoryData.Loadouts)
         {
-            HardcodedCharacterData.GenerateLoadoutAndItems(this, data);
+            // Parse the loadout from the database format
+            var loadout = new Loadout
+            {
+                FrameLoadoutId = loadoutData.LoadoutId,
+                ChassisID = (uint)loadoutData.ChassisSdbId,
+                LoadoutName = $"Loadout {loadoutData.LoadoutId}",
+                LoadoutType = "battleframe"
+            };
+
+            if (!string.IsNullOrEmpty(loadoutData.Visuals))
+            {
+                try {
+                    var visuals = System.Text.Json.JsonSerializer.Deserialize<LoadoutConfig_Visual[]>(loadoutData.Visuals);
+                    if (visuals != null) {
+                        loadout.LoadoutConfigs[0].Visuals = visuals;
+                    }
+                } catch (Exception ex) {
+                    _shard.Logger.Error(ex, "Failed to parse loadout visuals for {charId}", _character.EntityId);
+                }
+            }
+
+            if (!string.IsNullOrEmpty(loadoutData.SlottedItems))
+            {
+                try {
+                    var items = System.Text.Json.JsonSerializer.Deserialize<Dictionary<byte, ulong>>(loadoutData.SlottedItems);
+                    if (items != null) {
+                        loadout.LoadoutConfigs[0].Items = items.Select(x => new LoadoutConfig_Item { SlotIndex = x.Key, ItemGUID = x.Value }).ToArray();
+                    }
+                } catch (Exception ex) {
+                    _shard.Logger.Error(ex, "Failed to parse loadout items for {charId}", _character.EntityId);
+                }
+            }
+
+            AddLoadout(loadout);
         }
 
-        foreach((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
+        // We still need hardcoded loadouts if the database didn't provide any for this chassis
+        // But eventually we want to move away from this completely
+        if (_loadouts.Count == 0)
         {
-            HardcodedCharacterData.GenerateCharCreateLoadoutAndItems(this, createId, chassisId);
+            foreach(var data in HardcodedCharacterData.TempHardcodedLoadouts)
+            {
+                HardcodedCharacterData.GenerateLoadoutAndItems(this, data);
+            }
+
+            foreach((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
+            {
+                HardcodedCharacterData.GenerateCharCreateLoadoutAndItems(this, createId, chassisId);
+            }
         }
+    }
+
+    public bool ConsumeItem(uint sdbId, uint quantity)
+    {
+        // Find items in inventory with this SDB ID
+        var itemsToConsume = _items.Values.Where(i => i.SdbId == sdbId).Take((int)quantity).ToList();
+        if (itemsToConsume.Count < quantity)
+        {
+            return false;
+        }
+
+        foreach (var item in itemsToConsume)
+        {
+            _items.Remove(item.GUID);
+            // Send update to client (TODO: implement SendItemRemove if needed, or send full inventory)
+        }
+
+        // Inform the backend database asynchronously to consume the items so it persists state
+        _ = GRPCService.ConsumeCharacterItemAsync(new GrpcGameServerAPIClient.ConsumeItemReq 
+        { 
+            CharacterId = (ulong)((NetworkPlayer)_player).CharacterId + 0xFE,
+            SdbId = sdbId,
+            Quantity = quantity 
+        });
+
+        // For now, send full inventory to be safe, though a partial remove would be better
+        SendFullInventory();
+
+        return true;
     }
 
     public async Task RefreshFromDatabase()
