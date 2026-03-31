@@ -1,8 +1,9 @@
-﻿using WebHost.ClientApi.Characters.Models;
+using System.Threading.Tasks;
+using WebHost.ClientApi.Characters.Models;
 
 namespace WebHost.ClientApi.Characters;
 
 public interface ICharactersRepository
 {
-    CharactersList GetCharacters();
+    Task<CharactersList> GetCharactersAsync(Microsoft.AspNetCore.Http.IHeaderDictionary headers);
 }

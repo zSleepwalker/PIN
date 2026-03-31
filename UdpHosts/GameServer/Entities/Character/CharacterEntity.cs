@@ -354,6 +354,9 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 PvPRank = remoteData.CharacterInfo.PvPRank,
                 EliteLevel = remoteData.CharacterInfo.EliteLevel,
                 StaffFlags = remoteData.CharacterInfo.StaffFlags,
+                Level = remoteData.CharacterInfo.Level,
+                EffectiveLevel = remoteData.CharacterInfo.EffectiveLevel,
+                VipLevel = remoteData.CharacterInfo.VipLevel,
             },
             CharacterVisuals = new Data.BasicCharacterVisuals()
             {
@@ -1460,7 +1463,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             AssetOverridesProp = AssetOverrides,
             FriendCountProp = 0, // :'(
             CAISStatusProp = new CAISStatusData { State = CAISStatusData.CAISState.None, Elapsed = 0 },
-            ScalingLevelProp = 0,
+            ScalingLevelProp = Level,
             PvPRankProp = PvPRank,
             PvPRankPointsProp = 0,
             PvPTokensProp = 0,
@@ -1563,7 +1566,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             CurrentEquipmentProp = CurrentEquipment,
             CurrentDurabilityPctProp = 100,
             CharacterStatsProp = CharacterStats,
-            ScalingLevelProp = 1,
+            ScalingLevelProp = Level,
             PvPRankProp = PvPRank,
             EliteLevelProp = EliteLevel,
             LevelProp = Level

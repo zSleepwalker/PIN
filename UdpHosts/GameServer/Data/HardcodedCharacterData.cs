@@ -31,6 +31,9 @@ public static class HardcodedCharacterData
             ArmyTag = ArmyTag,
             ArmyGuid = ArmyGUID,
             ArmyIsOfficer = true,
+            Level = 1,
+            EffectiveLevel = 1,
+            VipLevel = 0,
         },
         CharacterVisuals = new BasicCharacterVisuals()
         {

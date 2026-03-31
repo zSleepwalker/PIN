@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 
 namespace WebHost.ClientApi.Characters.Models;
@@ -17,6 +17,8 @@ public class Character
     public int MaxFrameLevel { get; set; }
     public int FrameSdbId { get; set; }
     public int CurrentLevel { get; set; }
+    public bool IsVip { get; set; }
+    public int VipRank { get; set; }
     public int Gender { get; set; }
     public string CurrentGender { get; set; }
     public int EliteRank { get; set; }

@@ -1,16 +1,14 @@
-﻿using System;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using Microsoft.AspNetCore.Mvc;
-using WebHost.ClientApi.Accounts.Models;
-using WebHost.ClientApi.Characters.Models;
-
-namespace WebHost.ClientApi.Accounts;
 
 [ApiController]
 public class AccountsController : ControllerBase
 {
     private static ConcurrentDictionary<uint, GarageSlots> _garageSlots;
+    private readonly IRinClient _rinClient;
+
+    public AccountsController(IRinClient rinClient)
+    {
+        _rinClient = rinClient;
+    }
 
     [Route("api/v2/accounts")]
     [HttpPost]
@@ -21,21 +19,31 @@ public class AccountsController : ControllerBase
 
     [Route("api/v2/accounts/login")]
     [HttpPost]
-    public AccountStatus Login()
+    public async Task<AccountStatus> Login()
     {
-        return new AccountStatus
-               {
-                   AccountId = 0x1122334455667788,
-                   CanLogin = true,
-                   IsDev = false,
-                   SteamAuthPrompt = false,
-                   SkipPrecursor = false,
-                   CaisStatus = new CaisStatus { Duration = 0, ExpiresAt = 0, State = "disabled" },
-                   CharacterLimit = 40,
-                   IsVip = true,
-                   VipExpiration = 0,
-                   CreatedAt = new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()
-               };
+        try
+        {
+            var json = await _rinClient.PostAsync("api/v2/accounts/login", new { }, Request.Headers);
+            var rinResp = JsonSerializer.Deserialize<AccountStatus>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            return rinResp;
+        }
+        catch (Exception)
+        {
+            // Fallback to mock if RIN is down
+            return new AccountStatus
+                   {
+                       AccountId = 0x1122334455667788,
+                       CanLogin = true,
+                       IsDev = false,
+                       SteamAuthPrompt = false,
+                       SkipPrecursor = false,
+                       CaisStatus = new CaisStatus { Duration = 0, ExpiresAt = 0, State = "disabled" },
+                       CharacterLimit = 40,
+                       IsVip = false,
+                       VipExpiration = -1,
+                       CreatedAt = new DateTimeOffset(DateTime.Now).ToUnixTimeSeconds()
+                   };
+        }
     }
 
     [Route("api/v2/accounts/current/status")]

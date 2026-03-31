@@ -1,4 +1,4 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Microsoft.AspNetCore.Mvc;
 using WebHost.ClientApi.Characters.Models;
 
@@ -14,12 +14,6 @@ public class CharactersController : ControllerBase
         _charactersRepository = charactersRepository;
     }
 
-    [Route("api/v2/characters/list")]
-    [HttpGet]
-    public CharactersList GetCharactersList()
-    {
-        return _charactersRepository.GetCharacters();
-    }
 
     [Route("api/v1/characters/{characterId}/data")]
     [HttpGet]
