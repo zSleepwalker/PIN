@@ -75,8 +75,17 @@ public class Factory
         // :) Fix this null terminator later
         if (commandTypeRec.Environment == "client\0")
         {
-            // Far as I know we don't care about client commands on the server, though the params can be helpful.
-            return new CustomNOOPCommand(commandType.ToString(), commandId);
+            switch (commandType)
+            {
+                case CommandType.Notification:
+                    return new NotificationCommand(commandId);
+                case CommandType.ParticleEffectAsset:
+                    return new ParticleEffectAssetCommand(commandId);
+                case CommandType.AudioFeedback:
+                    return new AudioFeedbackCommand(commandId);
+                default:
+                    return new CustomNOOPCommand(commandType.ToString(), commandId);
+            }
         }
 
         // All command types having environment of either `both` or `server` were added below
@@ -84,7 +93,8 @@ public class Factory
         // or have zero instances in SDB (for environment `both`) or BaseCommandDef (for environment `server`)
         switch ((CommandType)commandTypeRec.Id)
         {
-            // case CommandType.ActiveInitiation:
+            case CommandType.ActiveInitiation:
+                return new ActiveInitiationCommand(SDBInterface.GetActiveInitiationCommandDef(commandId));
             // Factory entries for recently activated Aptitude commands
             // Target Commands
             case CommandType.ImpactApplyEffect:
@@ -123,8 +133,6 @@ public class Factory
                 return new PassiveInitiationCommand(SDBInterface.GetPassiveInitiationCommandDef(commandId));
             case CommandType.StagedActivation:
                 return new StagedActivationCommand(SDBInterface.GetStagedActivationCommandDef(commandId));
-            case CommandType.ActivationDuration:
-                return new ActivationDurationCommand(SDBInterface.GetActivationDurationCommandDef(commandId));
             // case CommandType.TeleportInstance:
             //     return new TeleportInstanceCommand(CustomDBInterface.GetTeleportInstanceCommandDef(commandId));
             case CommandType.ResetTrauma:
@@ -167,10 +175,6 @@ public class Factory
                 return new LifespanDurationCommand(CustomDBInterface.GetLifespanDurationCommandDef(commandId));
             case CommandType.ForcePush:
                 return new ForcePushCommand(SDBInterface.GetForcePushCommandDef(commandId));
-            // case CommandType.UpdateYield:
-            //     return new UpdateYieldCommand(SDBInterface.GetUpdateYieldCommandDef(commandId));
-            case CommandType.AirborneDuration:
-                return new AirborneDurationCommand(SDBInterface.GetAirborneDurationCommandDef(commandId));
             // case CommandType.CombatFlags:
             //     return new CombatFlagsCommand(SDBInterface.GetCombatFlagsCommandDef(commandId));
             // case CommandType.RequestEffect:
@@ -191,6 +195,8 @@ public class Factory
                 return new BullrushCommand(SDBInterface.GetBullrushCommandDef(commandId));
             case CommandType.EnergyToDamage:
                 return new EnergyToDamageCommand(SDBInterface.GetEnergyToDamageCommandDef(commandId));
+            case CommandType.AirborneDuration:
+                return new AirborneDurationCommand(SDBInterface.GetAirborneDurationCommandDef(commandId));
             // case CommandType.RequireGrapple:
             //     Zero instances in BaseCommandDef
             // case CommandType.RequireAbilityObject:
@@ -641,8 +647,8 @@ public class Factory
                 return new ModifyDamageByTargetHealthCommand(CustomDBInterface.GetModifyDamageByTargetHealthCommandDef(commandId));
             case CommandType.ModifyDamageByTargetDamageResponse:
                 return new ModifyDamageByTargetDamageResponseCommand(CustomDBInterface.GetModifyDamageByTargetDamageResponseCommandDef(commandId));
-            // case CommandType.AddAccountGroup:
-            //     return new AddAccountGroupCommand(CustomDBInterface.GetAddAccountGroupCommandDef(commandId));
+            case CommandType.AddAccountGroup:
+                return new AddAccountGroupCommand(CustomDBInterface.GetAddAccountGroupCommandDef(commandId));
             case CommandType.RequireInitiatorExists:
                 return new RequireInitiatorExistsCommand(CustomDBInterface.GetRequireInitiatorExistsCommandDef(commandId));
             case CommandType.RegisterTimedTrigger:

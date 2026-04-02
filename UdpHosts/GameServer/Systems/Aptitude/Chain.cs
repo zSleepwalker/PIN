@@ -5,6 +5,11 @@ namespace GameServer.Aptitude;
 
 public class Chain
 {
+    private static readonly HashSet<uint> SuppressedDebugChains = new()
+    {
+        1508823,
+    };
+
     public uint Id = 0;
     public List<ICommand> Commands;
 
@@ -23,7 +28,8 @@ public class Chain
 
     public bool Execute(Context context, ExecutionMethod method = ExecutionMethod.AndChain)
     {
-        bool debug = context.ExecutionHint is not (ExecutionHint.DurationEffect or ExecutionHint.UpdateEffect);
+        bool debug = context.ExecutionHint is not (ExecutionHint.DurationEffect or ExecutionHint.UpdateEffect)
+            && !SuppressedDebugChains.Contains(Id);
 
         if (debug)
         {

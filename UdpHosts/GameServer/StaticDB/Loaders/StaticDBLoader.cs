@@ -8,7 +8,7 @@ using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
 using Records.dbitems;
-using Records.dbviusalrecords;
+using Records.dbvisualrecords;
 using Records.vcs;
 using Shared.Common;
 using static FauFau.Formats.StaticDB;
@@ -23,17 +23,120 @@ public class StaticDBLoader : ISDBLoader
         { "OrnamentsMapGroupId2", "ornaments_map_group_id_2" }, // dbitems::Weapons
         { "FlightFx1stPersonId", "flight_fx_1st_person_id" }, // dbitems::Ammo
     };
+    
+    // Chain-critical tables: for these, duplicate handling is strict and logged
+    private static readonly HashSet<string> ChainCriticalTables = new()
+    {
+        "apt::BaseCommandDef",        // Backbone of all ability chains (Next ptr linked list)
+        "apt::AbilityData",           // Ability entry point (Chain field)
+        "apt::StatusEffectData",      // Status effects (ApplyChain, RemoveChain, UpdateChain, DurationChain)
+        "apt::ConditionalBranchCommandDef",      // Branching (IfChain, ThenChain, ElseChain)
+        "apt::WhileLoopCommandDef",               // Looping (BodyChain, ConditionChain)
+        "apt::LogicOrChainCommandDef",            // Logic (OrChain)
+        "apt::LogicOrCommandDef",                 // Logic (AChain, BChain)
+        "apt::LogicAndChainCommandDef",           // Logic (AndChain)
+        "apt::LogicNegateCommandDef",             // Logic (NegateChain)
+        "apt::ImpactToggleEffectCommandDef",      // Effect toggle (PreApplyChain)
+        "apt::UpdateWaitAndFireOnceCommandDef",   // Fire command (Chain)
+        "apt::RegisterClientProximityCommandDef", // Proximity registration (Chain)
+        "aptfs::InteractionTypeCommandDef",       // Interaction handling
+        "dbitems::AbilityModule",                 // Item-to-ability bridge (AbilityChainId field)
+        "dbitems::ItemSetAbilityEntries",         // Item set ability entries (AbilityChainId field)
+        "dbitems::RootItem",                      // Root items (affects client loading)
+        "dbitems::Battleframe",                   // Battleframes (affects abilities)
+        "dbcharacter::CharCreateLoadout",         // Character loadouts
+        "dbcharacter::Deployable",                // Deployables (ability references)
+    };
+    
+    // Per-table duplicate resolution policy: how to handle duplicate keys
+    // "Keep" = use first, "Last" = use last, "Skip" = warn and skip
+    private static readonly Dictionary<string, string> DuplicatePolicy = new()
+    {
+        { "apt::BaseCommandDef", "Keep" },         // Backbone: must be deterministic, usually only one real entry
+        { "apt::AbilityData", "Keep" },            // Entry point: first is canonical
+        { "apt::StatusEffectData", "Keep" },       // Effect data: first is canonical
+        { "dbitems::AttributeRange", "Last" },     // Special case: known duplicates, last is observed in-game (see comment in original)
+        { "dbitems::RootItem", "Keep" },           // Items: first instance
+    };
+    
     private static StaticDB sdb;
+    private static List<string> LoadDiagnostics = new();
 
     public StaticDBLoader(StaticDB instance)
     {
         sdb = instance;
+        LoadDiagnostics.Clear();
     }
 
-    public Dictionary<uint, CharCreateLoadout> LoadCharCreateLoadout() 
+    /// <summary>
+    /// Get accumulated diagnostics from the load session and clear them.
+    /// Call this after all loads are complete to retrieve warnings.
+    /// </summary>
+    /// <returns>List of diagnostic messages from the load session.</returns>
+    public List<string> GetAndClearDiagnostics()
+    {
+        var result = new List<string>(LoadDiagnostics);
+        LoadDiagnostics.Clear();
+        return result;
+    }
+
+    /// <summary>
+    /// Resolve duplicates according to table-specific policy. For chain-critical tables,
+    /// logs the decision. Non-critical tables silently use First().
+    /// </summary>
+    /// <typeparam name="TKey">The type of the grouping key.</typeparam>
+    /// <typeparam name="T">The type of the record being grouped.</typeparam>
+    /// <param name="tableName">The table name for diagnostics.</param>
+    /// <param name="group">The group of duplicate records with the same key.</param>
+    /// <returns>The selected record from the group.</returns>
+    private static T ResolveDuplicate<TKey, T>(
+        string tableName,
+        IGrouping<TKey, T> group) where T : class
+    {
+        if (group.Count() <= 1)
+        {
+            return group.First();
+        }
+
+        string policy = "Keep"; // Default behavior
+        if (DuplicatePolicy.TryGetValue(tableName, out var tablePolicy))
+        {
+            policy = tablePolicy;
+        }
+
+        T selected = policy == "Last" ? group.Last() : group.First();
+
+        if (ChainCriticalTables.Contains(tableName))
+        {
+            var keyStr = group.Key?.ToString() ?? "null";
+            LoadDiagnostics.Add(
+                $"[CHAIN-CRITICAL] Table {tableName} key={keyStr}: found {group.Count()} duplicates, keeping {policy.ToLower()} (ID={GetIdField(selected)})");
+        }
+
+        return selected;
+    }
+
+    /// <summary>
+    /// Extract ID field from any record type for logging.
+    /// </summary>
+    /// <param name="record">The record to extract the ID from.</param>
+    /// <returns>The ID field value as a string, or "?" if not found.</returns>
+    private static string GetIdField(object record)
+    {
+        if (record == null)
+        {
+            return "null";
+        }
+
+        var idProp = record.GetType().GetProperty("Id");
+        return idProp?.GetValue(record)?.ToString() ?? "?";
+    }
+
+    public Dictionary<uint, CharCreateLoadout> LoadCharCreateLoadout()
     {
         return LoadStaticDB<CharCreateLoadout>("dbcharacter::CharCreateLoadout")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, CharCreateLoadout>("dbcharacter::CharCreateLoadout", group));
     }
 
     public Dictionary<uint, Dictionary<byte, CharCreateLoadoutSlots>> LoadCharCreateLoadoutSlots() 
@@ -46,37 +149,43 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, Deployable> LoadDeployable()
     {
         return LoadStaticDB<Deployable>("dbcharacter::Deployable")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, Deployable>("dbcharacter::Deployable", group));
     }
 
     public Dictionary<uint, Monster> LoadMonster()
     {
         return LoadStaticDB<Monster>("dbcharacter::Monster")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, Turret> LoadTurret()
     {
         return LoadStaticDB<Turret>("dbcharacter::Turret")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, WarpaintPalette> LoadWarpaintPalettes() 
     {
         return LoadStaticDB<WarpaintPalette>("dbvisualrecords::WarpaintPalette")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AttributeCategory> LoadAttributeCategory() 
     {
         return LoadStaticDB<AttributeCategory>("dbitems::AttributeCategory")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AttributeDefinition> LoadAttributeDefinition() 
     {
         return LoadStaticDB<AttributeDefinition>("dbitems::AttributeDefinition")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<KeyValuePair<uint, ushort>, AttributeRange> LoadAttributeRange() 
@@ -90,728 +199,728 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<KeyValuePair<uint, ushort>, ItemModuleScalars> LoadItemModuleScalars() 
     {
         return LoadStaticDB<ItemModuleScalars>("dbitems::ItemModuleScalars")
-        .ToDictionary(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeCategory));
+        .GroupBy(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeCategory))
+        .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<KeyValuePair<uint, ushort>, ItemCharacterScalars> LoadItemCharacterScalars() 
     {
         return LoadStaticDB<ItemCharacterScalars>("dbitems::ItemCharacterScalars")
-        .ToDictionary(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeCategory));
+        .GroupBy(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeCategory))
+        .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, RootItem> LoadRootItem() 
+    public Dictionary<uint, RootItem> LoadRootItem()
     {
         return LoadStaticDB<RootItem>("dbitems::RootItem")
-        .ToDictionary(row => row.SdbId);
+            .GroupBy(row => row.SdbId)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, RootItem>("dbitems::RootItem", group));
     }
 
-    public Dictionary<uint, Battleframe> LoadBattleframe() 
+    public Dictionary<uint, Battleframe> LoadBattleframe()
     {
         return LoadStaticDB<Battleframe>("dbitems::Battleframe")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, Battleframe>("dbitems::Battleframe", group));
     }
 
     public Dictionary<uint, AbilityModule> LoadAbilityModule()
     {
         return LoadStaticDB<AbilityModule>("dbitems::AbilityModule")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, AbilityModule>("dbitems::AbilityModule", group));
     }
 
     public Dictionary<uint, CarryableObject> LoadCarryableObject()
     {
         return LoadStaticDB<CarryableObject>("dbitems::CarryableObject")
-        .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, BaseCommandDef> LoadBaseCommandDef()
     {
         return LoadStaticDB<BaseCommandDef>("apt::BaseCommandDef")
-        .ToDictionary(row => row.Id); 
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, BaseCommandDef>("apt::BaseCommandDef", group)); 
     }
 
     public Dictionary<uint, CommandType> LoadCommandType()
     {
         return LoadStaticDB<CommandType>("apt::CommandType")
-        .ToDictionary(row => row.Id); 
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First()); 
     }
 
     public Dictionary<uint, AbilityData> LoadAbilityData()
     {
         return LoadStaticDB<AbilityData>("apt::AbilityData")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, AbilityData>("apt::AbilityData", group));
+    }
+
+    public Dictionary<uint, ActiveInitiationCommandDef> LoadActiveInitiationTypeCommandDef()
+    {
+        return LoadStaticDB<ActiveInitiationCommandDef>("apt::ActiveInitiationCommandDef")
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ImpactApplyEffectCommandDef> LoadImpactApplyEffectCommandDef()
     {
         return LoadStaticDB<ImpactApplyEffectCommandDef>("apt::ImpactApplyEffectCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ImpactToggleEffectCommandDef> LoadImpactToggleEffectCommandDef()
     {
         return LoadStaticDB<ImpactToggleEffectCommandDef>("apt::ImpactToggleEffectCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, ImpactToggleEffectCommandDef>("apt::ImpactToggleEffectCommandDef", group));
     }
 
     public Dictionary<uint, ConditionalBranchCommandDef> LoadConditionalBranchCommandDef()
     {
         return LoadStaticDB<ConditionalBranchCommandDef>("apt::ConditionalBranchCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, ConditionalBranchCommandDef>("apt::ConditionalBranchCommandDef", group));
     }
 
     public Dictionary<uint, WhileLoopCommandDef> LoadWhileLoopCommandDef()
     {
         return LoadStaticDB<WhileLoopCommandDef>("apt::WhileLoopCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, WhileLoopCommandDef>("apt::WhileLoopCommandDef", group));
     }
 
     public Dictionary<uint, LogicNegateCommandDef> LoadLogicNegateCommandDef()
     {
         return LoadStaticDB<LogicNegateCommandDef>("apt::LogicNegateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, LogicNegateCommandDef>("apt::LogicNegateCommandDef", group));
     }
 
     public Dictionary<uint, LogicOrCommandDef> LoadLogicOrCommandDef()
     {
         return LoadStaticDB<LogicOrCommandDef>("apt::LogicOrCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, LogicOrCommandDef>("apt::LogicOrCommandDef", group));
     }
 
     public Dictionary<uint, LogicOrChainCommandDef> LoadLogicOrChainCommandDef()
     {
         return LoadStaticDB<LogicOrChainCommandDef>("apt::LogicOrChainCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, LogicOrChainCommandDef>("apt::LogicOrChainCommandDef", group));
     }
 
     public Dictionary<uint, LogicAndChainCommandDef> LoadLogicAndChainCommandDef()
     {
         return LoadStaticDB<LogicAndChainCommandDef>("apt::LogicAndChainCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, LogicAndChainCommandDef>("apt::LogicAndChainCommandDef", group));
     }
 
     public Dictionary<uint, CallCommandDef> LoadCallCommandDef()
     {
         return LoadStaticDB<CallCommandDef>("apt::CallCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, InstantActivationCommandDef> LoadInstantActivationCommandDef()
     {
         return LoadStaticDB<InstantActivationCommandDef>("apt::InstantActivationCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, StagedActivationCommandDef> LoadStagedActivationCommandDef()
     {
         return LoadStaticDB<StagedActivationCommandDef>("apt::StagedActivationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, StatusEffectData> LoadStatusEffectData()
     {
         return LoadStaticDB<StatusEffectData>("apt::StatusEffectData")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, StatusEffectData>("apt::StatusEffectData", group));
     }
 
     public Dictionary<uint, HashSet<uint>> LoadStatusEffectTags()
     {
         return LoadStaticDB<StatusEffectTags>("apt::StatusEffectTags")
-               .GroupBy(row => row.TagtypeId)
-            .ToDictionary(group => group.Key, group => group.Select(item => item.StatusfxId).ToHashSet());
+               .GroupBy(row => row.StatusfxId)
+            .ToDictionary(group => group.Key, group => group.Select(item => item.TagtypeId).ToHashSet());
     }
 
     public Dictionary<uint, TargetPBAECommandDef> LoadTargetPBAECommandDef()
     {
         return LoadStaticDB<TargetPBAECommandDef>("apt::TargetPBAECommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetConeAECommandDef> LoadTargetConeAECommandDef()
     {
         return LoadStaticDB<TargetConeAECommandDef>("apt::TargetConeAECommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetClearCommandDef> LoadTargetClearCommandDef()
     {
         return LoadStaticDB<TargetClearCommandDef>("apt::TargetClearCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetSelfCommandDef> LoadTargetSelfCommandDef()
     {
         return LoadStaticDB<TargetSelfCommandDef>("apt::TargetSelfCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetInitiatorCommandDef> LoadTargetInitiatorCommandDef()
     {
         return LoadStaticDB<TargetInitiatorCommandDef>("apt::TargetInitiatorCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetSwapCommandDef> LoadTargetSwapCommandDef()
     {
         return LoadStaticDB<TargetSwapCommandDef>("apt::TargetSwapCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetStackEmptyCommandDef> LoadTargetStackEmptyCommandDef()
     {
         return LoadStaticDB<TargetStackEmptyCommandDef>("apt::TargetStackEmptyCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PeekTargetsCommandDef> LoadPeekTargetsCommandDef()
     {
         return LoadStaticDB<PeekTargetsCommandDef>("apt::PeekTargetsCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PopTargetsCommandDef> LoadPopTargetsCommandDef()
     {
         return LoadStaticDB<PopTargetsCommandDef>("apt::PopTargetsCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PushTargetsCommandDef> LoadPushTargetsCommandDef()
     {
         return LoadStaticDB<PushTargetsCommandDef>("apt::PushTargetsCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetFriendliesCommandDef> LoadTargetFriendliesCommandDef()
     {
         return LoadStaticDB<TargetFriendliesCommandDef>("aptfs::TargetFriendliesCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByEffectCommandDef> LoadTargetByEffectCommandDef()
     {
         return LoadStaticDB<TargetByEffectCommandDef>("aptfs::TargetByEffectCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByEffectTagCommandDef> LoadTargetByEffectTagCommandDef()
     {
         return LoadStaticDB<TargetByEffectTagCommandDef>("aptfs::TargetByEffectTagCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetOwnerCommandDef> LoadTargetOwnerCommandDef()
     {
         return LoadStaticDB<TargetOwnerCommandDef>("aptfs::TargetOwnerCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByObjectTypeCommandDef> LoadTargetByObjectTypeCommandDef()
     {
         return LoadStaticDB<TargetByObjectTypeCommandDef>("aptfs::TargetByObjectTypeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetHostilesCommandDef> LoadTargetHostilesCommandDef()
     {
         return LoadStaticDB<TargetHostilesCommandDef>("aptfs::TargetHostilesCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByCharacterStateCommandDef>  LoadTargetByCharacterStateCommandDef()
     {
         return LoadStaticDB<TargetByCharacterStateCommandDef>("aptfs::TargetByCharacterStateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, InflictDamageCommandDef> LoadInflictDamageCommandDef()
     {
         return LoadStaticDB<InflictDamageCommandDef>("aptfs::InflictDamageCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ForcePushCommandDef> LoadForcePushCommandDef()
     {
         return LoadStaticDB<ForcePushCommandDef>("aptfs::ForcePushCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequestBattleFrameListCommandDef> LoadRequestBattleFrameListCommandDef()
     {
         return LoadStaticDB<RequestBattleFrameListCommandDef>("aptfs::RequestBattleFrameListCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ApplyImpulseCommandDef> LoadApplyImpulseCommandDef()
     {
         return LoadStaticDB<ApplyImpulseCommandDef>("aptfs::ApplyImpulseCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DeployableCalldownCommandDef> LoadDeployableCalldownCommandDef()
     {
         return LoadStaticDB<DeployableCalldownCommandDef>("aptfs::DeployableCalldownCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, VehicleCalldownCommandDef> LoadVehicleCalldownCommandDef()
     {
         return LoadStaticDB<VehicleCalldownCommandDef>("aptfs::VehicleCalldownCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, FireProjectileCommandDef> LoadFireProjectileCommandDef()
     {
         return LoadStaticDB<FireProjectileCommandDef>("aptfs::FireProjectileCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ResourceNodeBeaconCalldownCommandDef> LoadResourceNodeBeaconCalldownCommandDef()
     {
         return LoadStaticDB<ResourceNodeBeaconCalldownCommandDef>("aptfs::ResourceNodeBeaconCalldownCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AttemptToCalldownVehicleCommandDef> LoadAttemptToCalldownVehicleCommandDef()
     {
         return LoadStaticDB<AttemptToCalldownVehicleCommandDef>("aptfs::AttemptToCalldownVehicleCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RegisterClientProximityCommandDef> LoadRegisterClientProximityCommandDef()
     {
         return LoadStaticDB<RegisterClientProximityCommandDef>("aptfs::RegisterClientProximityCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, RegisterClientProximityCommandDef>("aptfs::RegisterClientProximityCommandDef", group));
     }
 
     public Dictionary<uint, CombatFlagsCommandDef> LoadCombatFlagsCommandDef()
     {
         return LoadStaticDB<CombatFlagsCommandDef>("aptfs::CombatFlagsCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ApplyFreezeCommandDef> LoadApplyFreezeCommandDef()
     {
         return LoadStaticDB<ApplyFreezeCommandDef>("aptfs::ApplyFreezeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, OrientationLockCommandDef> LoadOrientationLockCommandDef()
     {
         return LoadStaticDB<OrientationLockCommandDef>("aptfs::OrientationLockCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, StatModifierCommandDef> LoadStatModifierCommandDef()
     {
         return LoadStaticDB<StatModifierCommandDef>("aptfs::StatModifierCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireAimModeCommandDef> LoadRequireAimModeCommandDef()
     {
         return LoadStaticDB<RequireAimModeCommandDef>("aptfs::RequireAimModeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireArmyCommandDef> LoadRequireArmyCommandDef()
     {
         return LoadStaticDB<RequireArmyCommandDef>("aptfs::RequireArmyCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireBackstabCommandDef> LoadRequireBackstabCommandDef()
     {
         return LoadStaticDB<RequireBackstabCommandDef>("aptfs::RequireBackstabCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireBulletHitCommandDef> LoadRequireBulletHitCommandDef()
     {
         return LoadStaticDB<RequireBulletHitCommandDef>("aptfs::RequireBulletHitCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireCAISStateCommandDef> LoadRequireCAISStateCommandDef()
     {
         return LoadStaticDB<RequireCAISStateCommandDef>("aptfs::RequireCAISStateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireCStateCommandDef> LoadRequireCStateCommandDef()
     {
         return LoadStaticDB<RequireCStateCommandDef>("aptfs::RequireCStateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireDamageResponseCommandDef> LoadRequireDamageResponseCommandDef()
     {
         return LoadStaticDB<RequireDamageResponseCommandDef>("aptfs::RequireDamageResponseCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireEliteLevelCommandDef> LoadRequireEliteLevelCommandDef()
     {
         return LoadStaticDB<RequireEliteLevelCommandDef>("aptfs::RequireEliteLevelCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireEnergyByRangeCommandDef> LoadRequireEnergyByRangeCommandDef()
     {
         return LoadStaticDB<RequireEnergyByRangeCommandDef>("aptfs::RequireEnergyByRangeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireEnergyCommandDef> LoadRequireEnergyCommandDef()
     {
         return LoadStaticDB<RequireEnergyCommandDef>("aptfs::RequireEnergyCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireEnergyFromTargetCommandDef> LoadRequireEnergyFromTargetCommandDef()
     {
         return LoadStaticDB<RequireEnergyFromTargetCommandDef>("aptfs::RequireEnergyFromTargetCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireEquippedItemCommandDef> LoadRequireEquippedItemCommandDef()
     {
         return LoadStaticDB<RequireEquippedItemCommandDef>("aptfs::RequireEquippedItemCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireFriendsCommandDef> LoadRequireFriendsCommandDef()
     {
         return LoadStaticDB<RequireFriendsCommandDef>("aptfs::RequireFriendsCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireHasCertificateCommandDef> LoadRequireHasCertificateCommandDef()
     {
         return LoadStaticDB<RequireHasCertificateCommandDef>("aptfs::RequireHasCertificateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireHasEffectCommandDef> LoadRequireHasEffectCommandDef()
     {
         return LoadStaticDB<RequireHasEffectCommandDef>("aptfs::RequireHasEffectCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireHasEffectTagCommandDef> LoadRequireHasEffectTagCommandDef()
     {
         return LoadStaticDB<RequireHasEffectTagCommandDef>("aptfs::RequireHasEffectTagCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireHasItemCommandDef> LoadRequireHasItemCommandDef()
     {
         return LoadStaticDB<RequireHasItemCommandDef>("aptfs::RequireHasItemCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireHasUnlockCommandDef> LoadRequireHasUnlockCommandDef()
     {
         return LoadStaticDB<RequireHasUnlockCommandDef>("aptfs::RequireHasUnlockCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireHeadshotCommandDef> LoadRequireHeadshotCommandDef()
     {
         return LoadStaticDB<RequireHeadshotCommandDef>("aptfs::RequireHeadshotCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireInCombatCommandDef> LoadRequireInCombatCommandDef()
     {
         return LoadStaticDB<RequireInCombatCommandDef>("aptfs::RequireInCombatCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireInRangeCommandDef> LoadRequireInRangeCommandDef()
     {
         return LoadStaticDB<RequireInRangeCommandDef>("aptfs::RequireInRangeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireInVehicleCommandDef> LoadRequireInVehicleCommandDef()
     {
         return LoadStaticDB<RequireInVehicleCommandDef>("aptfs::RequireInVehicleCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireIsNPCCommandDef> LoadRequireIsNPCCommandDef()
     {
         return LoadStaticDB<RequireIsNPCCommandDef>("aptfs::RequireIsNPCCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireItemAttributeCommandDef> LoadRequireItemAttributeCommandDef()
     {
         return LoadStaticDB<RequireItemAttributeCommandDef>("aptfs::RequireItemAttributeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireItemDurabilityCommandDef> LoadRequireItemDurabilityCommandDef()
     {
         return LoadStaticDB<RequireItemDurabilityCommandDef>("aptfs::RequireItemDurabilityCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireJumpedCommandDef> LoadRequireJumpedCommandDef()
     {
         return LoadStaticDB<RequireJumpedCommandDef>("aptfs::RequireJumpedCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireLevelCommandDef> LoadRequireLevelCommandDef()
     {
         return LoadStaticDB<RequireLevelCommandDef>("aptfs::RequireLevelCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireLineOfSightCommandDef> LoadRequireLineOfSightCommandDef()
     {
         return LoadStaticDB<RequireLineOfSightCommandDef>("aptfs::RequireLineOfSightCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequirementServerCommandDef> LoadRequirementServerCommandDef()
     {
         return LoadStaticDB<RequirementServerCommandDef>("aptfs::RequirementServerCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireMovementFlagsCommandDef> LoadRequireMovementFlagsCommandDef()
     {
         return LoadStaticDB<RequireMovementFlagsCommandDef>("aptfs::RequireMovementFlagsCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireMovestateCommandDef> LoadRequireMovestateCommandDef()
     {
         return LoadStaticDB<RequireMovestateCommandDef>("aptfs::RequireMovestateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireMovingCommandDef> LoadRequireMovingCommandDef()
     {
         return LoadStaticDB<RequireMovingCommandDef>("aptfs::RequireMovingCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireNeedsAmmoCommandDef> LoadRequireNeedsAmmoCommandDef()
     {
         return LoadStaticDB<RequireNeedsAmmoCommandDef>("aptfs::RequireNeedsAmmoCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireNotRespawnedCommandDef> LoadRequireNotRespawnedCommandDef()
     {
         return LoadStaticDB<RequireNotRespawnedCommandDef>("aptfs::RequireNotRespawnedCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequirePermissionCommandDef> LoadRequirePermissionCommandDef()
     {
         return LoadStaticDB<RequirePermissionCommandDef>("aptfs::RequirePermissionCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireProjectileSlopeCommandDef> LoadRequireProjectileSlopeCommandDef()
     {
         return LoadStaticDB<RequireProjectileSlopeCommandDef>("aptfs::RequireProjectileSlopeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireReloadCommandDef> LoadRequireReloadCommandDef()
     {
         return LoadStaticDB<RequireReloadCommandDef>("aptfs::RequireReloadCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireResourceCommandDef> LoadRequireResourceCommandDef()
     {
         return LoadStaticDB<RequireResourceCommandDef>("aptfs::RequireResourceCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireResourceFromTargetCommandDef> LoadRequireResourceFromTargetCommandDef()
     {
         return LoadStaticDB<RequireResourceFromTargetCommandDef>("aptfs::RequireResourceFromTargetCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireSinAcquiredCommandDef> LoadRequireSinAcquiredCommandDef()
     {
         return LoadStaticDB<RequireSinAcquiredCommandDef>("aptfs::RequireSinAcquiredCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireSprintModifierCommandDef> LoadRequireSprintModifierCommandDef()
     {
         return LoadStaticDB<RequireSprintModifierCommandDef>("aptfs::RequireSprintModifierCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireSquadLeaderCommandDef> LoadRequireSquadLeaderCommandDef()
     {
         return LoadStaticDB<RequireSquadLeaderCommandDef>("aptfs::RequireSquadLeaderCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireSuperChargeCommandDef> LoadRequireSuperChargeCommandDef()
     {
         return LoadStaticDB<RequireSuperChargeCommandDef>("aptfs::RequireSuperChargeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireTookDamageCommandDef> LoadRequireTookDamageCommandDef()
     {
         return LoadStaticDB<RequireTookDamageCommandDef>("aptfs::RequireTookDamageCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireWeaponArmedCommandDef> LoadRequireWeaponArmedCommandDef()
     {
         return LoadStaticDB<RequireWeaponArmedCommandDef>("aptfs::RequireWeaponArmedCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireWeaponTemplateCommandDef> LoadRequireWeaponTemplateCommandDef()
     {
         return LoadStaticDB<RequireWeaponTemplateCommandDef>("aptfs::RequireWeaponTemplateCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireZoneTypeCommandDef> LoadRequireZoneTypeCommandDef()
     {
         return LoadStaticDB<RequireZoneTypeCommandDef>("aptfs::RequireZoneTypeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequireDamageTypeCommandDef> LoadRequireDamageTypeCommandDef()
     {
         return LoadStaticDB<RequireDamageTypeCommandDef>("apt::RequireDamageTypeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TimeDurationCommandDef> LoadTimeDurationCommandDef()
     {
         return LoadStaticDB<TimeDurationCommandDef>("apt::TimeDurationCommandDef")
-        .ToDictionary(row => row.Id);
-    }
-
-    public Dictionary<uint, AirborneDurationCommandDef> LoadAirborneDurationCommandDef()
-    {
-        return LoadStaticDB<AirborneDurationCommandDef>("aptfs::AirborneDurationCommandDef")
-        .ToDictionary(row => row.Id);
-    }
-
-    public Dictionary<uint, ActivationDurationCommandDef> LoadActivationDurationCommandDef()
-    {
-        return LoadStaticDB<ActivationDurationCommandDef>("aptfs::ActivationDurationCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ReturnCommandDef> LoadReturnCommandDef()
     {
         return LoadStaticDB<ReturnCommandDef>("apt::ReturnCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromItemStatCommandDef> LoadLoadRegisterFromItemStatCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromItemStatCommandDef>("apt::LoadRegisterFromItemStatCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromBonusCommandDef> LoadLoadRegisterFromBonusCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromBonusCommandDef>("apt::LoadRegisterFromBonusCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromDamageCommandDef> LoadLoadRegisterFromDamageCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromDamageCommandDef>("apt::LoadRegisterFromDamageCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromLevelCommandDef> LoadLoadRegisterFromLevelCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromLevelCommandDef>("apt::LoadRegisterFromLevelCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromModulePowerCommandDef> LoadLoadRegisterFromModulePowerCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromModulePowerCommandDef>("apt::LoadRegisterFromModulePowerCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromNamedVarCommandDef> LoadLoadRegisterFromNamedVarCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromNamedVarCommandDef>("apt::LoadRegisterFromNamedVarCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromResourceCommandDef> LoadLoadRegisterFromResourceCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromResourceCommandDef>("apt::LoadRegisterFromResourceCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, LoadRegisterFromStatCommandDef> LoadLoadRegisterFromStatCommandDef()
     {
         return LoadStaticDB<LoadRegisterFromStatCommandDef>("apt::LoadRegisterFromStatCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RegisterComparisonCommandDef> LoadRegisterComparisonCommandDef()
     {
         return LoadStaticDB<RegisterComparisonCommandDef>("apt::RegisterComparisonCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RegisterRandomCommandDef> LoadRegisterRandomCommandDef()
     {
         return LoadStaticDB<RegisterRandomCommandDef>("apt::RegisterRandomCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SetRegisterCommandDef> LoadSetRegisterCommandDef()
     {
         return LoadStaticDB<SetRegisterCommandDef>("apt::SetRegisterCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, NamedVariableAssignCommandDef> LoadNamedVariableAssignCommandDef()
     {
         return LoadStaticDB<NamedVariableAssignCommandDef>("apt::NamedVariableAssignCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, InflictCooldownCommandDef> LoadInflictCooldownCommandDef()
     {
         return LoadStaticDB<InflictCooldownCommandDef>("apt::InflictCooldownCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, InteractionTypeCommandDef> LoadInteractionTypeCommandDef()
     {
         return LoadStaticDB<InteractionTypeCommandDef>("aptfs::InteractionTypeCommandDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<byte, VehicleClass> LoadVehicleClass()
     {
         return LoadStaticDB<VehicleClass>("vcs::VehicleClass")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<ushort, VehicleInfo> LoadVehicleInfo()
     {
         return LoadStaticDB<VehicleInfo>("vcs::VehicleInfo")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<ushort, Dictionary<uint, BaseComponentDef>> LoadBaseComponentDef()
@@ -824,507 +933,546 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, ScopingComponentDef> LoadScopingComponentDef()
     {
         return LoadStaticDB<ScopingComponentDef>("vcs::ScopingComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DriverComponentDef> LoadDriverComponentDef()
     {
         return LoadStaticDB<DriverComponentDef>("vcs::DriverComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PassengerComponentDef> LoadPassengerComponentDef()
     {
         return LoadStaticDB<PassengerComponentDef>("vcs::PassengerComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AbilityComponentDef> LoadAbilityComponentDef()
     {
         return LoadStaticDB<AbilityComponentDef>("vcs::AbilityComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DamageComponentDef> LoadDamageComponentDef()
     {
         return LoadStaticDB<DamageComponentDef>("vcs::DamageComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, StatusEffectComponentDef> LoadStatusEffectComponentDef()
     {
         return LoadStaticDB<StatusEffectComponentDef>("vcs::StatusEffectComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TurretComponentDef> LoadTurretComponentDef()
     {
         return LoadStaticDB<TurretComponentDef>("vcs::TurretComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DeployableComponentDef> LoadDeployableComponentDef()
     {
         return LoadStaticDB<DeployableComponentDef>("vcs::DeployableComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SpawnPointComponentDef> LoadSpawnPointComponentDef()
     {
         return LoadStaticDB<SpawnPointComponentDef>("vcs::SpawnPointComponentDef")
-        .ToDictionary(row => row.Id);
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetSingleCommandDef> LoadTargetSingleCommandDef()
     {
         return LoadStaticDB<TargetSingleCommandDef>("apt::TargetSingleCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TimeCooldownCommandDef> LoadTimeCooldownCommandDef()
     {
         return LoadStaticDB<TimeCooldownCommandDef>("apt::TimeCooldownCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TimedActivationCommandDef> LoadTimedActivationCommandDef()
     {
         return LoadStaticDB<TimedActivationCommandDef>("apt::TimedActivationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PassiveInitiationCommandDef> LoadPassiveInitiationCommandDef()
     {
         return LoadStaticDB<PassiveInitiationCommandDef>("apt::PassiveInitiationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetInteractivesCommandDef> LoadTargetInteractivesCommandDef()
     {
         return LoadStaticDB<TargetInteractivesCommandDef>("aptfs::TargetInteractivesCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ImpactMarkInteractivesCommandDef> LoadImpactMarkInteractivesCommandDef()
     {
         return LoadStaticDB<ImpactMarkInteractivesCommandDef>("aptfs::ImpactMarkInteractivesCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetPreviousCommandDef> LoadTargetPreviousCommandDef()
     {
         return LoadStaticDB<TargetPreviousCommandDef>("apt::TargetPreviousCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, HasTargetsDurationCommandDef> LoadHasTargetsDurationCommandDef()
     {
         return LoadStaticDB<HasTargetsDurationCommandDef>("aptfs::HasTargetsDurationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, UpdateYieldCommandDef> LoadUpdateYieldCommandDef()
     {
         return LoadStaticDB<UpdateYieldCommandDef>("apt::UpdateYieldCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RopePullCommandDef> LoadRopePullCommandDef()
     {
         return LoadStaticDB<RopePullCommandDef>("aptfs::RopePullCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SetTargetOffsetCommandDef> LoadSetTargetOffsetCommandDef()
     {
         return LoadStaticDB<SetTargetOffsetCommandDef>("aptfs::SetTargetOffsetCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, HealDamageCommandDef> LoadHealDamageCommandDef()
     {
         return LoadStaticDB<HealDamageCommandDef>("aptfs::HealDamageCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, BullrushCommandDef> LoadBullrushCommandDef()
     {
         return LoadStaticDB<BullrushCommandDef>("aptfs::BullrushCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, EnergyToDamageCommandDef> LoadEnergyToDamageCommandDef()
     {
         return LoadStaticDB<EnergyToDamageCommandDef>("aptfs::EnergyToDamageCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, AirborneDurationCommandDef> LoadAirborneDurationCommandDef()
+    {
+        return LoadStaticDB<AirborneDurationCommandDef>("aptfs::AirborneDurationCommandDef")
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, BattleFrameDurationCommandDef> LoadBattleFrameDurationCommandDef()
     {
         return LoadStaticDB<BattleFrameDurationCommandDef>("aptfs::BattleFrameDurationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ShootingDurationCommandDef> LoadShootingDurationCommandDef()
     {
         return LoadStaticDB<ShootingDurationCommandDef>("aptfs::ShootingDurationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SwitchWeaponCommandDef> LoadSwitchWeaponCommandDef()
     {
         return LoadStaticDB<SwitchWeaponCommandDef>("aptfs::SwitchWeaponCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, StatRequirementCommandDef> LoadStatRequirementCommandDef()
     {
         return LoadStaticDB<StatRequirementCommandDef>("aptfs::StatRequirementCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ConsumeEnergyCommandDef> LoadConsumeEnergyCommandDef()
     {
         return LoadStaticDB<ConsumeEnergyCommandDef>("aptfs::ConsumeEnergyCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetClassTypeCommandDef> LoadTargetClassTypeCommandDef()
     {
         return LoadStaticDB<TargetClassTypeCommandDef>("aptfs::TargetClassTypeCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetDifferenceCommandDef> LoadTargetDifferenceCommandDef()
     {
         return LoadStaticDB<TargetDifferenceCommandDef>("apt::TargetDifferenceCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ClimbLedgeCommandDef> LoadClimbLedgeCommandDef()
     {
         return LoadStaticDB<ClimbLedgeCommandDef>("aptfs::ClimbLedgeCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AimRangeDurationCommandDef> LoadAimRangeDurationCommandDef()
     {
         return LoadStaticDB<AimRangeDurationCommandDef>("apt::AimRangeDurationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, CopyInitiationPositionCommandDef> LoadCopyInitiationPositionCommandDef()
     {
         return LoadStaticDB<CopyInitiationPositionCommandDef>("aptfs::CopyInitiationPositionCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SlotAmmoCommandDef> LoadSlotAmmoCommandDef()
     {
         return LoadStaticDB<SlotAmmoCommandDef>("aptfs::SlotAmmoCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AddPhysicsCommandDef> LoadAddPhysicsCommandDef()
     {
         return LoadStaticDB<AddPhysicsCommandDef>("aptfs::AddPhysicsCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetCurrentVehicleCommandDef> LoadTargetCurrentVehicleCommandDef()
     {
         return LoadStaticDB<TargetCurrentVehicleCommandDef>("aptfs::TargetCurrentVehicleCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetPassengersCommandDef> LoadTargetPassengersCommandDef()
     {
         return LoadStaticDB<TargetPassengersCommandDef>("aptfs::TargetPassengersCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetSquadmatesCommandDef> LoadTargetSquadmatesCommandDef()
     {
         return LoadStaticDB<TargetSquadmatesCommandDef>("aptfs::TargetSquadmatesCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetTrimCommandDef> LoadTargetTrimCommandDef()
     {
         return LoadStaticDB<TargetTrimCommandDef>("apt::TargetTrimCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SetWeaponDamageCommandDef> LoadSetWeaponDamageCommandDef()
     {
         return LoadStaticDB<SetWeaponDamageCommandDef>("aptfs::SetWeaponDamageCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ConsumeEnergyOverTimeCommandDef> LoadConsumeEnergyOverTimeCommandDef()
     {
         return LoadStaticDB<ConsumeEnergyOverTimeCommandDef>("aptfs::ConsumeEnergyOverTimeCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RequestAbilitySelectionCommandDef> LoadRequestAbilitySelectionCommandDef()
     {
         return LoadStaticDB<RequestAbilitySelectionCommandDef>("aptfs::RequestAbilitySelectionCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, BonusGreaterThanCommandDef> LoadBonusGreaterThanCommandDef()
     {
         return LoadStaticDB<BonusGreaterThanCommandDef>("apt::BonusGreaterThanCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, BombardmentCommandDef> LoadBombardmentCommandDef()
     {
         return LoadStaticDB<BombardmentCommandDef>("aptfs::BombardmentCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SetProjectileTargetCommandDef> LoadSetProjectileTargetCommandDef()
     {
         return LoadStaticDB<SetProjectileTargetCommandDef>("aptfs::SetProjectileTargetCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, UpdateWaitCommandDef> LoadUpdateWaitCommandDef()
     {
         return LoadStaticDB<UpdateWaitCommandDef>("apt::UpdateWaitCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PushRegisterCommandDef> LoadPushRegisterCommandDef()
     {
         return LoadStaticDB<PushRegisterCommandDef>("apt::PushRegisterCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PopRegisterCommandDef> LoadPopRegisterCommandDef()
     {
         return LoadStaticDB<PopRegisterCommandDef>("apt::PopRegisterCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, PeekRegisterCommandDef> LoadPeekRegisterCommandDef()
     {
         return LoadStaticDB<PeekRegisterCommandDef>("apt::PeekRegisterCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, MovementSlideCommandDef> LoadMovementSlideCommandDef()
     {
         return LoadStaticDB<MovementSlideCommandDef>("aptfs::MovementSlideCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetFromStatusEffectCommandDef> LoadTargetFromStatusEffectCommandDef()
     {
         return LoadStaticDB<TargetFromStatusEffectCommandDef>("aptfs::TargetFromStatusEffectCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByDamageResponseCommandDef> LoadTargetByDamageResponseCommandDef()
     {
         return LoadStaticDB<TargetByDamageResponseCommandDef>("aptfs::TargetByDamageResponseCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ForcedMovementDurationCommandDef> LoadForcedMovementDurationCommandDef()
     {
         return LoadStaticDB<ForcedMovementDurationCommandDef>("aptfs::ForcedMovementDurationCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, FireUiEventCommandDef> LoadFireUiEventCommandDef()
     {
         return LoadStaticDB<FireUiEventCommandDef>("aptfs::FireUiEventCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, UiNamedVariableCommandDef> LoadUiNamedVariableCommandDef()
     {
         return LoadStaticDB<UiNamedVariableCommandDef>("aptfs::UiNamedVariableCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DetonateProjectilesCommandDef> LoadDetonateProjectilesCommandDef()
     {
         return LoadStaticDB<DetonateProjectilesCommandDef>("aptfs::DetonateProjectilesCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, SetWeaponDamageTypeCommandDef> LoadSetWeaponDamageTypeCommandDef()
     {
         return LoadStaticDB<SetWeaponDamageTypeCommandDef>("aptfs::SetWeaponDamageTypeCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetFilterMovestateCommandDef> LoadTargetFilterMovestateCommandDef()
     {
         return LoadStaticDB<TargetFilterMovestateCommandDef>("aptfs::TargetFilterMovestateCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByHostilityCommandDef> LoadTargetByHostilityCommandDef()
     {
         return LoadStaticDB<TargetByHostilityCommandDef>("aptfs::TargetByHostilityCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ConsumeSuperChargeCommandDef> LoadConsumeSuperChargeCommandDef()
     {
         return LoadStaticDB<ConsumeSuperChargeCommandDef>("aptfs::ConsumeSuperChargeCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetByHealthCommandDef> LoadTargetByHealthCommandDef()
     {
         return LoadStaticDB<TargetByHealthCommandDef>("aptfs::TargetByHealthCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RegisterMovementEffectCommandDef> LoadRegisterMovementEffectCommandDef()
     {
         return LoadStaticDB<RegisterMovementEffectCommandDef>("aptfs::RegisterMovementEffectCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, UpdateWaitAndFireOnceCommandDef> LoadUpdateWaitAndFireOnceCommandDef()
     {
         return LoadStaticDB<UpdateWaitAndFireOnceCommandDef>("apt::UpdateWaitAndFireOnceCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, UpdateWaitAndFireOnceCommandDef>("apt::UpdateWaitAndFireOnceCommandDef", group));
     }
 
     public Dictionary<uint, ApplyAmmoRiderCommandDef> LoadApplyAmmoRiderCommandDef()
     {
         return LoadStaticDB<ApplyAmmoRiderCommandDef>("aptfs::ApplyAmmoRiderCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetFilterByRangeCommandDef> LoadTargetFilterByRangeCommandDef()
     {
         return LoadStaticDB<TargetFilterByRangeCommandDef>("aptfs::TargetFilterByRangeCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, OverrideCollisionCommandDef> LoadOverrideCollisionCommandDef()
     {
         return LoadStaticDB<OverrideCollisionCommandDef>("aptfs::OverrideCollisionCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RegisterLoadScaleCommandDef> LoadRegisterLoadScaleCommandDef()
     {
         return LoadStaticDB<RegisterLoadScaleCommandDef>("apt::RegisterLoadScaleCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, MovementFacingCommandDef> LoadMovementFacingCommandDef()
     {
         return LoadStaticDB<MovementFacingCommandDef>("aptfs::MovementFacingCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, TargetFilterBySinAcquiredCommandDef> LoadTargetFilterBySinAcquiredCommandDef()
     {
         return LoadStaticDB<TargetFilterBySinAcquiredCommandDef>("aptfs::TargetFilterBySinAcquiredCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, MovementTetherCommandDef> LoadMovementTetherCommandDef()
     {
         return LoadStaticDB<MovementTetherCommandDef>("aptfs::MovementTetherCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RegisterLoadFromWeaponCommandDef> LoadRegisterLoadFromWeaponCommandDef()
     {
         return LoadStaticDB<RegisterLoadFromWeaponCommandDef>("aptfs::RegisterLoadFromWeaponCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ApplyClientStatusEffectCommandDef> LoadApplyClientStatusEffectCommandDef()
     {
         return LoadStaticDB<ApplyClientStatusEffectCommandDef>("aptfs::ApplyClientStatusEffectCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, RemoveClientStatusEffectCommandDef> LoadRemoveClientStatusEffectCommandDef()
     {
         return LoadStaticDB<RemoveClientStatusEffectCommandDef>("aptfs::RemoveClientStatusEffectCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DisableChatBubbleCommandDef> LoadDisableChatBubbleCommandDef()
     {
         return LoadStaticDB<DisableChatBubbleCommandDef>("aptfs::DisableChatBubbleCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, DisableHealthAndIconCommandDef> LoadDisableHealthAndIconCommandDef()
     {
         return LoadStaticDB<DisableHealthAndIconCommandDef>("aptfs::DisableHealthAndIconCommandDef")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, Weapons> LoadWeapons()
     {
         return LoadStaticDB<Weapons>("dbitems::Weapons")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, WeaponTemplates> LoadWeaponTemplates()
     {
         return LoadStaticDB<WeaponTemplates>("dbitems::WeaponTemplates")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, WeaponTemplateModifiers> LoadWeaponTemplateModifiers()
     {
         return LoadStaticDB<WeaponTemplateModifiers>("dbitems::WeaponTemplateModifiers")
-            .ToDictionary(row => row.WeaponId);
+            .GroupBy(row => row.WeaponId)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, WeaponScope> LoadWeaponScope()
     {
         return LoadStaticDB<WeaponScope>("dbitems::WeaponScope")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, WeaponUnderbarrel> LoadWeaponUnderbarrel()
     {
         return LoadStaticDB<WeaponUnderbarrel>("dbitems::WeaponUnderbarrel")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, Ammo> LoadAmmo()
     {
         return LoadStaticDB<Ammo>("dbitems::Ammo")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, ResourceNodeBeacon> LoadResourceNodeBeacon()
     {
         return LoadStaticDB<ResourceNodeBeacon>("dbitems::ResourceNodeBeacon")
-            .ToDictionary(row => row.Id);
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LoadLevelCategoryScalars()
     {
         return LoadStaticDB<LevelCategoryScalars>("dbitems::LevelCategoryScalars")
-            .ToDictionary(row => new KeyValuePair<uint, uint>(row.AttributeCategory, row.Level));
+            .GroupBy(row => new KeyValuePair<uint, uint>(row.AttributeCategory, row.Level))
+            .ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, FrameProgressionLevel> LoadFrameProgressionLevel()
     {
-        return LoadStaticDB<FrameProgressionLevel>("dbitems::FrameProgressionLevel")
-            .ToDictionary(row => row.Level);
+        var all = LoadStaticDB<FrameProgressionLevel>("dbitems::FrameProgressionLevel");
+        var grouped = all.GroupBy(row => row.Level);
+        var dict = grouped.ToDictionary(group => group.Key, group => group.First());
+        return dict;
     }
 
+    public Dictionary<uint, Blueprints> LoadBlueprints()
+    {
+        return LoadStaticDB<Blueprints>("dbitems::Blueprints")
+               .GroupBy(row => row.Id)
+               .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, List<Blueprint_Items>> LoadBlueprintItems()
+    {
+        return LoadStaticDB<Blueprint_Items>("dbitems::Blueprint_Items")
+        .GroupBy(row => row.BlueprintId)
+        .ToDictionary(group => group.Key, group => group.ToList());
+    }
 
     private static T[] LoadStaticDB<T>(string tableName)
     where T : class, new()
@@ -1332,6 +1480,14 @@ public class StaticDBLoader : ISDBLoader
         HashSet<string> warningsSet = new HashSet<string>();
 
         Table table = sdb.GetTableByName(tableName);
+        if (table == null) 
+        {
+            Console.WriteLine($"Warning: Table {tableName} not found in SDB. Skipping load.");
+            return Array.Empty<T>();
+        }
+        
+        Console.WriteLine($"Loading table {tableName} ({table.Rows.Count} rows)");
+
         var list = new List<T>();
         var properties = typeof(T).GetProperties()
             .Select(propInfo =>
@@ -1352,29 +1508,41 @@ public class StaticDBLoader : ISDBLoader
                         return new { PropInfo = propInfo, ConvertedName = convertedName, Index = index, };
                     }).ToList();
 
-        foreach(Row row in table.Rows)
+        try
         {
-            T entry = new T();
-            foreach (var prop in properties)
+            for (int i = 0; i < table.Rows.Count; i++)
             {
-                try
+                Row row = table.Rows[i];
+                T entry = new T();
+                int fieldCount = row.Fields.Count;
+                foreach (var prop in properties)
                 {
-                    if (prop.Index != -1)
+                    try
                     {
-                        prop.PropInfo.SetValue(entry, row[prop.Index], null);
+                        if (prop.Index != -1)
+                        {
+                            if (prop.Index < fieldCount)
+                            {
+                                prop.PropInfo.SetValue(entry, row[prop.Index], null);
+                            }
+                            else
+                            {
+                                warningsSet.Add($"Index {prop.Index} out of range for row (Count: {fieldCount}) in {tableName}, column {prop.PropInfo.Name}");
+                            }
+                        }
                     }
-                    else
+                    catch (Exception ex)
                     {
-                        warningsSet.Add($"Could not find column for {prop.PropInfo.Name} (converted to {prop.ConvertedName}) in {tableName}");
+                        Console.WriteLine($"Exception field-mapping {tableName} row {i}, column {prop.PropInfo.Name}: {ex.Message}");
                     }
                 }
-                catch (Exception ex)
-                {
-                    Console.WriteLine($"Exception when loading {tableName}, {prop.PropInfo.Name}: {ex.Message}");
-                }
-            }
 
-            list.Add(entry);
+                list.Add(entry);
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Fatal exception while iterating rows in {tableName}: {ex.Message}");
         }
 
         foreach(string text in warningsSet)

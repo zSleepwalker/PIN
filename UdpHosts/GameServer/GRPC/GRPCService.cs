@@ -46,6 +46,11 @@ public static class GRPCService
         return await _client.ConsumeCharacterItemAsync(req);
     }
 
+    public static async Task<ApplyCharacterBoostResp> ApplyCharacterBoostAsync(ApplyCharacterBoostReq req)
+    {
+        return await _client.ApplyCharacterBoostAsync(req);
+    }
+
     public static async Task SaveCharacterSessionDataAsync(ulong characterId, uint zoneId, uint outpostId, uint timePlayed)
     {
         var data = new SaveGameSessionData()

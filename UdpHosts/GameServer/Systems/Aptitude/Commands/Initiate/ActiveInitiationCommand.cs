@@ -6,11 +6,11 @@ using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
-public class ActiveInitiationCommmand : Command, ICommand
+public class ActiveInitiationCommand : Command, ICommand
 {
     private ActiveInitiationCommandDef Params;
 
-    public ActiveInitiationCommmand(ActiveInitiationCommandDef par)
+    public ActiveInitiationCommand(ActiveInitiationCommandDef par)
     : base(par)
     {
         Params = par;
@@ -18,7 +18,7 @@ public class ActiveInitiationCommmand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        if (context.Self is CharacterEntity character)
+        if (!context.ActivationAcknowledged && context.Self is CharacterEntity character)
         {
             if (character.IsPlayerControlled)
             {
@@ -38,6 +38,7 @@ public class ActiveInitiationCommmand : Command, ICommand
                 };
                 Console.WriteLine($"ActivateAbility {message.ActivatedAbilityId} at {message.ActivatedTime}");
                 player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
+                context.ActivationAcknowledged = true;
             }
         }
 

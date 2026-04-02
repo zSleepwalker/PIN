@@ -55,14 +55,14 @@ public enum StatModifierIdentifier : ushort
     Unknown_40 = 40, // appears in effect 12728 together with ApplySinCard
     Unknown_41 = 41,
     Unknown_42 = 42,
-    Unknown_43 = 43, // VIP Related
+    EliteRankXpBonus = 43, // VIP Related
     Unknown_44 = 44, // No modifiers in 1962?
-    Unknown_45 = 45, // VIP Related
+    XpBonus = 45, // VIP Related
     Unknown_47 = 47,
     Unknown_48 = 48, // No modifiers 1962?
     Unknown_49 = 49, // No modifiers 1962?
     GravityMult = 50,
-    Unknown_54 = 54, // VIP Related
+    ResourceStatusBonus = 54, // VIP Related
     Unknown_55 = 55, // No modifiers 1962?
     Unknown_56 = 56, // Jet Energy Consumption? Damage Resistance? Heavy Armor // AirResMult?
     Unknown_57 = 57,

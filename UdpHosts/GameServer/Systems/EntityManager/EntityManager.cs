@@ -389,7 +389,11 @@ public class EntityManager
             foreach (var entity in entities)
             {
                 float distanceThreshold = entity.GetScopeRange();
-                var currentlyScoped = ScopedPlayersByEntity[entity.EntityId];
+                if (!ScopedPlayersByEntity.TryGetValue(entity.EntityId, out var currentlyScoped))
+                {
+                    continue;
+                }
+
                 var entityPosition = entity.Position;
                 foreach (var player in players)
                 {
@@ -1037,7 +1041,13 @@ public class EntityManager
             return;
         }
 
-        ScopedPlayersByEntity[entity.EntityId].Add(player);
+        // Entity may have been removed between when the scope-in was queued and when it fires.
+        if (!ScopedPlayersByEntity.TryGetValue(entity.EntityId, out var scopedSet))
+        {
+            return;
+        }
+
+        scopedSet.Add(player);
 
         if (entity is CharacterEntity character)
         {
@@ -1247,7 +1257,12 @@ public class EntityManager
             return;
         }
 
-        ScopedPlayersByEntity[entity.EntityId].Remove(player);
+        if (!ScopedPlayersByEntity.TryGetValue(entity.EntityId, out var scopedSet))
+        {
+            return;
+        }
+
+        scopedSet.Remove(player);
 
         if (entity is CharacterEntity character)
         {
@@ -1616,7 +1631,12 @@ public class EntityManager
         if (shouldFlush)
         {
             view.SerializeChangesToMemory(out var update);
-            foreach (var client in ScopedPlayersByEntity[entityId])
+            if (!ScopedPlayersByEntity.TryGetValue(entityId, out var scopedClients))
+            {
+                return;
+            }
+
+            foreach (var client in scopedClients)
             {
                 bool shouldSend = client.Status.Equals(IPlayer.PlayerStatus.Playing) || client.Status.Equals(IPlayer.PlayerStatus.Loading);
                 if (shouldSend)

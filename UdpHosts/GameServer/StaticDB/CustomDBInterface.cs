@@ -3,6 +3,7 @@ using GameServer.StaticDB.Records.customdata.Encounters;
 namespace GameServer.Data.SDB;
 
 using System.Collections.Generic;
+using System.Linq;
 using Records.customdata;
 
 public class CustomDBInterface
@@ -467,4 +468,34 @@ public class CustomDBInterface
     public static Dictionary<uint, Outpost> GetZoneOutposts(uint zoneId) => Outpost.GetValueOrDefault(zoneId);
     public static Dictionary<uint, MeldingRepulsorDef> GetZoneMeldingRepulsors(uint zoneId) => MeldingRepulsor.GetValueOrDefault(zoneId);
     public static Dictionary<uint, LgvRaceDef> GetZoneLgvRaces(uint zoneId) => LgvRace.GetValueOrDefault(zoneId);
+
+    // --- Traversal Logic ---
+
+    /// <summary>
+    /// Analyzes custom (aptgss) commands to identify specialized server-side behavior.
+    /// </summary>
+    public static void AnalyzeCustomCommand(Records.apt.BaseCommandDef baseDef, SdbItemChainResult result)
+    {
+        // Custom subtypes usually mapped to aptgss tables
+        switch (baseDef.Subtype)
+        {
+            case 232: // ConsumeItem (Custom GSS version)
+                result.Effects.Add(new SdbEffectEntry { Type = SdbEffectType.Ability, SdbId = baseDef.Id, Name = "Custom Consume Item" });
+                break;
+            case 154: // SlotAbility
+                result.Effects.Add(new SdbEffectEntry { Type = SdbEffectType.ItemUnlock, SdbId = baseDef.Id, Name = "Ability Slot/Unlock" });
+                break;
+            case 432: // NPCSpawn (Custom)
+                result.Effects.Add(new SdbEffectEntry { Type = SdbEffectType.PetSpawn, SdbId = baseDef.Id, Name = "Custom NPC Spawn" });
+                break;
+            case 442: // DeployableSpawn (Custom)
+                result.Effects.Add(new SdbEffectEntry { Type = SdbEffectType.PetSpawn, SdbId = baseDef.Id, Name = "Custom Deployable Spawn" });
+                break;
+        }
+    }
+
+    public static bool IsPermanentEffect(uint effectId)
+    {
+        return ApplyPermanentEffectCommandDef.Values.Any(v => v.EffectId == effectId);
+    }
 }

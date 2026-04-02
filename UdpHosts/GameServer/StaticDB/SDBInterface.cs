@@ -1,4 +1,5 @@
 namespace GameServer.Data.SDB;
+using System;
 
 using System.Collections.Generic;
 using System.Linq;
@@ -7,7 +8,7 @@ using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
 using Records.dbitems;
-using Records.dbviusalrecords;
+using Records.dbvisualrecords;
 using Records.vcs;
 
 public class SDBInterface
@@ -41,6 +42,8 @@ public class SDBInterface
     private static Dictionary<uint, ResourceNodeBeacon> ResourceNodeBeacon;
     private static Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LevelCategoryScalars;
     private static Dictionary<uint, FrameProgressionLevel> FrameProgressionLevel;
+    private static Dictionary<uint, Blueprints> Blueprints;
+    private static Dictionary<uint, List<Blueprint_Items>> Blueprint_Items;
 
     // apt
     private static Dictionary<uint, BaseCommandDef> BaseCommandDef;
@@ -58,6 +61,7 @@ public class SDBInterface
     private static Dictionary<uint, LogicAndChainCommandDef> LogicAndChainCommandDef;
     private static Dictionary<uint, CallCommandDef> CallCommandDef;
     private static Dictionary<uint, InstantActivationCommandDef> InstantActivationCommandDef;
+    private static Dictionary<uint, ActiveInitiationCommandDef> ActiveInitiationCommandDef;
     private static Dictionary<uint, StagedActivationCommandDef> StagedActivationCommandDef;
     private static Dictionary<uint, TargetPBAECommandDef> TargetPBAECommandDef;
     private static Dictionary<uint, TargetConeAECommandDef> TargetConeAECommandDef;
@@ -70,8 +74,6 @@ public class SDBInterface
     private static Dictionary<uint, PopTargetsCommandDef> PopTargetsCommandDef;
     private static Dictionary<uint, PushTargetsCommandDef> PushTargetsCommandDef;
     private static Dictionary<uint, TimeDurationCommandDef> TimeDurationCommandDef;
-    private static Dictionary<uint, AirborneDurationCommandDef> AirborneDurationCommandDef;
-    private static Dictionary<uint, ActivationDurationCommandDef> ActivationDurationCommandDef;
     private static Dictionary<uint, ReturnCommandDef> ReturnCommandDef;
     private static Dictionary<uint, LoadRegisterFromItemStatCommandDef> LoadRegisterFromItemStatCommandDef;
     private static Dictionary<uint, LoadRegisterFromBonusCommandDef> LoadRegisterFromBonusCommandDef;
@@ -182,6 +184,7 @@ public class SDBInterface
     private static Dictionary<uint, HealDamageCommandDef> HealDamageCommandDef;
     private static Dictionary<uint, BullrushCommandDef> BullrushCommandDef;
     private static Dictionary<uint, EnergyToDamageCommandDef> EnergyToDamageCommandDef;
+    private static Dictionary<uint, AirborneDurationCommandDef> AirborneDurationCommandDef;
     private static Dictionary<uint, BattleFrameDurationCommandDef> BattleFrameDurationCommandDef;
     private static Dictionary<uint, ShootingDurationCommandDef> ShootingDurationCommandDef;
     private static Dictionary<uint, SwitchWeaponCommandDef> SwitchWeaponCommandDef;
@@ -239,7 +242,7 @@ public class SDBInterface
     private static Dictionary<uint, DeployableComponentDef> DeployableComponentDef;
     private static Dictionary<uint, SpawnPointComponentDef> SpawnPointComponentDef;
 
-    public static void Init(StaticDB instance)
+    public static void Init(FauFau.Formats.StaticDB instance)
     {
         var loader = new StaticDBLoader(instance);
 
@@ -272,6 +275,8 @@ public class SDBInterface
         ResourceNodeBeacon = loader.LoadResourceNodeBeacon();
         LevelCategoryScalars = loader.LoadLevelCategoryScalars();
         FrameProgressionLevel = loader.LoadFrameProgressionLevel();
+        Blueprints = loader.LoadBlueprints();
+        Blueprint_Items = loader.LoadBlueprintItems();
 
 
         // apt
@@ -289,6 +294,7 @@ public class SDBInterface
         LogicAndChainCommandDef = loader.LoadLogicAndChainCommandDef();
         CallCommandDef = loader.LoadCallCommandDef();
         InstantActivationCommandDef = loader.LoadInstantActivationCommandDef();
+        ActiveInitiationCommandDef = loader.LoadActiveInitiationTypeCommandDef();
         StagedActivationCommandDef = loader.LoadStagedActivationCommandDef();
         ConditionalBranchCommandDef = loader.LoadConditionalBranchCommandDef();
         TargetPBAECommandDef = loader.LoadTargetPBAECommandDef();
@@ -347,10 +353,10 @@ public class SDBInterface
         RequestBattleFrameListCommandDef = loader.LoadRequestBattleFrameListCommandDef();
         ApplyImpulseCommandDef = loader.LoadApplyImpulseCommandDef();
         DeployableCalldownCommandDef = loader.LoadDeployableCalldownCommandDef();
+        VehicleCalldownCommandDef = loader.LoadVehicleCalldownCommandDef();
         FireProjectileCommandDef = loader.LoadFireProjectileCommandDef();
         ResourceNodeBeaconCalldownCommandDef = loader.LoadResourceNodeBeaconCalldownCommandDef();
         AttemptToCalldownVehicleCommandDef = loader.LoadAttemptToCalldownVehicleCommandDef();
-        VehicleCalldownCommandDef = loader.LoadVehicleCalldownCommandDef();
         RegisterClientProximityCommandDef = loader.LoadRegisterClientProximityCommandDef();
         CombatFlagsCommandDef = loader.LoadCombatFlagsCommandDef();
         ApplyFreezeCommandDef = loader.LoadApplyFreezeCommandDef();
@@ -403,8 +409,6 @@ public class SDBInterface
         RequireWeaponArmedCommandDef = loader.LoadRequireWeaponArmedCommandDef();
         RequireWeaponTemplateCommandDef = loader.LoadRequireWeaponTemplateCommandDef();
         RequireZoneTypeCommandDef = loader.LoadRequireZoneTypeCommandDef();
-        AirborneDurationCommandDef = loader.LoadAirborneDurationCommandDef();
-        ActivationDurationCommandDef = loader.LoadActivationDurationCommandDef();
         InteractionTypeCommandDef = loader.LoadInteractionTypeCommandDef();
         TargetInteractivesCommandDef = loader.LoadTargetInteractivesCommandDef();
         ImpactMarkInteractivesCommandDef = loader.LoadImpactMarkInteractivesCommandDef();
@@ -414,6 +418,7 @@ public class SDBInterface
         HealDamageCommandDef = loader.LoadHealDamageCommandDef();
         BullrushCommandDef = loader.LoadBullrushCommandDef();
         EnergyToDamageCommandDef = loader.LoadEnergyToDamageCommandDef();
+        AirborneDurationCommandDef = loader.LoadAirborneDurationCommandDef();
         BattleFrameDurationCommandDef = loader.LoadBattleFrameDurationCommandDef();
         ShootingDurationCommandDef = loader.LoadShootingDurationCommandDef();
         SwitchWeaponCommandDef = loader.LoadSwitchWeaponCommandDef();
@@ -470,7 +475,83 @@ public class SDBInterface
         TurretComponentDef = loader.LoadTurretComponentDef();
         DeployableComponentDef = loader.LoadDeployableComponentDef();
         SpawnPointComponentDef = loader.LoadSpawnPointComponentDef();
+
+        // Print loader diagnostics (duplicate key handling and cross-table link issues)
+        var loaderDiags = loader.GetAndClearDiagnostics();
+        if (loaderDiags.Count > 0)
+        {
+            Console.WriteLine("[STATICDB-LOADER] Diagnostics:");
+            foreach (var diag in loaderDiags)
+            {
+                Console.WriteLine(diag);
+            }
+        }
+
+        // Run chain integrity validation
+        var validator = new ChainIntegrityValidator(loader);
+        var validationDiags = validator.ValidateAll();
+        foreach (var diag in validationDiags)
+        {
+            Console.WriteLine(diag);
+        }
+
+            // Print database chain summary for diagnostics
+            PrintChainSummary();
     }
+
+        /// <summary>
+        /// Print summary of chain data found in the database for diagnostic purposes.
+        /// Shows count of abilities with chains, effects with chains, and validates basic structure.
+        /// </summary>
+        private static void PrintChainSummary()
+        {
+            Console.WriteLine("\n[CHAIN-DATABASE-SUMMARY]");
+        
+            try
+            {
+                // Summarize ability chains
+                var abilitiesWithChains = AbilityData.Values.Where(a => a.Chain != 0).Count();
+                Console.WriteLine($"  Abilities with chains: {abilitiesWithChains}/{AbilityData.Count}");
+
+                // Summarize status effect chains
+                var effectsWithApply = StatusEffectData.Values.Where(e => e.ApplyChain != 0).Count();
+                var effectsWithRemove = StatusEffectData.Values.Where(e => e.RemoveChain != 0).Count();
+                var effectsWithUpdate = StatusEffectData.Values.Where(e => e.UpdateChain != 0).Count();
+                var effectsWithDuration = StatusEffectData.Values.Where(e => e.DurationChain != 0).Count();
+                Console.WriteLine($"  Status Effects: {StatusEffectData.Count} total");
+                Console.WriteLine($"    - With ApplyChain: {effectsWithApply}");
+                Console.WriteLine($"    - With RemoveChain: {effectsWithRemove}");
+                Console.WriteLine($"    - With UpdateChain: {effectsWithUpdate}");
+                Console.WriteLine($"    - With DurationChain: {effectsWithDuration}");
+
+                // Summarize conditional branches
+                var branching = ConditionalBranchCommandDef.Values.Count();
+                var looping = WhileLoopCommandDef.Values.Count();
+                Console.WriteLine($"  Control Flow: {branching} branches, {looping} loops");
+
+                // Summarize logic operators
+                var logicAnd = LogicAndChainCommandDef.Values.Count();
+                var logicOr = LogicOrChainCommandDef.Values.Count();
+                var logicNegate = LogicNegateCommandDef.Values.Count();
+                Console.WriteLine($"  Logic Operators: {logicAnd} AND, {logicOr} OR, {logicNegate} NEGATE");
+
+                // Summarize special commands
+                var toggles = ImpactToggleEffectCommandDef.Values.Count();
+                var waitFire = UpdateWaitAndFireOnceCommandDef.Values.Count();
+                var proximity = RegisterClientProximityCommandDef.Values.Count();
+                Console.WriteLine($"  Special Commands: {toggles} toggles, {waitFire} wait/fire, {proximity} proximity");
+
+                // Summarize item bridges
+                var itemsWithAbilities = AbilityModule.Values.Where(m => m.AbilityChainId != 0).Count();
+                Console.WriteLine($"  Item-to-Ability Bridges: {itemsWithAbilities}/{AbilityModule.Count} modules link abilities");
+
+                Console.WriteLine("[CHAIN-DATABASE-SUMMARY] Complete - database is ready for validation.\n");
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[CHAIN-DATABASE-SUMMARY] Error generating summary: {ex.Message}");
+            }
+        }
 
     // dbcharacter
     public static CharCreateLoadout GetCharCreateLoadout(uint id) => CharCreateLoadout.GetValueOrDefault(id);
@@ -534,7 +615,7 @@ public class SDBInterface
     public static CommandType GetCommandType(uint id) => CommandType.GetValueOrDefault(id);
     public static AbilityData GetAbilityData(uint id) => AbilityData.GetValueOrDefault(id);
     public static StatusEffectData GetStatusEffectData(uint id) => StatusEffectData.GetValueOrDefault(id);
-    public static HashSet<uint> GetStatusEffectTag(uint id) => StatusEffectTag.GetValueOrDefault(id);
+    public static HashSet<uint> GetStatusEffectTag(uint id) => StatusEffectTag.GetValueOrDefault(id) ?? new HashSet<uint>();
     public static ImpactApplyEffectCommandDef GetImpactApplyEffectCommandDef(uint id) => ImpactApplyEffectCommandDef.GetValueOrDefault(id);
     public static ImpactToggleEffectCommandDef GetImpactToggleEffectCommandDef(uint id) => ImpactToggleEffectCommandDef.GetValueOrDefault(id);
     public static ConditionalBranchCommandDef GetConditionalBranchCommandDef(uint id) => ConditionalBranchCommandDef.GetValueOrDefault(id);
@@ -545,6 +626,7 @@ public class SDBInterface
     public static LogicAndChainCommandDef GetLogicAndChainCommandDef(uint id) => LogicAndChainCommandDef.GetValueOrDefault(id);
     public static CallCommandDef GetCallCommandDef(uint id) => CallCommandDef.GetValueOrDefault(id);
     public static InstantActivationCommandDef GetInstantActivationCommandDef(uint id) => InstantActivationCommandDef.GetValueOrDefault(id);
+    public static ActiveInitiationCommandDef GetActiveInitiationCommandDef(uint id) => ActiveInitiationCommandDef.GetValueOrDefault(id);
     public static StagedActivationCommandDef GetStagedActivationCommandDef(uint id) => StagedActivationCommandDef.GetValueOrDefault(id);
     public static TargetPBAECommandDef GetTargetPBAECommandDef(uint id) => TargetPBAECommandDef.GetValueOrDefault(id);
     public static TargetConeAECommandDef GetTargetConeAECommandDef(uint id) => TargetConeAECommandDef.GetValueOrDefault(id);
@@ -557,8 +639,6 @@ public class SDBInterface
     public static PopTargetsCommandDef GetPopTargetsCommandDef(uint id) => PopTargetsCommandDef.GetValueOrDefault(id);
     public static PushTargetsCommandDef GetPushTargetsCommandDef(uint id) => PushTargetsCommandDef.GetValueOrDefault(id);
     public static TimeDurationCommandDef GetTimeDurationCommandDef(uint id) => TimeDurationCommandDef.GetValueOrDefault(id);
-    public static AirborneDurationCommandDef GetAirborneDurationCommandDef(uint id) => AirborneDurationCommandDef.GetValueOrDefault(id);
-    public static ActivationDurationCommandDef GetActivationDurationCommandDef(uint id) => ActivationDurationCommandDef.GetValueOrDefault(id);
     public static ReturnCommandDef GetReturnCommandDef(uint id) => ReturnCommandDef.GetValueOrDefault(id);
     public static LoadRegisterFromItemStatCommandDef GetLoadRegisterFromItemStatCommandDef(uint id) => LoadRegisterFromItemStatCommandDef.GetValueOrDefault(id);
     public static LoadRegisterFromBonusCommandDef GetLoadRegisterFromBonusCommandDef(uint id) => LoadRegisterFromBonusCommandDef.GetValueOrDefault(id);
@@ -598,6 +678,157 @@ public class SDBInterface
     public static TargetOwnerCommandDef GetTargetOwnerCommandDef(uint id) => TargetOwnerCommandDef.GetValueOrDefault(id);
     public static TargetByObjectTypeCommandDef GetTargetByObjectTypeCommandDef(uint id) => TargetByObjectTypeCommandDef.GetValueOrDefault(id);
     public static TargetHostilesCommandDef GetTargetHostilesCommandDef(uint id) => TargetHostilesCommandDef.GetValueOrDefault(id);
+    public static Blueprints GetBlueprint(uint id) => Blueprints.GetValueOrDefault(id);
+    public static List<Blueprint_Items> GetBlueprintItems(uint blueprintId) => Blueprint_Items.GetValueOrDefault(blueprintId);
+
+    // --- Traversal Logic ---
+
+    /// <summary>
+    /// Resolves the full connected chain for an item, including its ability-triggered effects, 
+    /// blueprints, and specific subtypes like boosts, pets, or emotes.
+    /// </summary>
+    public static SdbItemChainResult ResolveConnectedChains(uint itemSdbId)
+    {
+        var result = new SdbItemChainResult { ItemSdbId = itemSdbId };
+        var rootItem = GetRootItem(itemSdbId);
+        if (rootItem == null) return result;
+
+        // 1. Resolve Ability Modules
+        var module = GetAbilityModule(itemSdbId);
+        if (module != null)
+        {
+            var ability = GetAbilityData(module.AbilityChainId);
+            if (ability != null)
+            {
+                TraverseAbilityChain(ability.Chain, result);
+            }
+        }
+
+        // 2. Resolve Blueprints (Crafting)
+        var blueprint = Blueprints.Values.FirstOrDefault(b => b.MainOutputItemId == itemSdbId);
+        if (blueprint != null)
+        {
+            result.Blueprint = new SdbBlueprintInfo
+            {
+                Id = blueprint.Id,
+                NameId = rootItem.NameId
+            };
+
+            if (Blueprint_Items.TryGetValue(blueprint.Id, out var ingredients))
+            {
+                foreach (var ing in ingredients.Where(i => i.IsOutput == 0))
+                {
+                    result.Blueprint.Ingredients.Add(new SdbBlueprintIngredient
+                    {
+                        ItemId = ing.ItemType,
+                        Quantity = ing.RsrcQuantity
+                    });
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private static void TraverseAbilityChain(uint chainId, SdbItemChainResult result, HashSet<uint> visited = null)
+    {
+        if (chainId == 0) return;
+        visited ??= new HashSet<uint>();
+        if (!visited.Add(chainId)) return;
+
+        uint next = chainId;
+        while (next != 0)
+        {
+            var baseDef = GetBaseCommandDef(next);
+            if (baseDef == null) break;
+
+            AnalyzeCommand(baseDef, result, visited);
+            next = baseDef.Next;
+        }
+    }
+
+    private static void AnalyzeCommand(BaseCommandDef baseDef, SdbItemChainResult result, HashSet<uint> visited)
+    {
+        // Identification map based on Subtype (CommandType enum)
+        switch (baseDef.Subtype)
+        {
+            case 2:   // ImpactApplyEffect
+                var impactDef = GetImpactApplyEffectCommandDef(baseDef.Id);
+                if (impactDef != null) ResolveStatusEffect(impactDef.EffectId, result);
+                break;
+
+            case 243: // ApplyClientStatusEffect
+                var applyDef = GetApplyClientStatusEffectCommandDef(baseDef.Id);
+                if (applyDef != null) ResolveStatusEffect(applyDef.StatusEffectId, result);
+                break;
+
+            case 91:  // DeployableSpawn
+            case 48:  // CreateAbilityObject (Used for pets)
+                var petEntry = new SdbEffectEntry { Type = SdbEffectType.PetSpawn, SdbId = baseDef.Id, Name = "Pet/Deployable Spawn" };
+                // Note: PIN SDB records for these are currently stubs (Todo), so we only capture the command ID for now.
+                result.Effects.Add(petEntry);
+                break;
+
+            case 45:  // PlayAnimation
+            case 138: // PerformEmote
+            case 61:  // AbilityAnimation
+                result.Effects.Add(new SdbEffectEntry { Type = SdbEffectType.Emote, SdbId = baseDef.Id, Name = "Animation/Emote" });
+                break;
+
+            case 106: // Call
+                var callDef = GetCallCommandDef(baseDef.Id);
+                if (callDef != null)
+                {
+                    var calledAbility = GetAbilityData(callDef.AbilityId);
+                    if (calledAbility != null) TraverseAbilityChain(calledAbility.Chain, result, visited);
+                }
+                break;
+
+            case 102: // ConditionalBranch
+                var branchDef = GetConditionalBranchCommandDef(baseDef.Id);
+                if (branchDef != null)
+                {
+                    TraverseAbilityChain(branchDef.ThenChain, result, visited);
+                    TraverseAbilityChain(branchDef.ElseChain, result, visited);
+                }
+                break;
+
+            // Unlocks (Custom GSS commands usually)
+            case 227: // ApplyUnlock
+            case 299: // UnlockBattleframes
+            case 306: // UnlockTitles
+                result.Effects.Add(new SdbEffectEntry { Type = SdbEffectType.ItemUnlock, SdbId = baseDef.Id, Name = "Unlock (Frame/Title/Gear)" });
+                break;
+
+            default:
+                // Check CustomDB for more specialized commands
+                CustomDBInterface.AnalyzeCustomCommand(baseDef, result);
+                break;
+        }
+    }
+
+    private static void ResolveStatusEffect(uint effectId, SdbItemChainResult result)
+    {
+        var effect = GetStatusEffectData(effectId);
+        if (effect == null) return;
+
+        var entry = new SdbEffectEntry
+        {
+            Type = SdbEffectType.StatusEffect,
+            SdbId = effectId,
+            Name = $"Effect_{effectId}"
+        };
+
+        // Identify Boosts by Tags (Consistency with RIN)
+        if (StatusEffectTag.TryGetValue(effectId, out var tags))
+        {
+            if (tags.Contains(147)) entry.Type = SdbEffectType.Boost; // XP
+            if (tags.Contains(148)) entry.Type = SdbEffectType.Boost; // Resource
+            if (tags.Contains(222)) entry.Type = SdbEffectType.Boost; // VIP
+        }
+
+        result.Effects.Add(entry);
+    }
     public static TargetByCharacterStateCommandDef GetTargetByCharacterStateCommandDef(uint id) => TargetByCharacterStateCommandDef.GetValueOrDefault(id);
     public static InflictDamageCommandDef GetInflictDamageCommandDef(uint id) => InflictDamageCommandDef.GetValueOrDefault(id);
     public static ForcePushCommandDef GetForcePushCommandDef(uint id) => ForcePushCommandDef.GetValueOrDefault(id);
@@ -669,6 +900,7 @@ public class SDBInterface
     public static HealDamageCommandDef GetHealDamageCommandDef(uint id) => HealDamageCommandDef.GetValueOrDefault(id);
     public static BullrushCommandDef GetBullrushCommandDef(uint id) => BullrushCommandDef.GetValueOrDefault(id);
     public static EnergyToDamageCommandDef GetEnergyToDamageCommandDef(uint id) => EnergyToDamageCommandDef.GetValueOrDefault(id);
+    public static AirborneDurationCommandDef GetAirborneDurationCommandDef(uint id) => AirborneDurationCommandDef.GetValueOrDefault(id);
     public static BattleFrameDurationCommandDef GetBattleFrameDurationCommandDef(uint id) => BattleFrameDurationCommandDef.GetValueOrDefault(id);
     public static ShootingDurationCommandDef GetShootingDurationCommandDef(uint id) => ShootingDurationCommandDef.GetValueOrDefault(id);
     public static SwitchWeaponCommandDef GetSwitchWeaponCommandDef(uint id) => SwitchWeaponCommandDef.GetValueOrDefault(id);
@@ -725,4 +957,21 @@ public class SDBInterface
     public static TurretComponentDef GetTurretComponentDef(uint id) => TurretComponentDef.GetValueOrDefault(id);
     public static DeployableComponentDef GetDeployableComponentDef(uint id) => DeployableComponentDef.GetValueOrDefault(id);
     public static SpawnPointComponentDef GetSpawnPointComponentDef(uint id) => SpawnPointComponentDef.GetValueOrDefault(id);
+
+    // ===== Chain Integrity Validator Access ======
+    // These methods provide dictionary-level access for chain validation
+    
+    public static Dictionary<uint, BaseCommandDef> GetBaseCommandDefDictionary() => BaseCommandDef;
+    public static Dictionary<uint, AbilityData> GetAbilityDataDictionary() => AbilityData;
+    public static Dictionary<uint, StatusEffectData> GetStatusEffectDataDictionary() => StatusEffectData;
+    public static Dictionary<uint, ConditionalBranchCommandDef> GetConditionalBranchCommandDefDictionary() => ConditionalBranchCommandDef;
+    public static Dictionary<uint, WhileLoopCommandDef> GetWhileLoopCommandDefDictionary() => WhileLoopCommandDef;
+    public static Dictionary<uint, LogicAndChainCommandDef> GetLogicAndChainCommandDefDictionary() => LogicAndChainCommandDef;
+    public static Dictionary<uint, LogicOrChainCommandDef> GetLogicOrChainCommandDefDictionary() => LogicOrChainCommandDef;
+    public static Dictionary<uint, LogicOrCommandDef> GetLogicOrCommandDefDictionary() => LogicOrCommandDef;
+    public static Dictionary<uint, LogicNegateCommandDef> GetLogicNegateCommandDefDictionary() => LogicNegateCommandDef;
+    public static Dictionary<uint, ImpactToggleEffectCommandDef> GetImpactToggleEffectCommandDefDictionary() => ImpactToggleEffectCommandDef;
+    public static Dictionary<uint, UpdateWaitAndFireOnceCommandDef> GetUpdateWaitAndFireOnceCommandDefDictionary() => UpdateWaitAndFireOnceCommandDef;
+    public static Dictionary<uint, RegisterClientProximityCommandDef> GetRegisterClientProximityCommandDefDictionary() => RegisterClientProximityCommandDef;
+    public static Dictionary<uint, AbilityModule> GetAbilityModuleDictionary() => AbilityModule;
 }

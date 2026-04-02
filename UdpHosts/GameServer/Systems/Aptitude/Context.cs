@@ -32,6 +32,7 @@ public class Context
     public Vector3 InitPosition { get; set; }
     public ExecutionHint ExecutionHint { get; set; }
     public uint ItemId { get; set; }
+    public bool ActivationAcknowledged { get; set; }
 
     public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = new Dictionary<ICommand, ICommandActiveContext>();
 
@@ -54,6 +55,7 @@ public class Context
             InitPosition = original.InitPosition,
             ExecutionHint = original.ExecutionHint,
             ItemId = original.ItemId,
+            ActivationAcknowledged = original.ActivationAcknowledged,
         };
     } 
 

@@ -20,7 +20,7 @@ public class DeployableCalldownCommand : Command, ICommand
         if (request != null)
         {
             var entityMan = context.Shard.EntityMan;
-            var typeId = Params.DeployableType;
+            var typeId = request.DeployableId != 0 ? request.DeployableId : Params.DeployableType;
             var position = request.Position;
             var orientation = request.Rotation;
             entityMan.SpawnDeployable(typeId, position, orientation, caller as CharacterEntity);

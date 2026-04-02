@@ -1,7 +1,7 @@
 syntax = "proto3";
-option csharp_namespace = "GrpcGameServerAPIClient";
 package RIN;
-import "google/protobuf/timestamp.proto";
+option csharp_namespace = "GrpcGameServerAPIClient";
+// import "protobuf-net/bcl.proto"; // schema for protobuf-net's handling of core .NET types
 
 message ArmyApplicationApproved {
    uint64 CharacterGuid = 1;
@@ -72,8 +72,14 @@ message BasicCharacterInfo {
    uint32 Level = 16;
    uint32 EffectiveLevel = 17;
    uint32 VipLevel = 18;
+   int64 Xp = 19;
+   float XpBoostModifier = 20;
+   int64 XpBoostExpiration = 21;
+   float ResourceBoostModifier = 22;
+   int64 ResourceBoostExpiration = 23;
+   float ReputationBoostModifier = 24;
+   int64 ReputationBoostExpiration = 25;
 }
-
 message CharacterAndBattleframeVisuals {
    BasicCharacterInfo CharacterInfo = 1;
    CharacterVisuals CharacterVisuals = 2;
@@ -81,6 +87,25 @@ message CharacterAndBattleframeVisuals {
 }
 message CharacterID {
    int64 ID = 1;
+}
+message CharacterInventoryResponse {
+   repeated CharacterItem Items = 1;
+   repeated CharacterResource Resources = 2;
+   repeated CharacterLoadout Loadouts = 3;
+}
+message CharacterItem {
+   uint64 Guid = 1;
+   uint32 SdbId = 2;
+}
+message CharacterLoadout {
+   int32 LoadoutId = 1;
+   int32 ChassisSdbId = 2;
+   string Visuals = 3;
+   string SlottedItems = 4;
+}
+message CharacterResource {
+   uint32 SdbId = 1;
+   uint32 Quantity = 2;
 }
 message CharacterVisuals {
    int32 id = 1;
@@ -101,9 +126,6 @@ message CharacterVisuals {
    WebId glider = 16;
    WebId vehicle = 17;
 }
-message InventoryUpdated {
-   uint64 CharacterGuid = 1;
-}
 message CharacterVisualsUpdated {
    uint64 CharacterGuid = 1;
    CharacterAndBattleframeVisuals CharacterAndBattleframeVisuals = 2;
@@ -113,6 +135,31 @@ message Command {
       SaveGameSessionData SaveGameSessionData = 1;
       SaveLgvRaceFinish SaveLgvRaceFinish = 2;
    }
+}
+message ConsumeItemReq {
+   uint64 CharacterId = 1;
+   uint32 SdbId = 2;
+   uint32 Quantity = 3;
+}
+message ConsumeItemResp {
+   bool Success = 1;
+}
+message ApplyCharacterBoostReq {
+   uint64 CharacterId = 1;
+   string BoostType = 2;
+   float Modifier = 3;
+   uint32 DurationSeconds = 4;
+}
+message ApplyCharacterBoostResp {
+   bool Success = 1;
+}
+message ConsumeResourceReq {
+   uint64 CharacterId = 1;
+   uint32 SdbId = 2;
+   uint32 Quantity = 3;
+}
+message ConsumeResourceResp {
+   bool Success = 1;
 }
 message Event {
    oneof subtype {
@@ -132,12 +179,15 @@ message Event {
       InventoryUpdated InventoryUpdated = 14;
    }
 }
+message InventoryUpdated {
+   uint64 CharacterGuid = 1;
+}
 message PingReq {
-   .google.protobuf.Timestamp SentTime = 1;
+   int64 SentTime = 1;
 }
 message PingResp {
-   .google.protobuf.Timestamp ClientSentTime = 1;
-   .google.protobuf.Timestamp ServerReciveTime = 2;
+   int64 ClientSentTime = 1;
+   int64 ServerReciveTime = 2;
 }
 message PlayerBattleframeVisuals {
    repeated WebDecal decals = 1;
@@ -181,55 +231,12 @@ message WebIdValueColorId {
    int32 id = 1;
    WebColorId color = 2;
 }
-
-message CharacterItem {
-   uint64 guid = 1;
-   uint32 sdb_id = 2;
-}
-
-message CharacterResource {
-   uint32 sdb_id = 1;
-   uint32 quantity = 2;
-}
-
-message CharacterLoadout {
-   int32 loadout_id = 1;
-   int32 chassis_sdb_id = 2;
-   string visuals = 3;
-   string slotted_items = 4;
-}
-
-message CharacterInventoryResponse {
-   repeated CharacterItem items = 1;
-   repeated CharacterResource resources = 2;
-   repeated CharacterLoadout loadouts = 3;
-}
-
-message ConsumeResourceReq {
-   uint64 character_id = 1;
-   uint32 sdb_id = 2;
-   uint32 quantity = 3;
-}
-
-message ConsumeResourceResp {
-   bool success = 1;
-}
-
-message ConsumeItemReq {
-   uint64 character_id = 1;
-   uint32 sdb_id = 2;
-   uint32 quantity = 3;
-}
-
-message ConsumeItemResp {
-   bool success = 1;
-}
-
 service GameServerAPI {
+   rpc ApplyCharacterBoost (ApplyCharacterBoostReq) returns (ApplyCharacterBoostResp);
+   rpc ConsumeCharacterItem (ConsumeItemReq) returns (ConsumeItemResp);
+   rpc ConsumeCharacterResource (ConsumeResourceReq) returns (ConsumeResourceResp);
    rpc GetCharacterAndBattleframeVisuals (CharacterID) returns (CharacterAndBattleframeVisuals);
    rpc GetCharacterInventory (CharacterID) returns (CharacterInventoryResponse);
-   rpc ConsumeCharacterResource (ConsumeResourceReq) returns (ConsumeResourceResp);
-   rpc ConsumeCharacterItem (ConsumeItemReq) returns (ConsumeItemResp);
    rpc Ping (PingReq) returns (PingResp);
    rpc Stream (stream Command) returns (stream Event);
 }

@@ -1,4 +1,4 @@
-﻿using GameServer.Data.SDB;
+using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.aptfs;
 
 namespace GameServer.Aptitude;
@@ -29,7 +29,7 @@ public class TargetByEffectTagCommand : Command, ICommand
                     continue;
                 }
 
-                if (effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
+                if (active.Effect != null && effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
                 {
                     newTargets.Push(target);
                     break;

@@ -1,4 +1,5 @@
 using System;
+using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.apt;
 
 namespace GameServer.Aptitude;
@@ -87,7 +88,7 @@ public class ImpactApplyEffectCommand : Command, ICommand
 
         if (Params.ApplyToSelf == 1)
         {
-            if (Params.RemoveOnRollback == 1)
+            if (Params.RemoveOnRollback == 1 && !CustomDBInterface.IsPermanentEffect(Params.EffectId))
             {
                 context.Actives.Add(this, new RemoveOnRollbackCommandActiveContext()
                 {
@@ -99,7 +100,7 @@ public class ImpactApplyEffectCommand : Command, ICommand
         }
         else
         {
-            if (Params.RemoveOnRollback == 1)
+            if (Params.RemoveOnRollback == 1 && !CustomDBInterface.IsPermanentEffect(Params.EffectId))
             {
                 context.Actives.Add(this, new RemoveOnRollbackCommandActiveContext()
                 {

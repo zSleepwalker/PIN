@@ -161,7 +161,7 @@ public class CombatController : Base
             var initiator = character as IAptitudeTarget;
             var shard = player.CharacterEntity.Shard;
             var targets = new AptitudeTargets();
-            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, targets, query.ItemSdbId);
+            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, targets, query.ItemSdbId, activationAcknowledged: character.IsPlayerControlled);
         }
     }
 
@@ -289,7 +289,7 @@ public class CombatController : Base
             .Select(entityId => (IAptitudeTarget)shard.Entities[entityId.Backing & 0xffffffffffffff00])
             .ToArray();
 
-            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, new AptitudeTargets(targets));
+            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, new AptitudeTargets(targets), activationAcknowledged: character.IsPlayerControlled);
         }
     }
 

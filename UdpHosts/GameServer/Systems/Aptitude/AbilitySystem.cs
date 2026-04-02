@@ -80,25 +80,32 @@ public class AbilitySystem
         var activeEffects = entity.GetActiveEffects();
         foreach (var activeEffect in activeEffects)
         {
-            if (activeEffect?.Effect.DurationChain != null
-                && currentTime > activeEffect.LastUpdateTime + activeEffect.Effect.UpdateFrequency)
+            if (activeEffect == null)
+            {
+                continue;
+            }
+
+            // Duration is checked every tick regardless of UpdateFrequency.
+            // UpdateFrequency only controls how often the UpdateChain (periodic tick) runs.
+            if (activeEffect.Effect.DurationChain != null)
             {
                 activeEffect.Context.ExecutionHint = ExecutionHint.DurationEffect;
                 bool durationResult = activeEffect.Effect.DurationChain.Execute(activeEffect.Context);
-                activeEffect.LastUpdateTime = currentTime;
 
-                if (durationResult)
-                {
-                    if (activeEffect.Effect.UpdateChain != null)
-                    {
-                        activeEffect.Context.ExecutionHint = ExecutionHint.UpdateEffect;
-                        activeEffect.Effect.UpdateChain.Execute(activeEffect.Context);
-                    }
-                }
-                else
+                if (!durationResult)
                 {
                     DoRemoveEffect(activeEffect);
+                    continue;
                 }
+            }
+
+            // Run periodic update at the configured frequency
+            if (activeEffect.Effect.UpdateChain != null
+                && currentTime > activeEffect.LastUpdateTime + activeEffect.Effect.UpdateFrequency)
+            {
+                activeEffect.LastUpdateTime = currentTime;
+                activeEffect.Context.ExecutionHint = ExecutionHint.UpdateEffect;
+                activeEffect.Effect.UpdateChain.Execute(activeEffect.Context);
             }
         }
     }
@@ -113,6 +120,12 @@ public class AbilitySystem
         var applyContext = Context.CopyContext(context);
         applyContext.Self = target;
         applyContext.ExecutionHint = ExecutionHint.ApplyEffect;
+
+        // InitTime must reflect when THIS EFFECT was applied (server time), not the original
+        // client activation time. TimeDurationCommand compares Shard.CurrentTime against
+        // InitTime, so using a client-side timestamp causes immediate expiry and effects end
+        // after exactly one UpdateFrequency interval instead of their correct DurationMs.
+        applyContext.InitTime = (uint)context.Shard.CurrentTime;
 
         var effect = Factory.LoadEffect(effectId);
 
@@ -240,7 +253,7 @@ public class AbilitySystem
         }
     }
 
-    public void HandleActivateAbility(IShard shard, IAptitudeTarget initiator, uint abilityId, uint activationTime, AptitudeTargets targets, uint itemId = 0)
+    public void HandleActivateAbility(IShard shard, IAptitudeTarget initiator, uint abilityId, uint activationTime, AptitudeTargets targets, uint itemId = 0, bool activationAcknowledged = false)
     {
         var chainId = SDBInterface.GetAbilityData(abilityId).Chain;
         if (chainId == 0)
@@ -256,7 +269,8 @@ public class AbilitySystem
             Targets = targets,
             InitTime = activationTime,
             ExecutionHint = ExecutionHint.Ability,
-            ItemId = itemId
+            ItemId = itemId,
+            ActivationAcknowledged = activationAcknowledged,
         });
     }
 

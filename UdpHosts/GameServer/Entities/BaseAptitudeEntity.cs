@@ -69,6 +69,7 @@ public abstract class BaseAptitudeEntity : BaseEntity, IAptitudeTarget
             Effect = effect,
             Context = context,
             Time = Shard.CurrentTime,
+            LastUpdateTime = Shard.CurrentTime,
             Stacks = 1,
             Index = firstFreeIndex
         };

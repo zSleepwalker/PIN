@@ -16,6 +16,9 @@ public class MovementRelay
     public void CharacterMovementInput(INetworkClient client, IEntity entity, AeroMessages.GSS.V66.Character.Command.MovementInput input)
     {
         var character = entity as Entities.Character.CharacterEntity;
+        var previousAirborne = character.IsAirborne;
+        var previousMovementStateValue = character.MovementStateContainer.MovementStateValue;
+        var previousMovestate = character.MovementStateContainer.Movestate;
 
         // Update our data based on the clients input
         var poseData = input.PoseData;
@@ -29,6 +32,16 @@ public class MovementRelay
 
         var movementStateValue = posRotState.MovementState;
         character.MovementStateContainer.MovementStateValue = (ushort)movementStateValue;
+
+        if (previousMovementStateValue != character.MovementStateContainer.MovementStateValue && character.IsRecoveryTraceActive())
+        {
+            character.TraceRecoveryState($"movement state changed 0x{previousMovementStateValue:X4} ({previousMovestate}) -> 0x{character.MovementStateContainer.MovementStateValue:X4} ({character.MovementStateContainer.Movestate})");
+        }
+
+        if (previousAirborne != character.IsAirborne && character.IsRecoveryTraceActive())
+        {
+            character.TraceRecoveryState($"airborne changed {previousAirborne} -> {character.IsAirborne}");
+        }
 
         // Confirm the pose with the client
         var confirmedPose = new ConfirmedPoseUpdate
@@ -53,6 +66,11 @@ public class MovementRelay
             NextShortTime = unchecked((ushort)(input.ShortTime + 90)) // This value has to be in the future, nobody cares why.
         };
         client.NetChannels[ChannelType.UnreliableGss].SendMessage(confirmedPose, character.EntityId);
+
+        if (sendJumpActioned && character.IsRecoveryTraceActive())
+        {
+            character.TraceRecoveryState("jump actioned");
+        }
 
         // Forward update to remote clients
         var currentPose = new CurrentPoseUpdate

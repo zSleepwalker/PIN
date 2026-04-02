@@ -5,7 +5,7 @@ using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
 using Records.dbitems;
-using Records.dbviusalrecords;
+using Records.dbvisualrecords;
 using Records.vcs;
 
 public interface ISDBLoader
@@ -40,6 +40,7 @@ public interface ISDBLoader
     Dictionary<uint, BaseCommandDef> LoadBaseCommandDef();
     Dictionary<uint, CommandType> LoadCommandType();
     Dictionary<uint, AbilityData> LoadAbilityData();
+    Dictionary<uint, ActiveInitiationCommandDef> LoadActiveInitiationTypeCommandDef();
     Dictionary<uint, ImpactApplyEffectCommandDef> LoadImpactApplyEffectCommandDef();
     Dictionary<uint, ConditionalBranchCommandDef> LoadConditionalBranchCommandDef();
     Dictionary<uint, WhileLoopCommandDef> LoadWhileLoopCommandDef();
@@ -62,8 +63,6 @@ public interface ISDBLoader
     Dictionary<uint, PopTargetsCommandDef> LoadPopTargetsCommandDef();
     Dictionary<uint, PushTargetsCommandDef> LoadPushTargetsCommandDef();
     Dictionary<uint, TimeDurationCommandDef> LoadTimeDurationCommandDef();
-    Dictionary<uint, AirborneDurationCommandDef> LoadAirborneDurationCommandDef();
-    Dictionary<uint, ActivationDurationCommandDef> LoadActivationDurationCommandDef();
     Dictionary<uint, ReturnCommandDef> LoadReturnCommandDef();
     Dictionary<uint, LoadRegisterFromItemStatCommandDef> LoadLoadRegisterFromItemStatCommandDef();
     Dictionary<uint, LoadRegisterFromBonusCommandDef> LoadLoadRegisterFromBonusCommandDef();
@@ -174,6 +173,7 @@ public interface ISDBLoader
     Dictionary<uint, HealDamageCommandDef> LoadHealDamageCommandDef();
     Dictionary<uint, BullrushCommandDef> LoadBullrushCommandDef();
     Dictionary<uint, EnergyToDamageCommandDef> LoadEnergyToDamageCommandDef();
+    Dictionary<uint, AirborneDurationCommandDef> LoadAirborneDurationCommandDef();
     Dictionary<uint, BattleFrameDurationCommandDef> LoadBattleFrameDurationCommandDef();
     Dictionary<uint, ShootingDurationCommandDef> LoadShootingDurationCommandDef();
     Dictionary<uint, SwitchWeaponCommandDef> LoadSwitchWeaponCommandDef();

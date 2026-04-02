@@ -28,6 +28,9 @@ namespace GameServer.Entities.Character;
 public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarget
 {
     public const byte MaxMapMarkerCount = 64;
+    private const uint RecoveryTracePrimaryEffectId = 10531;
+    private const uint RecoveryTraceFollowupEffectId = 1375;
+    private const uint RecoveryTraceWindowMs = 2000;
     private MapMarkerState[] MapMarkers = new MapMarkerState[MaxMapMarkerCount];
 
     public CharacterEntity(IShard shard, ulong eid, CharacterEntity owner = null)
@@ -68,6 +71,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public short TimeSinceLastJump { get; set; }
     public bool IsAirborne { get; set; }
     public bool IsMoving { get => MovementStateContainer.Sprint || MovementStateContainer.Movement; }
+
+    /// <summary>
+    /// Server-side end time (ms) of any active forced movement impulse.
+    /// Set by ApplyImpulseCommand; checked by ForcedMovementDurationCommand.
+    /// Zero means no active impulse.
+    /// </summary>
+    public ulong ForcedMovementEndTime { get; set; }
+    public ulong RecoveryTraceEndTime { get; set; }
     public bool IsCrouching { get => MovementStateContainer.Crouch; }
 
     public Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool> CurrentPermissions { get; set; } = new Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool>()
@@ -232,6 +243,9 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         { StatModifierIdentifier.AirResistanceMult,    1.0f },
         { StatModifierIdentifier.WeaponChargeupMod,    1.0f },
         { StatModifierIdentifier.WeaponDamageDealtMod, 1.0f },
+        { StatModifierIdentifier.EliteRankXpBonus,    1.0f },
+        { StatModifierIdentifier.XpBonus,             1.0f },
+        { StatModifierIdentifier.ResourceStatusBonus, 1.0f },
     };
 
     internal MovementStateContainer MovementStateContainer { get; set; } = new();
@@ -669,13 +683,25 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         foreach (ActiveStatModifier mod in CurrentStatModifiers[stat].Values)
         {
-            if (mod.Op == 1)
+            if (mod.Op == 1) // ADD
             {
                 value += mod.Value;
             }
-            else if (mod.Op == 2)
+            else if (mod.Op == 2) // MULTIPLY
             {
                 value = (value * mod.Value) / 100;
+            }
+            else if (mod.Op == 0) // ASSIGN
+            {
+                value = mod.Value;
+            }
+            else if (mod.Op == 4) // SUBTRACT
+            {
+                value -= mod.Value;
+            }
+            else if (mod.Op == 5) // DIVIDE
+            {
+                value = value / mod.Value;
             }
             else
             {
@@ -822,6 +848,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void SetCharacterState(CharacterStateData.CharacterStatus characterStatus, uint time)
     {
+        var previousCharacterState = CharacterState.State;
+
         CharacterState = new CharacterStateData
         {
             State = characterStatus, Time = time
@@ -830,6 +858,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         if (Character_BaseController != null)
         {
             Character_BaseController.CharacterStateProp = CharacterState;
+        }
+
+        if (previousCharacterState != characterStatus && IsRecoveryTraceActive())
+        {
+            TraceRecoveryState($"character state changed {previousCharacterState} -> {characterStatus}");
         }
     }
     
@@ -988,6 +1021,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags flag, bool value)
     {
+        var previousValue = CurrentPermissions.GetValueOrDefault(flag);
         CurrentPermissions[flag] = value;
         PermissionFlags = new PermissionFlagsData
         {
@@ -998,6 +1032,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         if (Character_CombatController != null)
         {
             Character_CombatController.PermissionFlagsProp = PermissionFlags;
+        }
+
+        if (previousValue != value && IsRecoveryTraceActive())
+        {
+            TraceRecoveryState($"permission {flag} changed {previousValue} -> {value}");
         }
     }
 
@@ -1045,6 +1084,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         // CombatView
         Character_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatView, time, null);
         Character_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatView, data, null);
+
+        TraceRecoveryEffect("set", index, time, data.Id);
     }
     
     public override void ClearStatusEffect(byte index, ushort time, uint debugEffectId)
@@ -1065,6 +1106,48 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         // CombatView
         Character_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatView, time, null);
         Character_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatView, null, null);
+
+        TraceRecoveryEffect("clear", index, time, debugEffectId);
+    }
+
+    public bool IsRecoveryTraceActive()
+    {
+        return Shard.CurrentTime <= RecoveryTraceEndTime;
+    }
+
+    public void TraceRecoveryState(string reason)
+    {
+        if (!IsRecoveryTraceActive())
+        {
+            return;
+        }
+
+        Console.WriteLine($"[RECOVERY] Time {Shard.CurrentTime}, Entity {this}, Move {MovementStateContainer.Movestate}, CState {CharacterState.State}, Airborne {IsAirborne}, ForcedMoveEnd {ForcedMovementEndTime}, Perms movement={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.movement]}, abilities={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.abilities]}, jump={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.jump]}, sprint={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.sprint]} :: {reason}");
+    }
+
+    private static bool IsRecoveryTraceEffect(uint effectId)
+    {
+        return effectId == RecoveryTracePrimaryEffectId || effectId == RecoveryTraceFollowupEffectId;
+    }
+
+    private void ExtendRecoveryTraceWindow(uint durationMs)
+    {
+        ulong nextEndTime = Shard.CurrentTime + durationMs;
+        if (nextEndTime > RecoveryTraceEndTime)
+        {
+            RecoveryTraceEndTime = nextEndTime;
+        }
+    }
+
+    private void TraceRecoveryEffect(string action, byte index, ushort time, uint effectId)
+    {
+        if (!IsRecoveryTraceEffect(effectId))
+        {
+            return;
+        }
+
+        ExtendRecoveryTraceWindow(effectId == RecoveryTracePrimaryEffectId ? 12000u : RecoveryTraceWindowMs);
+        TraceRecoveryState($"{action} status effect {effectId} at index {index}, shortTime {time}");
     }
 
     public void SetAttachedTo(AttachedToData newValue, IEntity entity)

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.aptfs;
 
@@ -32,7 +32,7 @@ public class RequireHasEffectTagCommand : Command, ICommand
                         continue;
                     }
 
-                    if (effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
+                    if (active.Effect != null && effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
                     {
                         matchCounter++;
                         break;
@@ -55,7 +55,7 @@ public class RequireHasEffectTagCommand : Command, ICommand
                     continue;
                 }
 
-                if (effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
+                if (active.Effect != null && effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
                 {
                     result = true;
                     break;
