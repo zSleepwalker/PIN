@@ -13,7 +13,10 @@ public class ParticleEffectAssetCommand : ICommand
 
     public bool Execute(Context context)
     {
-        ClientFeedbackEmitter.EmitParticleEffect(context, Id);
+        // For client-environment aptitude commands, Id is the command ID, not a validated
+        // particle asset ID. Emitting it as PfxAssetId causes placeholder/missing-FX visuals
+        // (question-mark style effects) across many activations.
+        // TODO: Load apttf::tfParticleEffectAssetCommandDef payload and emit the real asset ID.
         return true;
     }
 

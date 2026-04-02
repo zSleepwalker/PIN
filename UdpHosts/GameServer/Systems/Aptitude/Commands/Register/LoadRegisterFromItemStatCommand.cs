@@ -49,12 +49,6 @@ public class LoadRegisterFromItemStatCommand : Command, ICommand
         float statValue = character.GetItemAttribute(Params.Stat);
         context.Register = AbilitySystem.RegistryOp(prevValue, statValue, (Operand)Params.Regop);
 
-        if (true)
-        {
-            var statInfo = SDBInterface.GetAttributeDefinition((uint)Params.Stat);
-            Console.WriteLine($"LoadRegisterFromItemStatCommand: ({prevValue}, {statValue} ({statInfo.Name.TrimNulls()}), {(Operand)Params.Regop}) => {context.Register}");
-        }
-
         return true;
     }
 }

@@ -28,7 +28,7 @@ public class Chain
 
     public bool Execute(Context context, ExecutionMethod method = ExecutionMethod.AndChain)
     {
-        bool debug = context.ExecutionHint is not (ExecutionHint.DurationEffect or ExecutionHint.UpdateEffect)
+        bool debug = context.ExecutionHint is not (ExecutionHint.DurationEffect or ExecutionHint.UpdateEffect or ExecutionHint.Logic)
             && !SuppressedDebugChains.Contains(Id);
 
         if (debug)

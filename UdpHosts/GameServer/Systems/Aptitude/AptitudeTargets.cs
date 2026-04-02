@@ -29,8 +29,6 @@ public class AptitudeTargets : IEnumerable<IAptitudeTarget>
                 _targets.Add(target);
             }
         }
-
-        PrintTargets();
     }
 
     public int Count => _targets.Count;
@@ -52,24 +50,16 @@ public class AptitudeTargets : IEnumerable<IAptitudeTarget>
             return;
         }
 
-        PrintTargets();
-
-        Console.WriteLine($"Pushing new target: {target}");
-
         _targets.Add(target);
     }
 
     public bool TryPop(out IAptitudeTarget result)
     {
-        PrintTargets();
-
         var ok = _targets.Count != 0;
 
         if (ok)
         {
             result = _targets[^1];
-
-            Console.WriteLine($"Popping target: {result}");
 
             _targets.RemoveAt(_targets.Count - 1);
 
@@ -89,8 +79,6 @@ public class AptitudeTargets : IEnumerable<IAptitudeTarget>
         {
             result = _targets[^1];
 
-            Console.WriteLine($"Peeking at target: {result}");
-
             return true;
         }
 
@@ -106,19 +94,11 @@ public class AptitudeTargets : IEnumerable<IAptitudeTarget>
 
     public void RemoveBottomN(int number)
     {
-        PrintTargets();
-
-        Console.WriteLine($"Removing first {number} targets");
-
         _targets.RemoveRange(0, Math.Min(number, _targets.Count));
     }
 
     public void PopN(int number)
     {
-        PrintTargets();
-
-        Console.WriteLine($"Popping last {number} targets");
-
         _targets.RemoveRange(_targets.Count - Math.Min(number, _targets.Count), Math.Min(number, _targets.Count));
     }
 
@@ -134,13 +114,5 @@ public class AptitudeTargets : IEnumerable<IAptitudeTarget>
 
     public void PrintTargets()
     {
-        var s = string.Empty;
-
-        foreach (var e in _targets)
-        {
-            s += e + ", ";
-        }
-
-        Console.WriteLine($"Targets ({_targets.Count}): {s.Trim(',', ' ')}");
     }
 }

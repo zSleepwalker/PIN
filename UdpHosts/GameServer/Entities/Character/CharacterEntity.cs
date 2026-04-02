@@ -42,6 +42,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         foreach(StatModifierIdentifier stat in Enum.GetValues(typeof(StatModifierIdentifier)))
         {
             CurrentStatModifiers.Add(stat, new Dictionary<uint, ActiveStatModifier>());
+
+            if (!BaseStatModifiers.ContainsKey(stat))
+            {
+                BaseStatModifiers[stat] = GetDefaultBaseStatModifier(stat);
+            }
         }
 
         InitFields();
@@ -671,15 +676,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public float GetCurrentStatModifierValue(StatModifierIdentifier stat)
     {
-        float value = 0;
-        try
-        {
-            value = BaseStatModifiers[stat];
-        }
-        catch
-        {
-            Console.WriteLine($"MISSING BaseStatModifier for {stat}");
-        }
+        float value = BaseStatModifiers.GetValueOrDefault(stat, GetDefaultBaseStatModifier(stat));
 
         foreach (ActiveStatModifier mod in CurrentStatModifiers[stat].Values)
         {
@@ -710,6 +707,13 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         return value;
+    }
+
+    private static float GetDefaultBaseStatModifier(StatModifierIdentifier stat)
+    {
+        // Most networked stat modifiers behave as multipliers and default to 1.0.
+        // MaxTurnRate is treated as additive and historically defaults to 0.0.
+        return stat == StatModifierIdentifier.MaxTurnRate ? 0.0f : 1.0f;
     }
 
     public void SetCharacterStats(CharacterStatsData value)

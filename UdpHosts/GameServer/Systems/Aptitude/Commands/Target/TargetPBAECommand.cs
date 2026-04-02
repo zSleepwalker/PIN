@@ -28,11 +28,6 @@ public class TargetPBAECommand : Command, ICommand
         // Params.AimPosOffset
         // Params.UseInitPos
         // Params.UseBodyPosition
-        if (context.Targets.Count >= Params.MaxTargets)
-        {
-            Console.WriteLine($"TargetPBAECommand {Id} The context target count exceeds the MaxTargets BEFORE command executes, investigate if this happens");
-        }
-
         float radius = AbilitySystem.RegistryOp(context.Register, Params.Radius, (Operand)Params.RadiusRegop);
         if (Params.UseWeaponRadius == 1)
         {
@@ -79,14 +74,8 @@ public class TargetPBAECommand : Command, ICommand
         .ToList();
         matches.ForEach(context.Targets.Push);
 
-        if (context.Targets.Count >= Params.MaxTargets)
-        {
-            Console.WriteLine($"TargetPBAECommand {Id} The context target count exceeds the MaxTargets AFTER command executes, now what?");
-        }
-
         if (context.Targets.Count < Params.MinTargets)
         {
-            Console.WriteLine($"TargetPBAECommand {Id} The context target count is below the MinTargets AFTER command executes, returning false");
             return false;
         }
 
