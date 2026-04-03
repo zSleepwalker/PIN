@@ -21,11 +21,13 @@ public class MissionAndMarkerController : Base
     [MessageID((byte)Commands.RequestAllAchievements)]
     public void RequestAllAchievements(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // No backend achievement system yet. Send an empty UnlocksUpdate so the
-        // client's achievement UI doesn't stall waiting for a reply.
+        // No backend achievement system yet. Still reply so the client's
+        // achievement UI does not stall, but do not clear unlock state.
+        // Clearing with no groups wipes certificate unlocks client-side and
+        // causes valid gear to appear incompatible with the active battleframe.
         var response = new UnlocksUpdate
         {
-            ClearExistingData = 1,
+            ClearExistingData = 0,
             Groups = System.Array.Empty<UnlockGroup>(),
         };
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, player.CharacterEntity.EntityId);
@@ -43,10 +45,11 @@ public class MissionAndMarkerController : Base
     [MessageID((byte)Commands.ListAchievements)]
     public void ListAchievements(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // No backend achievement system yet. Send empty unlock list.
+        // Match RequestAllAchievements: acknowledge the request without wiping
+        // unrelated unlock state such as frame certificates.
         var response = new UnlocksUpdate
         {
-            ClearExistingData = 1,
+            ClearExistingData = 0,
             Groups = System.Array.Empty<UnlockGroup>(),
         };
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, player.CharacterEntity.EntityId);

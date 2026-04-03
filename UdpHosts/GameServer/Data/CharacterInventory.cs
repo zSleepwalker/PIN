@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using AeroMessages.Common;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Data.SDB;
@@ -15,6 +16,31 @@ namespace GameServer.Data;
 public class CharacterInventory
 {
     public bool EnablePartialUpdates = true;
+
+    // Mirror of client lib_Battleframes.lua cert grants per chassis.
+    private static readonly Dictionary<uint, uint[]> FrameCertsByChassis = new()
+    {
+        [76164] = [732],
+        [76133] = [733, 732],
+        [76132] = [734, 732],
+
+        [75775] = [735],
+        [76337] = [736, 735],
+        [76338] = [737, 735],
+
+        [75772] = [741],
+        [76331] = [742, 741],
+        [76332] = [743, 741],
+        [82360] = [748, 741],
+
+        [75774] = [738],
+        [76335] = [739, 738],
+        [76336] = [740, 738],
+
+        [75773] = [744],
+        [76333] = [745, 744],
+        [76334] = [746, 744],
+    };
 
     private Dictionary<ulong, Item> _items; // By guid
     private Dictionary<uint, Resource> _resources; // By typeid
@@ -343,7 +369,7 @@ public class CharacterInventory
             ChassisId = loadout.ChassisID
         };
 
-        NormalizeLoadoutForSerialization(loadout);
+        NormalizeLoadoutForSerialization(ref loadout);
 
         var pveConfig = loadout.LoadoutConfigs[0];
         var pvpConfig = loadout.LoadoutConfigs[1];
@@ -459,8 +485,146 @@ public class CharacterInventory
 
     public void AddLoadout(Loadout loadout)
     {
-        NormalizeLoadoutForSerialization(loadout);
+        NormalizeLoadoutForSerialization(ref loadout);
         _loadouts.Add((int)loadout.FrameLoadoutId, loadout);
+    }
+
+    public void SendCertificateUnlocksUpdate()
+    {
+        var globalCertIds = new HashSet<uint>();
+        var frameScopedCerts = new HashSet<(uint CertId, uint FrameId)>();
+
+        foreach (var loadout in _loadouts.Values)
+        {
+            if (loadout.ChassisID == 0)
+            {
+                continue;
+            }
+
+            if (FrameCertsByChassis.TryGetValue(loadout.ChassisID, out var mappedCerts))
+            {
+                foreach (var certId in mappedCerts)
+                {
+                    globalCertIds.Add(certId);
+                    frameScopedCerts.Add((certId, loadout.ChassisID));
+                }
+            }
+
+            var chassisRoot = SDBInterface.GetRootItem(loadout.ChassisID);
+            if (chassisRoot != null && chassisRoot.ClassCertId != 0)
+            {
+                globalCertIds.Add(chassisRoot.ClassCertId);
+                frameScopedCerts.Add((chassisRoot.ClassCertId, loadout.ChassisID));
+            }
+
+            foreach (var charCreateLoadout in SDBInterface.GetCharCreateLoadoutsByFrame(loadout.ChassisID))
+            {
+                if (charCreateLoadout.BaseCertificate != 0)
+                {
+                    globalCertIds.Add(charCreateLoadout.BaseCertificate);
+                    frameScopedCerts.Add((charCreateLoadout.BaseCertificate, loadout.ChassisID));
+                }
+
+                if (charCreateLoadout.BaseFrameId != 0)
+                {
+                    var baseFrameRoot = SDBInterface.GetRootItem(charCreateLoadout.BaseFrameId);
+                    if (baseFrameRoot != null && baseFrameRoot.ClassCertId != 0)
+                    {
+                        globalCertIds.Add(baseFrameRoot.ClassCertId);
+                        frameScopedCerts.Add((baseFrameRoot.ClassCertId, loadout.ChassisID));
+                    }
+                }
+            }
+        }
+
+        if (globalCertIds.Count == 0 && frameScopedCerts.Count == 0)
+        {
+            return;
+        }
+
+        var certEntries = globalCertIds
+            .Select(certId => new UnlockGroupEntry
+            {
+                CertId = certId,
+                HaveUnk1 = 0,
+                HaveUnk2 = 0,
+                HaveUnk3 = 0,
+            })
+            .Concat(globalCertIds.Select(certId => new UnlockGroupEntry
+            {
+                CertId = certId,
+                HaveUnk1 = 0,
+                HaveUnk2 = 0,
+                HaveUnk3 = 1,
+                Unk3 = "global",
+            }))
+            .Concat(frameScopedCerts.Select(scoped => new UnlockGroupEntry
+            {
+                CertId = scoped.CertId,
+                HaveUnk1 = 0,
+                HaveUnk2 = 1,
+                Unk2 = scoped.FrameId,
+                HaveUnk3 = 0,
+            }))
+            .Concat(frameScopedCerts.Select(scoped => new UnlockGroupEntry
+            {
+                CertId = scoped.CertId,
+                HaveUnk1 = 1,
+                Unk1 = scoped.FrameId,
+                HaveUnk2 = 0,
+                HaveUnk3 = 0,
+            }))
+            .Concat(frameScopedCerts.Select(scoped => new UnlockGroupEntry
+            {
+                CertId = scoped.CertId,
+                HaveUnk1 = 0,
+                HaveUnk2 = 0,
+                HaveUnk3 = 1,
+                Unk3 = scoped.FrameId.ToString(),
+            }))
+            .ToArray();
+
+        string globalCertList = string.Join(",", globalCertIds.OrderBy(id => id));
+        string frameCertList = string.Join(",", frameScopedCerts
+            .OrderBy(pair => pair.FrameId)
+            .ThenBy(pair => pair.CertId)
+            .Select(pair => $"{pair.FrameId}:{pair.CertId}"));
+
+        _shard.Logger.Information(
+            "Sending certificate unlocks for {charId}: global={globalCount} [{globalCertList}], frameScoped={frameScopedCount} [{frameCertList}], entries={entryCount}",
+            _character.EntityId,
+            globalCertIds.Count,
+            globalCertList,
+            frameScopedCerts.Count,
+            frameCertList,
+            certEntries.Length);
+
+        var update = new UnlocksUpdate
+        {
+            ClearExistingData = 0,
+            Groups =
+            [
+                new UnlockGroup
+                {
+                    Key = "certificate",
+                    AddEntries = certEntries,
+                    RemEntries = Array.Empty<UnlockGroupEntrySmall>(),
+                }
+            ]
+        };
+
+        _player.NetChannels[ChannelType.ReliableGss].SendMessage(update, _character.EntityId);
+    }
+
+    public bool TryGetLoadout(int loadoutId, out Loadout loadout)
+    {
+        if (!_loadouts.TryGetValue(loadoutId, out loadout))
+        {
+            return false;
+        }
+
+        NormalizeLoadoutForSerialization(ref loadout);
+        return true;
     }
 
     public void SendFullInventory()
@@ -480,9 +644,9 @@ public class CharacterInventory
             throw new NotImplementedException("Too many loadouts in inventory, CharacterInventory.SendFullInventory has to be updated");
         }
 
-        foreach (var loadout in _loadouts.Values)
+        foreach (var loadoutId in _loadouts.Keys.ToArray())
         {
-            NormalizeLoadoutForSerialization(loadout);
+            NormalizeAndStoreLoadout(loadoutId);
         }
 
         var update = new InventoryUpdate()
@@ -596,9 +760,9 @@ public class CharacterInventory
             return;
         }
 
-        foreach (var loadout in _loadouts.Values)
+        foreach (var loadoutId in _loadouts.Keys.ToArray())
         {
-            NormalizeLoadoutForSerialization(loadout);
+            NormalizeAndStoreLoadout(loadoutId);
         }
         
         var itemChanges = new Item[]
@@ -641,7 +805,7 @@ public class CharacterInventory
         ulong changedOldItemGUID = 0;
         ulong changedNewItemGUID = guid;
 
-        NormalizeLoadoutForSerialization(_loadouts[loadoutId]);
+        NormalizeAndStoreLoadout(loadoutId);
         
         // Unequip old Item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Items.Any((e) => e.SlotIndex == (byte)slot))
@@ -693,7 +857,7 @@ public class CharacterInventory
         // Persist the updated loadout slots to the database via gRPC.
         if (_loadouts.TryGetValue(loadoutId, out var updatedLoadout))
         {
-            NormalizeLoadoutForSerialization(updatedLoadout);
+            NormalizeLoadoutForSerialization(ref updatedLoadout);
 
             var slottedItemsDict = updatedLoadout.LoadoutConfigs[0].Items
                 .ToDictionary(x => x.SlotIndex, x => x.ItemGUID);
@@ -706,7 +870,7 @@ public class CharacterInventory
     
     public void EquipVisualBySdbId(int loadoutId, LoadoutVisualType visual, LoadoutSlotType slot, uint sdb_id)
     {
-        NormalizeLoadoutForSerialization(_loadouts[loadoutId]);
+        NormalizeAndStoreLoadout(loadoutId);
 
         // Unequip old item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Visuals.Any(i => i.VisualType == visual))
@@ -772,7 +936,18 @@ public class CharacterInventory
         ];
     }
 
-    private static void NormalizeLoadoutForSerialization(Loadout loadout)
+    private void NormalizeAndStoreLoadout(int loadoutId)
+    {
+        if (!_loadouts.TryGetValue(loadoutId, out var loadout))
+        {
+            return;
+        }
+
+        NormalizeLoadoutForSerialization(ref loadout);
+        _loadouts[loadoutId] = loadout;
+    }
+
+    private void NormalizeLoadoutForSerialization(ref Loadout loadout)
     {
         if (loadout.LoadoutConfigs == null || loadout.LoadoutConfigs.Length < 2)
         {
@@ -791,10 +966,6 @@ public class CharacterInventory
         loadout.LoadoutConfigs[0].ConfigName ??= "pve";
         loadout.LoadoutConfigs[1].ConfigName ??= "pvp";
 
-        // ExtraData is not populated by our loadout persistence path; keep it disabled.
-        loadout.LoadoutConfigs[0].HaveExtraData = 0;
-        loadout.LoadoutConfigs[1].HaveExtraData = 0;
-
         for (int configIndex = 0; configIndex < loadout.LoadoutConfigs.Length; configIndex++)
         {
             var config = loadout.LoadoutConfigs[configIndex];
@@ -802,17 +973,122 @@ public class CharacterInventory
             config.Visuals ??= Array.Empty<LoadoutConfig_Visual>();
             config.Perks ??= Array.Empty<uint>();
             config.ConfigName ??= configIndex == 0 ? "pve" : "pvp";
+            config.HaveExtraData = 1;
+            config.ExtraData = BuildLoadoutExtraData(loadout, config);
 
             for (int visualIndex = 0; visualIndex < config.Visuals.Length; visualIndex++)
             {
                 config.Visuals[visualIndex].Transform ??= Array.Empty<float>();
             }
+
+            loadout.LoadoutConfigs[configIndex] = config;
         }
+    }
+
+    private LoadoutConfig_Extra BuildLoadoutExtraData(Loadout loadout, LoadoutConfig config)
+    {
+        uint vehicleSdbId = ResolveSlottedItemSdbId(config, (byte)LoadoutSlotType.Vehicle);
+        uint gliderSdbId = ResolveSlottedItemSdbId(config, (byte)LoadoutSlotType.Glider);
+
+        return new LoadoutConfig_Extra
+        {
+            Unk1_1 = 0,
+            Unk1_2 = 0,
+            Unk1_3 = 0,
+            Unk1_4 = 0,
+            Unk1_5 = 0,
+            Unk1_6 = 0,
+            Unk2 = Array.Empty<uint>(),
+            UnkVisualsBlock = CreateEmptyVisualsBlock(),
+            VehicleId = vehicleSdbId,
+            GliderId = gliderSdbId,
+            Unk3 = Array.Empty<LoadoutConfig_Extra_UnkThing>(),
+            OverrideWeaponsPaletteId = 0,
+            Unk4 = Array.Empty<uint>(),
+            Unk5_1 = 0,
+            Unk5_2 = 0,
+            Unk5_3 = 0,
+            Chassis = CreateChassisSlottedItem(loadout, config),
+            Weapons = CreateWeaponSlottedItems(config),
+            VisualOverrides = Array.Empty<VisualOverridesData>(),
+            Backpack = CreateResolvedSlottedItem(config, LoadoutSlotType.Backpack, 255),
+            Unk6 = 0,
+            UnkPerkRespecRemainingSecRelated = config.PerkRespecLockRemainingSeconds,
+            ArchetypeLevel = 1,
+            Unk7 = 0,
+        };
+    }
+
+    private SlottedItem CreateChassisSlottedItem(Loadout loadout, LoadoutConfig config)
+    {
+        return new SlottedItem
+        {
+            SdbId = loadout.ChassisID,
+            SlotIndex = 255,
+            Flags = 0,
+            Unk2 = 0,
+            Modules = CreateChassisModules(config),
+            Visuals = CreateEmptyVisualsBlock(),
+        };
+    }
+
+    private SlottedItem[] CreateWeaponSlottedItems(LoadoutConfig config)
+    {
+        return
+        [
+            CreateResolvedSlottedItem(config, LoadoutSlotType.Primary, 255),
+            CreateResolvedSlottedItem(config, LoadoutSlotType.Secondary, 255),
+        ];
+    }
+
+    private SlottedItem CreateResolvedSlottedItem(LoadoutConfig config, LoadoutSlotType slot, byte serializedSlotIndex)
+    {
+        uint sdbId = ResolveSlottedItemSdbId(config, (byte)slot);
+        return new SlottedItem
+        {
+            SdbId = sdbId,
+            SlotIndex = serializedSlotIndex,
+            Flags = 0,
+            Unk2 = 0,
+            Modules = Array.Empty<SlottedModule>(),
+            Visuals = CreateEmptyVisualsBlock(),
+        };
+    }
+
+    private SlottedModule[] CreateChassisModules(LoadoutConfig config)
+    {
+        return config.Items
+            .Where(item => CharacterLoadout.LoadoutChassisSlots.Contains((LoadoutSlotType)item.SlotIndex))
+            .Select(item => new SlottedModule
+            {
+                SdbId = _items.TryGetValue(item.ItemGUID, out var equippedItem) ? equippedItem.SdbId : 0,
+                SlotIndex = 255,
+                Flags = 0,
+                Unk2 = 0,
+            })
+            .Where(module => module.SdbId != 0)
+            .ToArray();
+    }
+
+    private static VisualsBlock CreateEmptyVisualsBlock()
+    {
+        return new VisualsBlock
+        {
+            Decals = Array.Empty<VisualsDecalsBlock>(),
+            Gradients = Array.Empty<uint>(),
+            Colors = Array.Empty<uint>(),
+            Palettes = Array.Empty<VisualsPaletteBlock>(),
+            Patterns = Array.Empty<VisualsPatternBlock>(),
+            OrnamentGroupIds = Array.Empty<uint>(),
+            CziMapAssetIds = Array.Empty<uint>(),
+            MorphWeights = Array.Empty<HalfFloat>(),
+            Overlays = Array.Empty<VisualsOverlayBlock>(),
+        };
     }
 
     private void SyncUtilityVisualsFromLoadoutSlots(Loadout loadout)
     {
-        NormalizeLoadoutForSerialization(loadout);
+        NormalizeLoadoutForSerialization(ref loadout);
 
         if (loadout.LoadoutConfigs.Length == 0)
         {
@@ -958,7 +1234,7 @@ public class CharacterInventory
 
     private void PersistLoadoutToDatabase(Loadout loadout)
     {
-        NormalizeLoadoutForSerialization(loadout);
+        NormalizeLoadoutForSerialization(ref loadout);
 
         var slottedItemsDict = loadout.LoadoutConfigs[0].Items.ToDictionary(x => x.SlotIndex, x => x.ItemGUID);
         var slottedItemsJson = System.Text.Json.JsonSerializer.Serialize(slottedItemsDict);

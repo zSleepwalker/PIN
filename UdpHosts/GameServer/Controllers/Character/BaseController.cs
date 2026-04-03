@@ -6,6 +6,7 @@ using AeroMessages.GSS.V66;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Command;
 using AeroMessages.GSS.V66.Character.Event;
+using AeroMessages.GSS.V66.Generic;
 using GameServer.Data;
 using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.customdata;
@@ -431,6 +432,23 @@ public class BaseController : Base
         {
             var loadout = new CharacterLoadout(loadoutRefData);
             player.CharacterEntity.ApplyLoadout(loadout);
+            player.Inventory.SendCertificateUnlocksUpdate();
+
+            if (player.Inventory.TryGetLoadout(query.LoadoutId, out var serializedLoadout))
+            {
+                var response = new CurrentLoadoutResponse
+                {
+                    PlayerId = new EntityId { Backing = player.EntityId },
+                    Unk2 = serializedLoadout.FrameLoadoutId,
+                    Unk3 = 0,
+                    Unk4 = serializedLoadout.LoadoutName ?? string.Empty,
+                    Unk5 = serializedLoadout.LoadoutType ?? string.Empty,
+                    Unk6 = serializedLoadout.ChassisID,
+                    LoadoutConfigs = serializedLoadout.LoadoutConfigs,
+                };
+
+                client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
+            }
 
             // Several UI components (like PaperdollSlotting) only refresh when ON_LEVEL_CHANGED fires.
             // Since we dont yet implement progression we just force an update here.
@@ -683,4 +701,4 @@ public class BaseController : Base
         // TODO: Implement – NPC combat state / AI update
         _ = packet.Unpack<NPCCombatUpdate>();
     }
-}
+}

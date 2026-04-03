@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Numerics;
 using AeroMessages.Control;
+using AeroMessages.Common;
 using AeroMessages.GSS.V66.Generic;
 using GameServer.Aptitude;
 using GameServer.Entities;
@@ -154,6 +155,25 @@ public class GenericShard : Base
     [MessageID((byte)Commands.CurrentLoadoutRequest)]
     public void CurrentLoadoutRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
+        var query = packet.Unpack<CurrentLoadoutRequest>();
+        int selectedLoadoutId = player.CharacterEntity.SelectedLoadout;
+        if (!player.Inventory.TryGetLoadout(selectedLoadoutId, out var loadout))
+        {
+            return;
+        }
+
+        var response = new CurrentLoadoutResponse
+        {
+            PlayerId = query.Target.Backing != 0 ? query.Target : new EntityId { Backing = player.EntityId },
+            Unk2 = loadout.FrameLoadoutId,
+            Unk3 = 0,
+            Unk4 = loadout.LoadoutName ?? string.Empty,
+            Unk5 = loadout.LoadoutType ?? string.Empty,
+            Unk6 = loadout.ChassisID,
+            LoadoutConfigs = loadout.LoadoutConfigs,
+        };
+
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
     }
 
     [MessageID((byte)Commands.VendorProductRequest)]

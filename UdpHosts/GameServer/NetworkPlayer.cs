@@ -2,10 +2,12 @@ using System;
 using System.Net;
 using System.Numerics;
 using System.Threading;
+using AeroMessages.Common;
 using AeroMessages.GSS.V66;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Controller;
 using AeroMessages.GSS.V66.Character.Event;
+using AeroMessages.GSS.V66.Generic;
 using AeroMessages.Matrix.V25;
 using GameServer.Data;
 using GameServer.Data.SDB.Records.customdata;
@@ -123,6 +125,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
             loadout.VehicleID = dbVisualVehicle;
             loadout.SlottedItems[LoadoutSlotType.Vehicle] = dbVisualVehicle;
         }
+
         if (loadout.GliderID == 0 && dbVisualGlider != 0)
         {
             loadout.GliderID = dbVisualGlider;
@@ -235,6 +238,23 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         // InventoryUpdate
         Inventory.SendFullInventory();
+        Inventory.SendCertificateUnlocksUpdate();
+        if (Inventory.TryGetLoadout(CharacterEntity.SelectedLoadout, out var currentLoadout))
+        {
+            var response = new CurrentLoadoutResponse
+            {
+                PlayerId = new EntityId { Backing = CharacterEntity.EntityId },
+                Unk2 = currentLoadout.FrameLoadoutId,
+                Unk3 = 0,
+                Unk4 = currentLoadout.LoadoutName ?? string.Empty,
+                Unk5 = currentLoadout.LoadoutType ?? string.Empty,
+                Unk6 = currentLoadout.ChassisID,
+                LoadoutConfigs = currentLoadout.LoadoutConfigs,
+            };
+
+            NetChannels[ChannelType.ReliableGss].SendMessage(response, CharacterEntity.EntityId);
+        }
+
         Inventory.EnablePartialUpdates = true;
 
         CharacterEntity.Alive = true; // Accept MovementInputs only after Respawn
@@ -243,6 +263,9 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
     public void Ready()
     {
         Status = IPlayer.PlayerStatus.Playing;
+
+        // Re-send cert unlocks after the client reaches ready state to avoid any init-order race.
+        Inventory.SendCertificateUnlocksUpdate();
     }
 
     public void Jump()
