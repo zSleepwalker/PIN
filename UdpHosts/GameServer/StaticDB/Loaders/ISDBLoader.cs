@@ -4,8 +4,10 @@ using System.Collections.Generic;
 using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
+using Records.dbencounterdata;
 using Records.dbitems;
 using Records.dbvisualrecords;
+using Records.dbzonemetadata;
 using Records.vcs;
 
 public interface ISDBLoader
@@ -14,8 +16,15 @@ public interface ISDBLoader
     Dictionary<uint, CharCreateLoadout> LoadCharCreateLoadout();
     Dictionary<uint, Dictionary<byte, CharCreateLoadoutSlots>> LoadCharCreateLoadoutSlots();
     Dictionary<uint, Deployable> LoadDeployable();
+    Dictionary<uint, DeployableFunction> LoadDeployableFunction();
+    Dictionary<uint, DeployableCategory> LoadDeployableCategory();
+    Dictionary<uint, Faction> LoadFaction();
     Dictionary<uint, Monster> LoadMonster();
     Dictionary<uint, Turret> LoadTurret();
+
+    // dbencounterdata
+    Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo();
+    Dictionary<uint, SinCardTemplate> LoadSinCardTemplate();
 
     // dbvisualrecords
     Dictionary<uint, WarpaintPalette> LoadWarpaintPalettes();
@@ -35,6 +44,10 @@ public interface ISDBLoader
     Dictionary<uint, WeaponScope> LoadWeaponScope();
     Dictionary<uint, WeaponUnderbarrel> LoadWeaponUnderbarrel();
     Dictionary<uint, Ammo> LoadAmmo();
+    Dictionary<uint, LevelBand> LoadLevelBand();
+
+    // dbzonemetadata
+    Dictionary<uint, ZoneRecord> LoadZoneRecord();
 
     // apt
     Dictionary<uint, BaseCommandDef> LoadBaseCommandDef();

@@ -7,8 +7,10 @@ using FauFau.Formats;
 using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
+using Records.dbencounterdata;
 using Records.dbitems;
 using Records.dbvisualrecords;
+using Records.dbzonemetadata;
 using Records.vcs;
 
 public class SDBInterface
@@ -17,8 +19,15 @@ public class SDBInterface
     private static Dictionary<uint, CharCreateLoadout> CharCreateLoadout;
     private static Dictionary<uint, Dictionary<byte, CharCreateLoadoutSlots>> CharCreateLoadoutSlots;
     private static Dictionary<uint, Deployable> Deployable;
+    private static Dictionary<uint, DeployableFunction> DeployableFunction;
+    private static Dictionary<uint, DeployableCategory> DeployableCategory;
+    private static Dictionary<uint, Faction> Faction;
     private static Dictionary<uint, Monster> Monster;
     private static Dictionary<uint, Turret> Turret;
+
+    // dbencounterdata
+    private static Dictionary<uint, MapMarkerInfo> MapMarkerInfo;
+    private static Dictionary<uint, SinCardTemplate> SinCardTemplate;
 
     // dbvisualrecords
     private static Dictionary<uint, WarpaintPalette> WarpaintPalettes;
@@ -39,17 +48,29 @@ public class SDBInterface
     private static Dictionary<uint, WeaponScope> WeaponScope;
     private static Dictionary<uint, WeaponUnderbarrel> WeaponUnderbarrel;
     private static Dictionary<uint, Ammo> Ammo;
+    private static Dictionary<uint, LevelBand> LevelBand;
     private static Dictionary<uint, ResourceNodeBeacon> ResourceNodeBeacon;
     private static Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LevelCategoryScalars;
     private static Dictionary<uint, FrameProgressionLevel> FrameProgressionLevel;
     private static Dictionary<uint, Blueprints> Blueprints;
     private static Dictionary<uint, List<Blueprint_Items>> Blueprint_Items;
 
+    // dbzonemetadata
+    private static Dictionary<uint, ZoneRecord> ZoneRecord;
+
     // apt
     private static Dictionary<uint, BaseCommandDef> BaseCommandDef;
     private static Dictionary<uint, CommandType> CommandType;
     private static Dictionary<uint, StatusEffectData> StatusEffectData;
     private static Dictionary<uint, HashSet<uint>> StatusEffectTag;
+    private static Dictionary<uint, HashSet<uint>> StatusEffectsByTag;
+
+    // Some retail effects are observed in runtime but missing entries in apt::StatusEffectTags.
+    // Keep compatibility patches here so tag-gated chains can still evaluate correctly.
+    private static readonly Dictionary<uint, uint[]> StatusEffectTagCompatibility = new()
+    {
+        { 472, new uint[] { 26 } },
+    };
     private static Dictionary<uint, AbilityData> AbilityData;
     private static Dictionary<uint, ImpactApplyEffectCommandDef> ImpactApplyEffectCommandDef;
     private static Dictionary<uint, ImpactToggleEffectCommandDef> ImpactToggleEffectCommandDef;
@@ -250,8 +271,15 @@ public class SDBInterface
         CharCreateLoadout = loader.LoadCharCreateLoadout();
         CharCreateLoadoutSlots = loader.LoadCharCreateLoadoutSlots();
         Deployable = loader.LoadDeployable();
+        DeployableFunction = loader.LoadDeployableFunction();
+        DeployableCategory = loader.LoadDeployableCategory();
+        Faction = loader.LoadFaction();
         Monster = loader.LoadMonster();
         Turret = loader.LoadTurret();
+
+        // dbencounterdata
+        MapMarkerInfo = loader.LoadMapMarkerInfo();
+        SinCardTemplate = loader.LoadSinCardTemplate();
 
         // dbvisualrecords
         WarpaintPalettes = loader.LoadWarpaintPalettes();
@@ -272,16 +300,57 @@ public class SDBInterface
         WeaponScope = loader.LoadWeaponScope();
         WeaponUnderbarrel = loader.LoadWeaponUnderbarrel();
         Ammo = loader.LoadAmmo();
+        LevelBand = loader.LoadLevelBand();
         ResourceNodeBeacon = loader.LoadResourceNodeBeacon();
         LevelCategoryScalars = loader.LoadLevelCategoryScalars();
         FrameProgressionLevel = loader.LoadFrameProgressionLevel();
         Blueprints = loader.LoadBlueprints();
         Blueprint_Items = loader.LoadBlueprintItems();
 
+        // dbzonemetadata
+        ZoneRecord = loader.LoadZoneRecord();
+
 
         // apt
         StatusEffectData = loader.LoadStatusEffectData();
         StatusEffectTag = loader.LoadStatusEffectTags();
+        StatusEffectsByTag = new Dictionary<uint, HashSet<uint>>();
+        foreach (var effectTags in StatusEffectTag)
+        {
+            foreach (var tag in effectTags.Value)
+            {
+                if (!StatusEffectsByTag.TryGetValue(tag, out var effectsForTag))
+                {
+                    effectsForTag = new HashSet<uint>();
+                    StatusEffectsByTag[tag] = effectsForTag;
+                }
+
+                effectsForTag.Add(effectTags.Key);
+            }
+        }
+
+        // Apply compatibility tag patches and keep both forward and reverse maps coherent.
+        foreach (var patch in StatusEffectTagCompatibility)
+        {
+            if (!StatusEffectTag.TryGetValue(patch.Key, out var effectTags))
+            {
+                effectTags = new HashSet<uint>();
+                StatusEffectTag[patch.Key] = effectTags;
+            }
+
+            foreach (var tag in patch.Value)
+            {
+                effectTags.Add(tag);
+
+                if (!StatusEffectsByTag.TryGetValue(tag, out var effectsForTag))
+                {
+                    effectsForTag = new HashSet<uint>();
+                    StatusEffectsByTag[tag] = effectsForTag;
+                }
+
+                effectsForTag.Add(patch.Key);
+            }
+        }
         BaseCommandDef = loader.LoadBaseCommandDef();
         CommandType = loader.LoadCommandType();
         AbilityData = loader.LoadAbilityData();
@@ -588,8 +657,15 @@ public class SDBInterface
 
     public static Dictionary<byte, CharCreateLoadoutSlots> GetCharCreateLoadoutSlots(uint id) => CharCreateLoadoutSlots.GetValueOrDefault(id);
     public static Deployable GetDeployable(uint id) => Deployable.GetValueOrDefault(id);
+    public static DeployableFunction GetDeployableFunction(uint id) => DeployableFunction.GetValueOrDefault(id);
+    public static DeployableCategory GetDeployableCategory(uint id) => DeployableCategory.GetValueOrDefault(id);
+    public static Faction GetFaction(uint id) => Faction.GetValueOrDefault(id);
     public static Monster GetMonster(uint id) => Monster.GetValueOrDefault(id);
     public static Turret GetTurret(uint id) => Turret.GetValueOrDefault(id);
+
+    // dbencounterdata
+    public static MapMarkerInfo GetMapMarkerInfo(uint id) => MapMarkerInfo.GetValueOrDefault(id);
+    public static SinCardTemplate GetSinCardTemplate(uint id) => SinCardTemplate.GetValueOrDefault(id);
 
     // dbvisaulrecords
     public static WarpaintPalette GetWarpaintPalette(uint id) => WarpaintPalettes.GetValueOrDefault(id);
@@ -605,9 +681,13 @@ public class SDBInterface
     public static WeaponScope GetWeaponScope(uint id) => WeaponScope.GetValueOrDefault(id);
     public static WeaponUnderbarrel GetWeaponUnderbarrel(uint id) => WeaponUnderbarrel.GetValueOrDefault(id);
     public static Ammo GetAmmo(uint id) => Ammo.GetValueOrDefault(id);
+    public static LevelBand GetLevelBand(uint id) => LevelBand.GetValueOrDefault(id);
     public static ResourceNodeBeacon GetResourceNodeBeacon(uint id) => ResourceNodeBeacon.GetValueOrDefault(id);
     public static LevelCategoryScalars GetLevelCategoryScalar(uint attributeCategory, uint level) => LevelCategoryScalars.GetValueOrDefault(new KeyValuePair<uint, uint>(attributeCategory, level));
     public static FrameProgressionLevel GetFrameProgressionLevel(uint level) => FrameProgressionLevel.GetValueOrDefault(level);
+
+    // dbzonemetadata
+    public static ZoneRecord GetZoneRecord(uint id) => ZoneRecord.GetValueOrDefault(id);
 
 
     // apt
@@ -616,6 +696,9 @@ public class SDBInterface
     public static AbilityData GetAbilityData(uint id) => AbilityData.GetValueOrDefault(id);
     public static StatusEffectData GetStatusEffectData(uint id) => StatusEffectData.GetValueOrDefault(id);
     public static HashSet<uint> GetStatusEffectTag(uint id) => StatusEffectTag.GetValueOrDefault(id) ?? new HashSet<uint>();
+    public static HashSet<uint> GetStatusEffectsByTag(uint tagId) => StatusEffectsByTag.GetValueOrDefault(tagId) ?? new HashSet<uint>();
+    public static bool StatusEffectHasTag(uint effectId, uint tagId) =>
+        StatusEffectTag.TryGetValue(effectId, out var tags) && tags.Contains(tagId);
     public static ImpactApplyEffectCommandDef GetImpactApplyEffectCommandDef(uint id) => ImpactApplyEffectCommandDef.GetValueOrDefault(id);
     public static ImpactToggleEffectCommandDef GetImpactToggleEffectCommandDef(uint id) => ImpactToggleEffectCommandDef.GetValueOrDefault(id);
     public static ConditionalBranchCommandDef GetConditionalBranchCommandDef(uint id) => ConditionalBranchCommandDef.GetValueOrDefault(id);

@@ -1,4 +1,5 @@
 using System;
+using GameServer.Entities.Deployable;
 
 namespace GameServer.Aptitude;
 
@@ -13,9 +14,19 @@ public class ParticleEffectAssetCommand : ICommand
 
     public bool Execute(Context context)
     {
-        // For client-environment aptitude commands, Id is the command ID, not a validated
-        // particle asset ID. Emitting it as PfxAssetId causes placeholder/missing-FX visuals
-        // (question-mark style effects) across many activations.
+        // For deployable entities the placement particle should only fire once at initial
+        // placement, not every time the deployable's internal effect state machine cycles.
+        if (context.Self is DeployableEntity deployable)
+        {
+            if (deployable.PlacementParticleFired)
+            {
+                return true;
+            }
+
+            deployable.PlacementParticleFired = true;
+            Console.WriteLine($"[ParticleEffect] Placement particle fired for deployable {deployable} command={Id}");
+        }
+
         // TODO: Load apttf::tfParticleEffectAssetCommandDef payload and emit the real asset ID.
         return true;
     }

@@ -7,8 +7,10 @@ using FauFau.Formats;
 using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
+using Records.dbencounterdata;
 using Records.dbitems;
 using Records.dbvisualrecords;
+using Records.dbzonemetadata;
 using Records.vcs;
 using Shared.Common;
 using static FauFau.Formats.StaticDB;
@@ -153,6 +155,27 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, Deployable>("dbcharacter::Deployable", group));
     }
 
+    public Dictionary<uint, DeployableFunction> LoadDeployableFunction()
+    {
+        return LoadStaticDB<DeployableFunction>("dbcharacter::DeployableFunction")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, DeployableCategory> LoadDeployableCategory()
+    {
+        return LoadStaticDB<DeployableCategory>("dbcharacter::DeployableCategory")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, Faction> LoadFaction()
+    {
+        return LoadStaticDB<Faction>("dbcharacter::Faction")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
     public Dictionary<uint, Monster> LoadMonster()
     {
         return LoadStaticDB<Monster>("dbcharacter::Monster")
@@ -163,6 +186,20 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, Turret> LoadTurret()
     {
         return LoadStaticDB<Turret>("dbcharacter::Turret")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo()
+    {
+        return LoadStaticDB<MapMarkerInfo>("dbencounterdata::MapMarkerInfo")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, SinCardTemplate> LoadSinCardTemplate()
+    {
+        return LoadStaticDB<SinCardTemplate>("dbencounterdata::SinCardTemplate")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }
@@ -1434,6 +1471,20 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, Ammo> LoadAmmo()
     {
         return LoadStaticDB<Ammo>("dbitems::Ammo")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, LevelBand> LoadLevelBand()
+    {
+        return LoadStaticDB<LevelBand>("dbitems::LevelBand")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, ZoneRecord> LoadZoneRecord()
+    {
+        return LoadStaticDB<ZoneRecord>("dbzonemetadata::ZoneRecord")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }

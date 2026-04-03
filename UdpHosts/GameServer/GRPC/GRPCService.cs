@@ -46,6 +46,11 @@ public static class GRPCService
         return await _client.ConsumeCharacterItemAsync(req);
     }
 
+    public static async Task<AddCharacterItemResp> AddCharacterItemAsync(AddCharacterItemReq req)
+    {
+        return await _client.AddCharacterItemAsync(req);
+    }
+
     public static async Task<ApplyCharacterBoostResp> ApplyCharacterBoostAsync(ApplyCharacterBoostReq req)
     {
         return await _client.ApplyCharacterBoostAsync(req);
@@ -59,6 +64,20 @@ public static class GRPCService
            };
 
         await SendCommandAsync(new Command() { SaveGameSessionData = data });
+    }
+
+    public static async Task SaveCharacterLoadoutAsync(ulong characterGuid, int loadoutId, int chassisSdbId, string visualsJson, string slottedItemsJson)
+    {
+        var data = new SaveCharacterLoadout()
+        {
+            CharacterGuid    = characterGuid,
+            LoadoutId        = loadoutId,
+            ChassisSdbId     = chassisSdbId,
+            VisualsJson      = visualsJson,
+            SlottedItemsJson = slottedItemsJson,
+        };
+
+        await SendCommandAsync(new Command() { SaveCharacterLoadout = data });
     }
 
     public static async Task SendCommandAsync(Command command)

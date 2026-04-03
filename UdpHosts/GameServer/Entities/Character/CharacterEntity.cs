@@ -472,6 +472,12 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     {
         CurrentLoadout = loadout;
 
+        SetStaticInfo(StaticInfo with
+        {
+            LoadoutVehicle = loadout.VehicleID,
+            LoadoutGlider = loadout.GliderID,
+        });
+
         var emptyVisuals = new VisualsBlock
         {
             Decals = Array.Empty<VisualsDecalsBlock>(),
@@ -1769,6 +1775,15 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             if (Character_BaseController != null)
             {
                 Character_BaseController.MaxHealthProp = MaxHealth;
+
+                // Clamp current health down when the new max is lower (e.g. after removing health-boosting items).
+                int currentHealth = Character_BaseController.CurrentHealthProp;
+                if (MaxHealth.Value > 0 && currentHealth > MaxHealth.Value)
+                {
+                    Character_BaseController.CurrentHealthProp = MaxHealth.Value;
+                    Character_ObserverView.CurrentHealthPctProp = 100;
+                    Shard.EntityMan.FlushChanges(this);
+                }
             }
         }
 

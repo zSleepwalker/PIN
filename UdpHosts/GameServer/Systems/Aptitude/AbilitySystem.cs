@@ -234,6 +234,13 @@ public class AbilitySystem
         Console.WriteLine($"HandleLocalProximityAbilitySuccess Source {source}, Command {commandId}, Time {time}, Targets {string.Join(Environment.NewLine, targets)} ({targets.Count})");
 
         var commandDef = SDBInterface.GetRegisterClientProximityCommandDef(commandId);
+        if (commandDef == null)
+        {
+            Console.WriteLine($"[Proximity] Missing RegisterClientProximityCommandDef for commandId={commandId}");
+            return;
+        }
+
+        Console.WriteLine($"[Proximity] commandId={commandId}, abilityId={commandDef.AbilityId}, chain={commandDef.Chain}, radius={commandDef.Radius}, maxTargets={commandDef.MaxTargets}, retryMs={commandDef.RetryInterval}");
 
         if (commandDef.AbilityId != 0)
         {

@@ -78,37 +78,57 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Could not get character over GRPC, will use fallback. Error: {ex.Message}");
+            Console.WriteLine($"Could not get character over GRPC. Error: {ex.Message}");
+        }
+
+        if (remoteData == null || remoteInventory == null)
+        {
+            Console.WriteLine("Closing login because character state could not be loaded from database");
+            var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
+            NetChannels[ChannelType.Control].SendMessage(resp);
+            return;
         }
 
         // Load inventory so we get loadouts
         Inventory = new CharacterInventory(AssignedShard, this, CharacterEntity);
-        if (remoteInventory != null)
-        {
-            Inventory.LoadDatabaseInventory(remoteInventory);
-        }
-        else
-        {
-            Inventory.LoadHardcodedInventory();
-        }
+        Inventory.LoadDatabaseInventory(remoteInventory);
 
-        // Use remote data or fallback to setup character
-        bool useRemoteData = true;
+        // Use remote data to setup character
         int loadoutId;
-        if (remoteData != null && useRemoteData)
-        {
-            CharacterEntity.LoadRemote(remoteData);
+        CharacterEntity.LoadRemote(remoteData);
 
-            loadoutId = Inventory.GetLoadoutIdForChassis(remoteData.CharacterInfo.CurrentBattleframeSDBId);
-        }
-        else
+        loadoutId = Inventory.GetLoadoutIdForChassis(remoteData.CharacterInfo.CurrentBattleframeSDBId);
+        if (loadoutId == 0)
         {
-            CharacterEntity.Load(HardcodedCharacterData.FallbackData);
-            loadoutId = Inventory.GetLoadoutIdForChassis(76331);
+            loadoutId = Inventory.GetAnyLoadoutId();
+        }
+
+        if (loadoutId == 0)
+        {
+            Console.WriteLine("Closing login because no loadout exists in database for this character");
+            var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
+            NetChannels[ChannelType.Control].SendMessage(resp);
+            return;
         }
 
         var loadoutRefData = Inventory.GetLoadoutReferenceData(loadoutId);
         var loadout = new CharacterLoadout(loadoutRefData);
+
+        // If DB loadout slots are missing utility entries, fall back to DB character visuals
+        // so vehicle/glider calldown abilities can still resolve this session.
+        uint dbVisualVehicle = (uint)remoteData.CharacterVisuals.Vehicle.Id;
+        uint dbVisualGlider = (uint)remoteData.CharacterVisuals.Glider.Id;
+        if (loadout.VehicleID == 0 && dbVisualVehicle != 0)
+        {
+            loadout.VehicleID = dbVisualVehicle;
+            loadout.SlottedItems[LoadoutSlotType.Vehicle] = dbVisualVehicle;
+        }
+        if (loadout.GliderID == 0 && dbVisualGlider != 0)
+        {
+            loadout.GliderID = dbVisualGlider;
+            loadout.SlottedItems[LoadoutSlotType.Glider] = dbVisualGlider;
+        }
+
         CharacterEntity.ApplyLoadout(loadout);
 
         CharacterEntity.SetControllingPlayer(this);
@@ -123,18 +143,9 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         uint zoneId;
         uint outpostId;
 
-        if (remoteData != null)
-        {
-            zoneId = AssignedShard.ZoneId;
-            zone = DataUtils.GetZone(zoneId);
-            outpostId = remoteData.CharacterInfo.LastZoneId == zoneId ? FindClosestAvailableOutpost(zone, remoteData.CharacterInfo.LastOutpostId) : 0;
-        }
-        else
-        {
-            zoneId = (uint)(characterId & 0x000000000000ffff);
-            zone = DataUtils.GetZone(zoneId);
-            outpostId = zone.DefaultOutpostId;
-        }
+        zoneId = AssignedShard.ZoneId;
+        zone = DataUtils.GetZone(zoneId);
+        outpostId = remoteData.CharacterInfo.LastZoneId == zoneId ? FindClosestAvailableOutpost(zone, remoteData.CharacterInfo.LastOutpostId) : 0;
 
         Logger.Verbose("Zone {0} Outpost {1}", zoneId, outpostId);
 

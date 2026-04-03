@@ -95,13 +95,16 @@ public class CharacterInventory
 
         foreach (var loadoutData in inventoryData.Loadouts)
         {
+            bool loadoutWasRepaired = false;
+
             // Parse the loadout from the database format
             var loadout = new Loadout
             {
                 FrameLoadoutId = loadoutData.LoadoutId,
                 ChassisID = (uint)loadoutData.ChassisSdbId,
                 LoadoutName = $"Loadout {loadoutData.LoadoutId}",
-                LoadoutType = "battleframe"
+                LoadoutType = "battleframe",
+                LoadoutConfigs = CreateDefaultLoadoutConfigs(),
             };
 
             if (!string.IsNullOrEmpty(loadoutData.Visuals))
@@ -121,7 +124,86 @@ public class CharacterInventory
                 try {
                     var items = System.Text.Json.JsonSerializer.Deserialize<Dictionary<byte, ulong>>(loadoutData.SlottedItems);
                     if (items != null) {
-                        loadout.LoadoutConfigs[0].Items = items.Select(x => new LoadoutConfig_Item { SlotIndex = x.Key, ItemGUID = x.Value }).ToArray();
+                        var resolvedItems = new List<LoadoutConfig_Item>();
+                        foreach (var item in items)
+                        {
+                            if (TryResolveStoredLoadoutItemId(item.Value, out var resolvedGuid))
+                            {
+                                resolvedItems.Add(new LoadoutConfig_Item { SlotIndex = item.Key, ItemGUID = resolvedGuid });
+                                if (resolvedGuid != item.Value)
+                                {
+                                    loadoutWasRepaired = true;
+                                }
+                            }
+                            else
+                            {
+                                _shard.Logger.Warning("Skipping unresolved DB loadout item reference {storedValue} in slot {slot} for {charId}", item.Value, item.Key, _character.EntityId);
+                            }
+                        }
+
+                        loadout.LoadoutConfigs[0].Items = resolvedItems.ToArray();
+
+                        // Auto-equip Vehicle and Glider if they are in the bag but not yet slotted.
+                        // This migrates existing characters that were created before loadout slot
+                        // persistence was added for these two item sub-types.
+                        const ushort VehicleSubtype = 83;
+                        const ushort GliderSubtype  = 3709;
+                        const byte VehicleUiCategory = 6;
+                        const byte GliderUiCategory = 9;
+                        bool hasVehicleSlot = resolvedItems.Any(r => r.SlotIndex == (byte)LoadoutSlotType.Vehicle);
+                        bool hasGliderSlot  = resolvedItems.Any(r => r.SlotIndex == (byte)LoadoutSlotType.Glider);
+                        if (!hasVehicleSlot || !hasGliderSlot)
+                        {
+                            var equipList = new List<LoadoutConfig_Item>(resolvedItems);
+                            foreach (var (guid, itm) in _items)
+                            {
+                                var rootInfo = SDBInterface.GetRootItem(itm.SdbId);
+                                var abilityModule = SDBInterface.GetAbilityModule(itm.SdbId);
+                                if (rootInfo == null) continue;
+                                bool matchesVehicle = rootInfo.ItemSubtype == VehicleSubtype
+                                    || (abilityModule != null && abilityModule.UiCategory == VehicleUiCategory);
+                                bool matchesGlider = rootInfo.ItemSubtype == GliderSubtype
+                                    || (abilityModule != null && abilityModule.UiCategory == GliderUiCategory);
+
+                                if (!hasVehicleSlot && matchesVehicle)
+                                {
+                                    equipList.Add(new LoadoutConfig_Item { SlotIndex = (byte)LoadoutSlotType.Vehicle, ItemGUID = guid });
+                                    var equipped = itm;
+                                    equipped.DynamicFlags = (byte)(equipped.DynamicFlags | (byte)ItemDynamicFlags.IsEquipped);
+                                    _items[guid] = equipped;
+                                    hasVehicleSlot = true;
+                                    loadoutWasRepaired = true;
+                                    _shard.Logger.Information("Auto-equipped vehicle item {sdbId} (guid {guid}) into Vehicle slot for {charId}", itm.SdbId, guid, _character.EntityId);
+                                }
+                                else if (!hasGliderSlot && matchesGlider)
+                                {
+                                    equipList.Add(new LoadoutConfig_Item { SlotIndex = (byte)LoadoutSlotType.Glider, ItemGUID = guid });
+                                    var equipped = itm;
+                                    equipped.DynamicFlags = (byte)(equipped.DynamicFlags | (byte)ItemDynamicFlags.IsEquipped);
+                                    _items[guid] = equipped;
+                                    hasGliderSlot = true;
+                                    loadoutWasRepaired = true;
+                                    _shard.Logger.Information("Auto-equipped glider item {sdbId} (guid {guid}) into Glider slot for {charId}", itm.SdbId, guid, _character.EntityId);
+                                }
+                                if (hasVehicleSlot && hasGliderSlot) break;
+                            }
+                            loadout.LoadoutConfigs[0].Items = equipList.ToArray();
+                        }
+
+                        // Mark all slotted items as equipped for client inventory/state sync.
+                        // DB inventory rows do not carry DynamicFlags, so we derive it here from slot membership.
+                        foreach (var slotted in loadout.LoadoutConfigs[0].Items)
+                        {
+                            if (_items.TryGetValue(slotted.ItemGUID, out var equippedItem))
+                            {
+                                equippedItem.DynamicFlags = (byte)(equippedItem.DynamicFlags | (byte)ItemDynamicFlags.IsEquipped);
+                                _items[slotted.ItemGUID] = equippedItem;
+                            }
+                        }
+
+                        // Keep loadout visuals aligned with utility equipment so UI panels that
+                        // consume visual slots can show equipped vehicle/glider correctly.
+                        SyncUtilityVisualsFromLoadoutSlots(loadout);
                     }
                 } catch (Exception ex) {
                     _shard.Logger.Error(ex, "Failed to parse loadout items for {charId}", _character.EntityId);
@@ -129,22 +211,14 @@ public class CharacterInventory
             }
 
             AddLoadout(loadout);
-        }
 
-        // We still need hardcoded loadouts if the database didn't provide any for this chassis
-        // But eventually we want to move away from this completely
-        if (_loadouts.Count == 0)
-        {
-            foreach(var data in HardcodedCharacterData.TempHardcodedLoadouts)
+            // Self-heal stale loadout rows so subsequent logins stop emitting recovery warnings.
+            if (loadoutWasRepaired)
             {
-                HardcodedCharacterData.GenerateLoadoutAndItems(this, data);
-            }
-
-            foreach((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
-            {
-                HardcodedCharacterData.GenerateCharCreateLoadoutAndItems(this, createId, chassisId);
+                PersistLoadoutToDatabase(loadout);
             }
         }
+
     }
 
     public bool ConsumeItem(uint sdbId, uint quantity)
@@ -239,6 +313,16 @@ public class CharacterInventory
         return 0;
     }
 
+    public int GetAnyLoadoutId()
+    {
+        if (_loadouts.Count == 0)
+        {
+            return 0;
+        }
+
+        return _loadouts.Keys.Min();
+    }
+
     /// <summary>
     /// Get a loadout from the inventory by loadoutId
     /// </summary>
@@ -259,18 +343,24 @@ public class CharacterInventory
             ChassisId = loadout.ChassisID
         };
 
+        NormalizeLoadoutForSerialization(loadout);
+
         var pveConfig = loadout.LoadoutConfigs[0];
         var pvpConfig = loadout.LoadoutConfigs[1];
         foreach (var itemRef in pveConfig.Items)
         {
-            var item = _items[itemRef.ItemGUID];
-            refData.SlottedItemsPvE.Add((LoadoutSlotType)itemRef.SlotIndex, item.SdbId);
+            if (_items.TryGetValue(itemRef.ItemGUID, out var item))
+            {
+                refData.SlottedItemsPvE[(LoadoutSlotType)itemRef.SlotIndex] = item.SdbId;
+            }
         }
 
         foreach (var itemRef in pvpConfig.Items)
         {
-            var item = _items[itemRef.ItemGUID];
-            refData.SlottedItemsPvP.Add((LoadoutSlotType)itemRef.SlotIndex, item.SdbId);
+            if (_items.TryGetValue(itemRef.ItemGUID, out var item))
+            {
+                refData.SlottedItemsPvP[(LoadoutSlotType)itemRef.SlotIndex] = item.SdbId;
+            }
         }
 
         return refData;
@@ -369,6 +459,7 @@ public class CharacterInventory
 
     public void AddLoadout(Loadout loadout)
     {
+        NormalizeLoadoutForSerialization(loadout);
         _loadouts.Add((int)loadout.FrameLoadoutId, loadout);
     }
 
@@ -387,6 +478,11 @@ public class CharacterInventory
         if (_loadouts.Count > 254)
         {
             throw new NotImplementedException("Too many loadouts in inventory, CharacterInventory.SendFullInventory has to be updated");
+        }
+
+        foreach (var loadout in _loadouts.Values)
+        {
+            NormalizeLoadoutForSerialization(loadout);
         }
 
         var update = new InventoryUpdate()
@@ -499,6 +595,11 @@ public class CharacterInventory
         {
             return;
         }
+
+        foreach (var loadout in _loadouts.Values)
+        {
+            NormalizeLoadoutForSerialization(loadout);
+        }
         
         var itemChanges = new Item[]
         {
@@ -539,6 +640,8 @@ public class CharacterInventory
     {
         ulong changedOldItemGUID = 0;
         ulong changedNewItemGUID = guid;
+
+        NormalizeLoadoutForSerialization(_loadouts[loadoutId]);
         
         // Unequip old Item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Items.Any((e) => e.SlotIndex == (byte)slot))
@@ -586,10 +689,25 @@ public class CharacterInventory
         }
 
         SendEquipmentChanges(changedOldItemGUID, changedNewItemGUID);
+
+        // Persist the updated loadout slots to the database via gRPC.
+        if (_loadouts.TryGetValue(loadoutId, out var updatedLoadout))
+        {
+            NormalizeLoadoutForSerialization(updatedLoadout);
+
+            var slottedItemsDict = updatedLoadout.LoadoutConfigs[0].Items
+                .ToDictionary(x => x.SlotIndex, x => x.ItemGUID);
+            var slottedItemsJson = System.Text.Json.JsonSerializer.Serialize(slottedItemsDict);
+            var visualsJson = System.Text.Json.JsonSerializer.Serialize(updatedLoadout.LoadoutConfigs[0].Visuals ?? Array.Empty<LoadoutConfig_Visual>());
+            ulong charGuid = ((NetworkPlayer)_player).CharacterId + 0xFE;
+            _ = GRPCService.SaveCharacterLoadoutAsync(charGuid, loadoutId, (int)updatedLoadout.ChassisID, visualsJson, slottedItemsJson);
+        }
     }
     
     public void EquipVisualBySdbId(int loadoutId, LoadoutVisualType visual, LoadoutSlotType slot, uint sdb_id)
     {
+        NormalizeLoadoutForSerialization(_loadouts[loadoutId]);
+
         // Unequip old item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Visuals.Any(i => i.VisualType == visual))
         {
@@ -623,11 +741,177 @@ public class CharacterInventory
         }        
     }
 
+    private static LoadoutConfig[] CreateDefaultLoadoutConfigs()
+    {
+        return
+        [
+            new LoadoutConfig()
+            {
+                ConfigID = 0,
+                ConfigName = "pve",
+                Items = Array.Empty<LoadoutConfig_Item>(),
+                Visuals = Array.Empty<LoadoutConfig_Visual>(),
+                Perks = Array.Empty<uint>(),
+                Unk1 = 0,
+                PerkBandwidth = 0,
+                PerkRespecLockRemainingSeconds = 0,
+                HaveExtraData = 0,
+            },
+            new LoadoutConfig()
+            {
+                ConfigID = 1,
+                ConfigName = "pvp",
+                Items = Array.Empty<LoadoutConfig_Item>(),
+                Visuals = Array.Empty<LoadoutConfig_Visual>(),
+                Perks = Array.Empty<uint>(),
+                Unk1 = 0,
+                PerkBandwidth = 0,
+                PerkRespecLockRemainingSeconds = 0,
+                HaveExtraData = 0,
+            },
+        ];
+    }
+
+    private static void NormalizeLoadoutForSerialization(Loadout loadout)
+    {
+        if (loadout.LoadoutConfigs == null || loadout.LoadoutConfigs.Length < 2)
+        {
+            loadout.LoadoutConfigs = CreateDefaultLoadoutConfigs();
+        }
+
+        loadout.LoadoutName ??= $"Loadout {loadout.FrameLoadoutId}";
+        loadout.LoadoutType ??= "battleframe";
+
+        loadout.LoadoutConfigs[0].Items ??= Array.Empty<LoadoutConfig_Item>();
+        loadout.LoadoutConfigs[1].Items ??= Array.Empty<LoadoutConfig_Item>();
+        loadout.LoadoutConfigs[0].Visuals ??= Array.Empty<LoadoutConfig_Visual>();
+        loadout.LoadoutConfigs[1].Visuals ??= Array.Empty<LoadoutConfig_Visual>();
+        loadout.LoadoutConfigs[0].Perks ??= Array.Empty<uint>();
+        loadout.LoadoutConfigs[1].Perks ??= Array.Empty<uint>();
+        loadout.LoadoutConfigs[0].ConfigName ??= "pve";
+        loadout.LoadoutConfigs[1].ConfigName ??= "pvp";
+
+        // ExtraData is not populated by our loadout persistence path; keep it disabled.
+        loadout.LoadoutConfigs[0].HaveExtraData = 0;
+        loadout.LoadoutConfigs[1].HaveExtraData = 0;
+
+        for (int configIndex = 0; configIndex < loadout.LoadoutConfigs.Length; configIndex++)
+        {
+            var config = loadout.LoadoutConfigs[configIndex];
+            config.Items ??= Array.Empty<LoadoutConfig_Item>();
+            config.Visuals ??= Array.Empty<LoadoutConfig_Visual>();
+            config.Perks ??= Array.Empty<uint>();
+            config.ConfigName ??= configIndex == 0 ? "pve" : "pvp";
+
+            for (int visualIndex = 0; visualIndex < config.Visuals.Length; visualIndex++)
+            {
+                config.Visuals[visualIndex].Transform ??= Array.Empty<float>();
+            }
+        }
+    }
+
+    private void SyncUtilityVisualsFromLoadoutSlots(Loadout loadout)
+    {
+        NormalizeLoadoutForSerialization(loadout);
+
+        if (loadout.LoadoutConfigs.Length == 0)
+        {
+            return;
+        }
+
+        var pveConfig = loadout.LoadoutConfigs[0];
+        var visuals = (pveConfig.Visuals ?? Array.Empty<LoadoutConfig_Visual>()).ToList();
+
+        uint vehicleSdbId = ResolveSlottedItemSdbId(pveConfig, (byte)LoadoutSlotType.Vehicle);
+        uint gliderSdbId = ResolveSlottedItemSdbId(pveConfig, (byte)LoadoutSlotType.Glider);
+
+        UpsertUtilityVisual(visuals, LoadoutVisualType.Vehicle, vehicleSdbId);
+        UpsertUtilityVisual(visuals, LoadoutVisualType.Glider, gliderSdbId);
+
+        pveConfig.Visuals = visuals.ToArray();
+        loadout.LoadoutConfigs[0] = pveConfig;
+    }
+
+    private uint ResolveSlottedItemSdbId(LoadoutConfig config, byte slotIndex)
+    {
+        var match = config.Items.FirstOrDefault(i => i.SlotIndex == slotIndex);
+        if (match.ItemGUID == 0)
+        {
+            return 0;
+        }
+
+        if (_items.TryGetValue(match.ItemGUID, out var item))
+        {
+            return item.SdbId;
+        }
+
+        return 0;
+    }
+
+    private static void UpsertUtilityVisual(List<LoadoutConfig_Visual> visuals, LoadoutVisualType visualType, uint itemSdbId)
+    {
+        int index = visuals.FindIndex(v => v.VisualType == visualType);
+        if (itemSdbId == 0)
+        {
+            if (index >= 0)
+            {
+                visuals.RemoveAt(index);
+            }
+
+            return;
+        }
+
+        var visual = new LoadoutConfig_Visual
+        {
+            ItemSdbId = itemSdbId,
+            VisualType = visualType,
+            Data1 = 0,
+            Data2 = 0,
+            Transform = Array.Empty<float>(),
+        };
+
+        if (index >= 0)
+        {
+            visuals[index] = visual;
+        }
+        else
+        {
+            visuals.Add(visual);
+        }
+    }
+
+    private bool TryResolveStoredLoadoutItemId(ulong storedValue, out ulong resolvedGuid)
+    {
+        if (_items.ContainsKey(storedValue))
+        {
+            resolvedGuid = storedValue;
+            return true;
+        }
+
+        if (storedValue <= uint.MaxValue)
+        {
+            uint sdbId = (uint)storedValue;
+            var matchedItem = _items.Values.FirstOrDefault(item => item.SdbId == sdbId);
+            if (matchedItem.GUID != 0)
+            {
+                resolvedGuid = matchedItem.GUID;
+                return true;
+            }
+        }
+
+        resolvedGuid = 0;
+        return false;
+    }
+
     private byte GetInventoryTypeByItemType(byte itemType)
     {
         var result = InventoryType.Bag;
         switch ((ItemType)itemType)
         {
+            case ItemType.Backpack:
+                // Legacy/unknown item type appears in some old inventories; treat as bag silently.
+                result = InventoryType.Bag;
+                break;
             case ItemType.TinkerTools:
                 result = InventoryType.Bag;
                 break;
@@ -670,5 +954,27 @@ public class CharacterInventory
         }
 
         return (byte)result;
+    }
+
+    private void PersistLoadoutToDatabase(Loadout loadout)
+    {
+        NormalizeLoadoutForSerialization(loadout);
+
+        var slottedItemsDict = loadout.LoadoutConfigs[0].Items.ToDictionary(x => x.SlotIndex, x => x.ItemGUID);
+        var slottedItemsJson = System.Text.Json.JsonSerializer.Serialize(slottedItemsDict);
+        var visualsJson = System.Text.Json.JsonSerializer.Serialize(loadout.LoadoutConfigs[0].Visuals ?? Array.Empty<LoadoutConfig_Visual>());
+        ulong charGuid = ((NetworkPlayer)_player).CharacterId + 0xFE;
+
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                await GRPCService.SaveCharacterLoadoutAsync(charGuid, (int)loadout.FrameLoadoutId, (int)loadout.ChassisID, visualsJson, slottedItemsJson);
+            }
+            catch (Exception ex)
+            {
+                _shard.Logger.Warning(ex, "Failed to persist repaired loadout {loadoutId} for {charId}", loadout.FrameLoadoutId, _character.EntityId);
+            }
+        });
     }
 }

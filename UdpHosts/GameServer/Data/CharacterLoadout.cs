@@ -55,7 +55,9 @@ public class CharacterLoadout
         LoadoutSlotType.Ability3,
         LoadoutSlotType.AbilityHKM,
         LoadoutSlotType.GearAuxWeapon,
-        LoadoutSlotType.GearMedicalSystem
+        LoadoutSlotType.GearMedicalSystem,
+        LoadoutSlotType.Vehicle,
+        LoadoutSlotType.Glider
     };
 
     public static readonly LoadoutSlotType[] LoadoutChassisSlots =
@@ -86,6 +88,8 @@ public class CharacterLoadout
         { LoadoutSlotType.AbilityHKM, AbilitySlotType.AbilityHKM },
         { LoadoutSlotType.GearAuxWeapon, AbilitySlotType.AbilityAux },
         { LoadoutSlotType.GearMedicalSystem, AbilitySlotType.AbilityMedical },
+        { LoadoutSlotType.Vehicle, AbilitySlotType.AbilityCalldownVehicle },
+        { LoadoutSlotType.Glider, AbilitySlotType.AbilityCalldownGlider },
     };
     public static readonly Dictionary<AbilitySlotType, LoadoutSlotType> AbilityToLoadoutSlotMap = new Dictionary<AbilitySlotType, LoadoutSlotType>()
     {
@@ -324,11 +328,11 @@ public class CharacterLoadout
 
     private void InitFromLoadoutReferenceData(LoadoutReferenceData refData)
     {
-        VehicleID = 77087;
-        GliderID = 81423;
+        VehicleID = 0;
+        GliderID = 0;
         LoadoutID = refData.LoadoutId;
         ChassisID = refData.ChassisId;
-        BackpackID = SDBUtils.GetChassisDefaultBackpack(ChassisID);
+        BackpackID = 0;
         ChassisWarpaint = SDBUtils.GetChassisWarpaint(ChassisID, 0, 0, 0, 0);
 
         // Assume PvE
@@ -336,6 +340,19 @@ public class CharacterLoadout
         {
             SlottedItems.Add(slot, type);
         }
+
+        // Utility equipment should come from persisted loadout slot state.
+        BackpackID = SlottedItems.GetValueOrDefault(LoadoutSlotType.Backpack, 0u);
+        VehicleID = SlottedItems.GetValueOrDefault(LoadoutSlotType.Vehicle, 0u);
+        GliderID = SlottedItems.GetValueOrDefault(LoadoutSlotType.Glider, 0u);
+
+        // Ensure Vehicle and Glider are always present in SlottedItems so GetBackpackModules() includes them.
+        // Items may sit in CharacterItems (inventory) rather than CharacterLoadoutItems (loadout slots),
+        // in which case they won't be in SlottedItemsPvE but VehicleID/GliderID will still be set.
+        if (!SlottedItems.ContainsKey(LoadoutSlotType.Vehicle) && VehicleID != 0)
+            SlottedItems[LoadoutSlotType.Vehicle] = VehicleID;
+        if (!SlottedItems.ContainsKey(LoadoutSlotType.Glider) && GliderID != 0)
+            SlottedItems[LoadoutSlotType.Glider] = GliderID;
 
         CalculateItemAttributes();
     }

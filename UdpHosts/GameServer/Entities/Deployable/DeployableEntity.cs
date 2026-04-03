@@ -41,6 +41,11 @@ public sealed class DeployableEntity : BaseAptitudeEntity, IAptitudeTarget
     public uint PoweredOnAbility { get; set; } = 0;
     public uint PoweredOffAbility { get; set; } = 0;
 
+    /// <summary>
+    /// Set to true after the one-shot placement particle has fired so effect cycling does not re-emit it.
+    /// </summary>
+    public bool PlacementParticleFired { get; set; } = false;
+
     public ushort StatusEffectsChangeTime_0 { get; set; }
     public ushort StatusEffectsChangeTime_1 { get; set; }
     public ushort StatusEffectsChangeTime_2 { get; set; }

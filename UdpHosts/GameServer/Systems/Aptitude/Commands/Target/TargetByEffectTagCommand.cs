@@ -18,7 +18,7 @@ public class TargetByEffectTagCommand : Command, ICommand
         var result = false;
         var previousTargets = context.Targets;
         var newTargets = new AptitudeTargets();
-        var effectTagEffectIds = SDBInterface.GetStatusEffectTag(Params.TagId);
+        var effectTagEffectIds = SDBInterface.GetStatusEffectsByTag(Params.TagId);
 
         foreach (IAptitudeTarget target in previousTargets)
         {
@@ -29,7 +29,15 @@ public class TargetByEffectTagCommand : Command, ICommand
                     continue;
                 }
 
-                if (active.Effect != null && effectTagEffectIds.Contains(active.Effect.Id) && active.Stacks >= Params.StackCount)
+                if (active.Effect == null)
+                {
+                    continue;
+                }
+
+                var hasTag = effectTagEffectIds.Contains(active.Effect.Id)
+                    || SDBInterface.StatusEffectHasTag(active.Effect.Id, Params.TagId);
+
+                if (hasTag && active.Stacks >= Params.StackCount)
                 {
                     newTargets.Push(target);
                     break;
