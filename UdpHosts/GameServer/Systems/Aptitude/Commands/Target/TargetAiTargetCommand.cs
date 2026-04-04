@@ -31,11 +31,11 @@ public class TargetAiTargetCommand : Command, ICommand
             context.FormerTargets = context.Targets;
             context.Targets = newTargets;
 
-            Console.WriteLine($"[TargetAiTarget] CMD {Id}: AI threat targeting not implemented. Defaulting to initiator.");
+            Serilog.Log.Information($"[TargetAiTarget] CMD {Id}: AI threat targeting not implemented. Defaulting to initiator.");
         }
         else
         {
-            Console.WriteLine($"[TargetAiTarget] CMD {Id}: Self is not an NPC, skipping.");
+            Serilog.Log.Information($"[TargetAiTarget] CMD {Id}: Self is not an NPC, skipping.");
         }
 
         return true;

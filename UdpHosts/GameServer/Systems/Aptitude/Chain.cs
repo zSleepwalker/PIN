@@ -34,7 +34,7 @@ public class Chain
         if (debug)
         {
             context.Targets.TryPeek(out var res);
-            Console.WriteLine($"Executing Chain {Id} ({context.ExecutionHint}), Self: {context.Self}, Initiator: {context.Initiator}, Target: {res?.ToString() ?? "none"}");
+            Serilog.Log.Information($"Executing Chain {Id} ({context.ExecutionHint}), Self: {context.Self}, Initiator: {context.Initiator}, Target: {res?.ToString() ?? "none"}");
         }
 
         if (method == ExecutionMethod.AndChain)
@@ -45,7 +45,7 @@ public class Chain
                 if (debug)
                 {
                     var hasMoreInfo = command.ToString() != command.GetType().ToString();
-                    Console.WriteLine($"Chain {Id} Command {command.Id} - Executing {(hasMoreInfo ? command : command.GetType().Name)}");
+                    Serilog.Log.Information($"Chain {Id} Command {command.Id} - Executing {(hasMoreInfo ? command : command.GetType().Name)}");
                 }
 
                 bool commandSuccess = command.Execute(context);
@@ -66,7 +66,7 @@ public class Chain
                 if (debug)
                 {
                     var hasMoreInfo = command.ToString() != command.GetType().ToString();
-                    Console.WriteLine($"Chain {Id} Command {command.Id} - Executing {(hasMoreInfo ? command : command.GetType().Name)}");
+                    Serilog.Log.Information($"Chain {Id} Command {command.Id} - Executing {(hasMoreInfo ? command : command.GetType().Name)}");
                 }
 
                 bool commandSuccess = command.Execute(context);
@@ -85,10 +85,10 @@ public class Chain
 
     public void DebugPrintCommands()
     {
-        Console.WriteLine($"Chain {Id}");
+        Serilog.Log.Information($"Chain {Id}");
         foreach(var command in Commands)
         {
-            Console.WriteLine($"- Command {command.Id} {command}");
+            Serilog.Log.Information($"- Command {command.Id} {command}");
         }
     }
 }

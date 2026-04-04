@@ -92,7 +92,7 @@ public class ZoneLoader
 
     private bool LoadChunkJSON(Vector3 origin, string path)
     {
-        // Console.WriteLine($"ZoneLoader LoadChunkJSON {path}");
+        // Serilog.Log.Information($"ZoneLoader LoadChunkJSON {path}");
         try
         {
             string json = File.ReadAllText(path);
@@ -161,7 +161,7 @@ public class ZoneLoader
                 return ProcessModifier(convexTransform, ref layer);
         }
 
-        // Console.WriteLine($"Failed to ProcessChunkObject with {obj}");
+        // Serilog.Log.Information($"Failed to ProcessChunkObject with {obj}");
         throw new NotImplementedException($"ProcessChunkObject could not process an object {obj}");
     }
 
@@ -379,7 +379,7 @@ public class ZoneLoader
                 }
                 catch (NotImplementedException)
                 {
-                    // Console.WriteLine($"Ignoring child {childShapeObj} of {shapepart} because support is not implemented");
+                    // Serilog.Log.Information($"Ignoring child {childShapeObj} of {shapepart} because support is not implemented");
                 }
             }
         }

@@ -32,7 +32,7 @@ public class TargetCharacterNPCsCommand : Command, ICommand
         }
 
         // TODO: Add OwnedNPCs targeting when NPC ownership system is implemented
-        Console.WriteLine($"[TargetCharacterNPCs] CMD {Id}: NPC ownership system not fully implemented. Using OwnedDeployables as proxy ({newTargets.Count} targets).");
+        Serilog.Log.Information($"[TargetCharacterNPCs] CMD {Id}: NPC ownership system not fully implemented. Using OwnedDeployables as proxy ({newTargets.Count} targets).");
 
         context.Targets = newTargets;
         return true;

@@ -23,7 +23,7 @@ public class RequireHasEffectTagCommand : Command, ICommand
 
         if (effectTagEffectIds.Count == 0)
         {
-            Console.WriteLine($"[RequireHasEffectTag] WARNING: no effects mapped to tag {Params.TagId}");
+            Serilog.Log.Information($"[RequireHasEffectTag] WARNING: no effects mapped to tag {Params.TagId}");
         }
 
         if (context.Targets.Count > 0)
@@ -58,7 +58,7 @@ public class RequireHasEffectTagCommand : Command, ICommand
                 if (!targetMatched)
                 {
                     var activeIds = string.Join(",", target.GetActiveEffects().Where(e => e?.Effect != null).Select(e => e.Effect.Id));
-                    Console.WriteLine($"[RequireHasEffectTag] Target {target} failed tag {Params.TagId}. Active effects: [{activeIds}]");
+                    Serilog.Log.Information($"[RequireHasEffectTag] Target {target} failed tag {Params.TagId}. Active effects: [{activeIds}]");
                 }
             }
 
@@ -95,7 +95,7 @@ public class RequireHasEffectTagCommand : Command, ICommand
             if (!result)
             {
                 var activeIds = string.Join(",", target.GetActiveEffects().Where(e => e?.Effect != null).Select(e => e.Effect.Id));
-                Console.WriteLine($"[RequireHasEffectTag] Self {target} failed tag {Params.TagId}. Active effects: [{activeIds}]");
+                Serilog.Log.Information($"[RequireHasEffectTag] Self {target} failed tag {Params.TagId}. Active effects: [{activeIds}]");
             }
         }
 

@@ -9,6 +9,8 @@ UdpHosts/GameServer/App.config
 *.pfi
 *.bkp
 *.dtmp
+*.txt
+*.log
 
 # User-specific files
 *.rsuser

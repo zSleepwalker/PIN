@@ -41,7 +41,7 @@ public class ActivateAbilityTriggerCommand : Command, ICommand
             }
         }
 
-        Console.WriteLine($"[ActivateAbilityTrigger] No ability/chain resolved for command {Params.Id}");
+        Serilog.Log.Information($"[ActivateAbilityTrigger] No ability/chain resolved for command {Params.Id}");
         return true;
     }
 }

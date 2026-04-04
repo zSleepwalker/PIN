@@ -16,7 +16,7 @@ public class TargetTinyObjectCommand : Command, ICommand
     public bool Execute(Context context)
     {
         // TinyObject system not fully implemented.
-        Console.WriteLine($"[TargetTinyObject] CMD {Id}: TinyObject system not implemented. Passing through targets.");
+        Serilog.Log.Information($"[TargetTinyObject] CMD {Id}: TinyObject system not implemented. Passing through targets.");
         return true;
     }
 }

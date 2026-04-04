@@ -243,7 +243,7 @@ public class BaseController : Base
         var found = client.AssignedShard.Entities.TryGetValue(requestedEntityId, out var entity);
         if (found)
         {
-            // Console.WriteLine($"ClientQueryInteractionStatus IsInteractable: {entity.IsInteractable()} CanBeInteractedBy {entity.CanBeInteractedBy(inquiringEntity)}");
+            // Serilog.Log.Information($"ClientQueryInteractionStatus IsInteractable: {entity.IsInteractable()} CanBeInteractedBy {entity.CanBeInteractedBy(inquiringEntity)}");
             if (entity.IsInteractable() && entity.CanBeInteractedBy(inquiringEntity))
             {
                 var response = new AddOrUpdateInteractives()

@@ -29,7 +29,7 @@ public class RegisterTimedTriggerCommand : Command, ICommand
             IntervalMs = Params.IntervalMs,
         };
 
-        Console.WriteLine($"[RegisterTimedTrigger] Registered command={Params.Id}, chain={Params.Chain}, ability={Params.AbilityId}, intervalMs={Params.IntervalMs}");
+        Serilog.Log.Information($"[RegisterTimedTrigger] Registered command={Params.Id}, chain={Params.Chain}, ability={Params.AbilityId}, intervalMs={Params.IntervalMs}");
         return true;
     }
 }

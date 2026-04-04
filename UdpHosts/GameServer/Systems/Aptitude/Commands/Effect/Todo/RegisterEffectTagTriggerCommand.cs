@@ -29,7 +29,7 @@ public class RegisterEffectTagTriggerCommand : Command, ICommand
             AbilityId = Params.AbilityId,
         };
 
-        Console.WriteLine($"[RegisterEffectTagTrigger] Registered command={Params.Id}, tag={Params.TagId}, chain={Params.Chain}, ability={Params.AbilityId}");
+        Serilog.Log.Information($"[RegisterEffectTagTrigger] Registered command={Params.Id}, tag={Params.TagId}, chain={Params.Chain}, ability={Params.AbilityId}");
         return true;
     }
 }

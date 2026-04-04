@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using Autofac;
 using CommandLine;
@@ -75,6 +75,6 @@ internal static class Program
                                                       return HelpText.DefaultParsingErrorsHandler(result, h);
                                                   }, 
                                           e => e);
-        Console.WriteLine(helpText);
+        Serilog.Log.Information(helpText);
     }
 }

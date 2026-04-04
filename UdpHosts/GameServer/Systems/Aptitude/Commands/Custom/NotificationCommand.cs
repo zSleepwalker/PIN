@@ -21,7 +21,7 @@ public class NotificationCommand : ICommand
             // If the client executes its own chain, it should show its own notification.
             // But if we want the server to explicitly trigger one, we would send a message like PrivateCombatLog or PrivateDialog.
             
-            // Console.WriteLine($"Notification triggered for {character.StaticInfo.DisplayName}: ID {Id}");
+            // Serilog.Log.Information($"Notification triggered for {character.StaticInfo.DisplayName}: ID {Id}");
         }
 
         return true;

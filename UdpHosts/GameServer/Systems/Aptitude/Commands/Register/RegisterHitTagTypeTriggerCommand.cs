@@ -29,7 +29,7 @@ public class RegisterHitTagTypeTriggerCommand : Command, ICommand
             AbilityId = Params.AbilityId,
         };
 
-        Console.WriteLine($"[RegisterHitTagTypeTrigger] Registered command={Params.Id}, hitTagType={Params.HitTagTypeId}, chain={Params.Chain}, ability={Params.AbilityId}");
+        Serilog.Log.Information($"[RegisterHitTagTypeTrigger] Registered command={Params.Id}, hitTagType={Params.HitTagTypeId}, chain={Params.Chain}, ability={Params.AbilityId}");
         return true;
     }
 }

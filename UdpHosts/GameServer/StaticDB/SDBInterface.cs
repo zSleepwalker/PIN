@@ -549,10 +549,10 @@ public class SDBInterface
         var loaderDiags = loader.GetAndClearDiagnostics();
         if (loaderDiags.Count > 0)
         {
-            Console.WriteLine("[STATICDB-LOADER] Diagnostics:");
+            Serilog.Log.Information("[STATICDB-LOADER] Diagnostics:");
             foreach (var diag in loaderDiags)
             {
-                Console.WriteLine(diag);
+                Serilog.Log.Information(diag);
             }
         }
 
@@ -561,7 +561,7 @@ public class SDBInterface
         var validationDiags = validator.ValidateAll();
         foreach (var diag in validationDiags)
         {
-            Console.WriteLine(diag);
+            Serilog.Log.Information(diag);
         }
 
             // Print database chain summary for diagnostics
@@ -574,51 +574,51 @@ public class SDBInterface
         /// </summary>
         private static void PrintChainSummary()
         {
-            Console.WriteLine("\n[CHAIN-DATABASE-SUMMARY]");
+            Serilog.Log.Information("\n[CHAIN-DATABASE-SUMMARY]");
         
             try
             {
                 // Summarize ability chains
                 var abilitiesWithChains = AbilityData.Values.Where(a => a.Chain != 0).Count();
-                Console.WriteLine($"  Abilities with chains: {abilitiesWithChains}/{AbilityData.Count}");
+                Serilog.Log.Information($"  Abilities with chains: {abilitiesWithChains}/{AbilityData.Count}");
 
                 // Summarize status effect chains
                 var effectsWithApply = StatusEffectData.Values.Where(e => e.ApplyChain != 0).Count();
                 var effectsWithRemove = StatusEffectData.Values.Where(e => e.RemoveChain != 0).Count();
                 var effectsWithUpdate = StatusEffectData.Values.Where(e => e.UpdateChain != 0).Count();
                 var effectsWithDuration = StatusEffectData.Values.Where(e => e.DurationChain != 0).Count();
-                Console.WriteLine($"  Status Effects: {StatusEffectData.Count} total");
-                Console.WriteLine($"    - With ApplyChain: {effectsWithApply}");
-                Console.WriteLine($"    - With RemoveChain: {effectsWithRemove}");
-                Console.WriteLine($"    - With UpdateChain: {effectsWithUpdate}");
-                Console.WriteLine($"    - With DurationChain: {effectsWithDuration}");
+                Serilog.Log.Information($"  Status Effects: {StatusEffectData.Count} total");
+                Serilog.Log.Information($"    - With ApplyChain: {effectsWithApply}");
+                Serilog.Log.Information($"    - With RemoveChain: {effectsWithRemove}");
+                Serilog.Log.Information($"    - With UpdateChain: {effectsWithUpdate}");
+                Serilog.Log.Information($"    - With DurationChain: {effectsWithDuration}");
 
                 // Summarize conditional branches
                 var branching = ConditionalBranchCommandDef.Values.Count();
                 var looping = WhileLoopCommandDef.Values.Count();
-                Console.WriteLine($"  Control Flow: {branching} branches, {looping} loops");
+                Serilog.Log.Information($"  Control Flow: {branching} branches, {looping} loops");
 
                 // Summarize logic operators
                 var logicAnd = LogicAndChainCommandDef.Values.Count();
                 var logicOr = LogicOrChainCommandDef.Values.Count();
                 var logicNegate = LogicNegateCommandDef.Values.Count();
-                Console.WriteLine($"  Logic Operators: {logicAnd} AND, {logicOr} OR, {logicNegate} NEGATE");
+                Serilog.Log.Information($"  Logic Operators: {logicAnd} AND, {logicOr} OR, {logicNegate} NEGATE");
 
                 // Summarize special commands
                 var toggles = ImpactToggleEffectCommandDef.Values.Count();
                 var waitFire = UpdateWaitAndFireOnceCommandDef.Values.Count();
                 var proximity = RegisterClientProximityCommandDef.Values.Count();
-                Console.WriteLine($"  Special Commands: {toggles} toggles, {waitFire} wait/fire, {proximity} proximity");
+                Serilog.Log.Information($"  Special Commands: {toggles} toggles, {waitFire} wait/fire, {proximity} proximity");
 
                 // Summarize item bridges
                 var itemsWithAbilities = AbilityModule.Values.Where(m => m.AbilityChainId != 0).Count();
-                Console.WriteLine($"  Item-to-Ability Bridges: {itemsWithAbilities}/{AbilityModule.Count} modules link abilities");
+                Serilog.Log.Information($"  Item-to-Ability Bridges: {itemsWithAbilities}/{AbilityModule.Count} modules link abilities");
 
-                Console.WriteLine("[CHAIN-DATABASE-SUMMARY] Complete - database is ready for validation.\n");
+                Serilog.Log.Information("[CHAIN-DATABASE-SUMMARY] Complete - database is ready for validation.\n");
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[CHAIN-DATABASE-SUMMARY] Error generating summary: {ex.Message}");
+                Serilog.Log.Information($"[CHAIN-DATABASE-SUMMARY] Error generating summary: {ex.Message}");
             }
         }
 

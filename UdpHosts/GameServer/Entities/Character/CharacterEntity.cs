@@ -357,6 +357,18 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void LoadRemote(CharacterAndBattleframeVisuals remoteData)
     {
+        var headAccessories = BuildHeadAccessories(remoteData.CharacterVisuals);
+
+        Shard.Logger.Debug(
+            "HairVisualsIn entity=0x{EntityId:X} name={Name} hairId={HairId} facialHairId={FacialHairId} headAcc={HeadAccessories} hairColor=0x{HairColor:X8} facialHairColor=0x{FacialHairColor:X8}",
+            EntityId,
+            remoteData.CharacterInfo.Name,
+            remoteData.CharacterVisuals.Hair?.Id ?? 0,
+            remoteData.CharacterVisuals.FacialHair?.Id ?? 0,
+            string.Join(",", headAccessories),
+            remoteData.CharacterVisuals.HairColor?.Value?.Color ?? 0u,
+            remoteData.CharacterVisuals.FacialHairColor?.Value?.Color ?? 0u);
+
         Load(new BasicCharacterData()
         {
             CharacterInfo = new Data.BasicCharacterInfo()
@@ -386,7 +398,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 Eyes = (uint)remoteData.CharacterVisuals.Eyes.Id,
                 VoiceSet = (uint)remoteData.CharacterVisuals.VoiceSet.Id,
 
-                HeadAccessories = remoteData.CharacterVisuals.HeadAccessories.ToList<WebIdValueColor>().Select(item => (uint)item.Id).ToArray(),
+                HeadAccessories = headAccessories,
                 Ornaments = remoteData.CharacterVisuals.Ornaments.ToList<WebId>().Select(item => (uint)item.Id).ToArray(),
 
                 SkinColor = remoteData.CharacterVisuals.SkinColor.Value.Color,
@@ -396,6 +408,41 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 FacialHairColor = remoteData.CharacterVisuals.FacialHairColor.Value.Color
             }
         });
+
+        Shard.Logger.Debug(
+            "HairVisualsOut entity=0x{EntityId:X} headMain={HeadMain} headAcc={HeadAccessories} colors=[0x{Skin:X8},0x{Lip:X8},0x{Eye:X8},0x{Hair:X8},0x{FacialHair:X8}]",
+            EntityId,
+            StaticInfo.HeadMain,
+            string.Join(",", StaticInfo.HeadAccessories ?? Array.Empty<uint>()),
+            StaticInfo.Visuals.Colors.Length > 0 ? StaticInfo.Visuals.Colors[0] : 0u,
+            StaticInfo.Visuals.Colors.Length > 1 ? StaticInfo.Visuals.Colors[1] : 0u,
+            StaticInfo.Visuals.Colors.Length > 2 ? StaticInfo.Visuals.Colors[2] : 0u,
+            StaticInfo.Visuals.Colors.Length > 3 ? StaticInfo.Visuals.Colors[3] : 0u,
+            StaticInfo.Visuals.Colors.Length > 4 ? StaticInfo.Visuals.Colors[4] : 0u);
+    }
+
+    private static uint[] BuildHeadAccessories(GrpcGameServerAPIClient.CharacterVisuals visuals)
+    {
+        var accessories = new List<uint>(2);
+
+        // Prefer explicit hair/facial_hair fields, since those are authoritative in New You updates.
+        if (visuals.Hair != null && visuals.Hair.Id > 0)
+        {
+            accessories.Add((uint)visuals.Hair.Id);
+        }
+
+        if (visuals.FacialHair != null && visuals.FacialHair.Id > 0)
+        {
+            accessories.Add((uint)visuals.FacialHair.Id);
+        }
+
+        if (accessories.Count > 0)
+        {
+            return accessories.ToArray();
+        }
+
+        // Fall back to head_accessories for legacy characters that do not have hair fields populated.
+        return visuals.HeadAccessories.ToList<WebIdValueColor>().Select(item => (uint)item.Id).ToArray();
     }
 
     public void Load(BasicCharacterData data)
@@ -411,7 +458,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             Race = (byte)info.Race,
             TitleId = info.TitleId,
 
-            CharInfoId = 1,
+            CharInfoId = ResolveCharInfoId((byte)info.Gender, StaticInfo.CharInfoId != 0 ? StaticInfo.CharInfoId : 1),
             Unk_1 = 0xff,
             TargetFlags = 0,
             StaffFlags = (byte)info.StaffFlags,
@@ -466,6 +513,17 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         SetLevel((byte)info.Level);
         SetEffectiveLevel((byte)info.EffectiveLevel);
         SetVipLevel(info.VipLevel);
+    }
+
+    private static uint ResolveCharInfoId(byte gender, uint fallbackCharInfoId)
+    {
+        // Player body mesh selection depends on CharInfoId. In retail data, 1/2 map to female/male.
+        return gender switch
+        {
+            1 => 1u,
+            0 => 2u,
+            _ => fallbackCharInfoId,
+        };
     }
 
     public void ApplyLoadout(CharacterLoadout loadout)
@@ -621,7 +679,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 Time = Shard.CurrentTime,
             };
 
-            Console.WriteLine($"StatModifier {stat} set to {value.Value}");
+            Serilog.Log.Information($"StatModifier {stat} set to {value.Value}");
 
             switch (stat)
             {
@@ -708,7 +766,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             }
             else
             {
-                Console.WriteLine($"GetCurrentStatModifierValue Unknown Op {mod.Op}");
+                Serilog.Log.Information($"GetCurrentStatModifierValue Unknown Op {mod.Op}");
             }
         }
 
@@ -1083,7 +1141,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public override void SetStatusEffect(byte index, ushort time, StatusEffectData data)
     {
-        Console.WriteLine($"Character.SetStatusEffect Index {index}, Time {time}, Id {data.Id}");
+        Serilog.Log.Information($"Character.SetStatusEffect Index {index}, Time {time}, Id {data.Id}");
 
         // Member
         GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
@@ -1105,7 +1163,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     
     public override void ClearStatusEffect(byte index, ushort time, uint debugEffectId)
     {
-        Console.WriteLine($"Character.ClearStatusEffect Index {index}, Time {time}, Id {debugEffectId}");
+        Serilog.Log.Information($"Character.ClearStatusEffect Index {index}, Time {time}, Id {debugEffectId}");
 
         // Member
         GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
@@ -1137,7 +1195,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             return;
         }
 
-        Console.WriteLine($"[RECOVERY] Time {Shard.CurrentTime}, Entity {this}, Move {MovementStateContainer.Movestate}, CState {CharacterState.State}, Airborne {IsAirborne}, ForcedMoveEnd {ForcedMovementEndTime}, Perms movement={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.movement]}, abilities={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.abilities]}, jump={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.jump]}, sprint={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.sprint]} :: {reason}");
+        Serilog.Log.Information($"[RECOVERY] Time {Shard.CurrentTime}, Entity {this}, Move {MovementStateContainer.Movestate}, CState {CharacterState.State}, Airborne {IsAirborne}, ForcedMoveEnd {ForcedMovementEndTime}, Perms movement={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.movement]}, abilities={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.abilities]}, jump={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.jump]}, sprint={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.sprint]} :: {reason}");
     }
 
     private static bool IsRecoveryTraceEffect(uint effectId)
@@ -1194,7 +1252,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         var time = Shard.CurrentShortTime;
         for (int index = 0; index < 32; index++)
         {
-            Console.WriteLine($"Character.ClearStatusEffect Index {index}, Time {time}");
+            Serilog.Log.Information($"Character.ClearStatusEffect Index {index}, Time {time}");
 
             // Member
             GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
@@ -1229,7 +1287,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         if (firstFreeIndex == InvalidIndex)
         {
-            Console.WriteLine("AddMapMarkers but there are too many active map markers!");
+            Serilog.Log.Information("AddMapMarkers but there are too many active map markers!");
             firstFreeIndex = MaxMapMarkerCount - 1; // Lets not crash
         }
 
@@ -1299,13 +1357,13 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 break;
             case 0:
             default:
-                // Console.WriteLine($"GetActiveWeaponDetails fails because invalid selected weapon index {WeaponIndex.Index}");
+                // Serilog.Log.Information($"GetActiveWeaponDetails fails because invalid selected weapon index {WeaponIndex.Index}");
                 return null;
         }
 
         if (weaponId == 0)
         {
-            Console.WriteLine($"GetActiveWeaponDetails failed to get selected weapon id from loadout");
+            Serilog.Log.Information($"GetActiveWeaponDetails failed to get selected weapon id from loadout");
             return null;
         }
 

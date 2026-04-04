@@ -26,7 +26,7 @@ public class SwitchWeaponCommand : Command, ICommand
         var targetWeaponIndex = ResolveRuntimeWeaponIndex();
         if (targetWeaponIndex == null)
         {
-            Console.WriteLine($"SwitchWeaponCommand {Id} ignored invalid TargetWeaponSlot {Params.TargetWeaponSlot}");
+            Serilog.Log.Information($"SwitchWeaponCommand {Id} ignored invalid TargetWeaponSlot {Params.TargetWeaponSlot}");
             return true;
         }
 

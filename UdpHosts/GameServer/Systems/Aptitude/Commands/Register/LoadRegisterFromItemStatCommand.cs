@@ -29,7 +29,7 @@ public class LoadRegisterFromItemStatCommand : Command, ICommand
             }
             else
             {
-                Console.WriteLine($"LoadRegisterFromItemStatCommand has FromTarget specified but we have no target, is something wrong?");
+                Serilog.Log.Information($"LoadRegisterFromItemStatCommand has FromTarget specified but we have no target, is something wrong?");
                 return true;
             }
         }
@@ -41,7 +41,7 @@ public class LoadRegisterFromItemStatCommand : Command, ICommand
 
         if (target is not CharacterEntity character)
         {
-            Console.WriteLine($"LoadRegisterFromItemStatCommand target is not a Character, is something wrong?");
+            Serilog.Log.Information($"LoadRegisterFromItemStatCommand target is not a Character, is something wrong?");
             return true;
         }
 

@@ -100,7 +100,7 @@ public class ApplyImpulseCommand : Command, ICommand
         // Send cancel only when removing before natural end time.
         if (!endedNaturally && character.IsPlayerControlled)
         {
-            Console.WriteLine($"ApplyImpulseCommand Sending ForcedMovementCancelled {Params.Id}");
+            Serilog.Log.Information($"ApplyImpulseCommand Sending ForcedMovementCancelled {Params.Id}");
             character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(
                 new ForcedMovementCancelled
                 {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Runtime.CompilerServices;
@@ -106,7 +106,7 @@ public class PhysicsEngine
         }
         else
         {
-            // Console.WriteLine($"Nothing hit");
+            // Serilog.Log.Information($"Nothing hit");
         }
     }
 
@@ -156,7 +156,7 @@ public class PhysicsEngine
         };
         if (source.IsPlayerControlled && source.Player.Preferences.DebugWeapon > 0)
         {
-            // Console.WriteLine($"SendDebugProjectileSpawn");
+            // Serilog.Log.Information($"SendDebugProjectileSpawn");
             source.Player.NetChannels[ChannelType.ReliableGss].SendMessage(msg, source.EntityId);
         }
     }
@@ -176,7 +176,7 @@ public class PhysicsEngine
         };
         if (source.IsPlayerControlled && source.Player.Preferences.DebugWeapon > 0)
         {
-            // Console.WriteLine($"SendDebugProjectileImpact");
+            // Serilog.Log.Information($"SendDebugProjectileImpact");
             source.Player.NetChannels[ChannelType.ReliableGss].SendMessage(msg, source.EntityId);
         }
     }
@@ -206,7 +206,7 @@ public class PhysicsEngine
         };
         if (source.IsPlayerControlled && source.Player.Preferences.DebugWeapon > 0)
         {
-            // Console.WriteLine($"SendDebugProjectilePoseHit");
+            // Serilog.Log.Information($"SendDebugProjectilePoseHit");
             source.Player.NetChannels[ChannelType.ReliableGss].SendMessage(msg, source.EntityId);
         }
     }

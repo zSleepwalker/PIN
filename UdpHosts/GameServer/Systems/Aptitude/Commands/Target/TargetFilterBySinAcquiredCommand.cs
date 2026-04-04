@@ -18,7 +18,7 @@ public class TargetFilterBySinAcquiredCommand : Command, ICommand
         // SIN (Surveillance and Identification Network) acquire system not yet implemented.
         // For now: if Negate=0, targets are kept as-is (assuming all targets have SIN acquired).
         // If Negate=1, targets are removed (no SIN acquired).
-        Console.WriteLine($"[TargetFilterBySinAcquired] CMD {Id}: SIN system not implemented. Negate={Params.Negate}, FailNoTargets={Params.FailNoTargets}");
+        Serilog.Log.Information($"[TargetFilterBySinAcquired] CMD {Id}: SIN system not implemented. Negate={Params.Negate}, FailNoTargets={Params.FailNoTargets}");
 
         if (Params.Negate == 1)
         {

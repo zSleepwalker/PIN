@@ -17,7 +17,7 @@ public class TargetMyTinyObjectsCommand : Command, ICommand
     {
         // TinyObject system not fully implemented.
         // TinyObjects are small-scale interactive ability objects (e.g. turret pellets, drones).
-        Console.WriteLine($"[TargetMyTinyObjects] CMD {Id}: TinyObject system not implemented. No targets added.");
+        Serilog.Log.Information($"[TargetMyTinyObjects] CMD {Id}: TinyObject system not implemented. No targets added.");
 
         context.FormerTargets = context.Targets;
         context.Targets = new AptitudeTargets();

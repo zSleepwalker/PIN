@@ -1353,7 +1353,7 @@ public class CharacterInventory
                 result = InventoryType.Gear;
                 break;
             default:
-                Console.WriteLine($"Unknown InventoryType for ItemType {(ItemType)itemType}, defaulting to {result}");
+                Serilog.Log.Information($"Unknown InventoryType for ItemType {(ItemType)itemType}, defaulting to {result}");
                 break;
         }
 

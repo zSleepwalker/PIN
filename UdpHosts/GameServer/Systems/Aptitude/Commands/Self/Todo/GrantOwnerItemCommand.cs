@@ -14,7 +14,7 @@ public class GrantOwnerItemCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        System.Console.WriteLine($"GrantOwnerItemCommand: Triggered for {context.Initiator} (ItemId: {context.ItemId})");
+        Serilog.Log.Information($"GrantOwnerItemCommand: Triggered for {context.Initiator} (ItemId: {context.ItemId})");
         return true;
     }
 }

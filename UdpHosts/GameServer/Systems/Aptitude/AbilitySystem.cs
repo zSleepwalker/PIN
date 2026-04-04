@@ -40,22 +40,22 @@ public class AbilitySystem
             case Operand.MULTIPLY_ALT:
                 return second * first;
             case Operand.EXPONENTIATE:
-                Console.WriteLine($"Uncertain RegistryOp {op}. {second} ^ {first} = {(float)Math.Pow(second, first)}");
+                Serilog.Log.Information($"Uncertain RegistryOp {op}. {second} ^ {first} = {(float)Math.Pow(second, first)}");
                 return (float)Math.Pow(second, first);
             case Operand.SUBTRACT:
-                Console.WriteLine($"Uncertain RegistryOp {op}. {second} - {first} = {second - first}");
+                Serilog.Log.Information($"Uncertain RegistryOp {op}. {second} - {first} = {second - first}");
                 return second - first;
             case Operand.DIVIDE:
-                Console.WriteLine($"Uncertain RegistryOp {op}. {second} / {first} = {second / first}");
+                Serilog.Log.Information($"Uncertain RegistryOp {op}. {second} / {first} = {second / first}");
                 return second / first;
             case Operand.MINIMUM:
-                Console.WriteLine($"Uncertain RegistryOp {op}. Min({second}, {first}) = {((first <= second) ? first : second)}");
+                Serilog.Log.Information($"Uncertain RegistryOp {op}. Min({second}, {first}) = {((first <= second) ? first : second)}");
                 return (first <= second) ? first : second;
             case Operand.MAXIMUM:
-                Console.WriteLine($"Uncertain RegistryOp {op}. Max({second}, {first}) = {((first >= second) ? first : second)}");
+                Serilog.Log.Information($"Uncertain RegistryOp {op}. Max({second}, {first}) = {((first >= second) ? first : second)}");
                 return (first >= second) ? first : second;
             default:
-                Console.WriteLine($"Unknown RegistryOp {op}");
+                Serilog.Log.Information($"Unknown RegistryOp {op}");
                 return second;
         }
     }
@@ -200,7 +200,7 @@ public class AbilitySystem
     {
         if (PlayerVehicleCalldownRequests.ContainsKey(entityId))
         {
-            Console.WriteLine($"Discarded an unconsumed vehicle calldown request");
+            Serilog.Log.Information($"Discarded an unconsumed vehicle calldown request");
             PlayerVehicleCalldownRequests.Remove(entityId);
         }
         
@@ -211,7 +211,7 @@ public class AbilitySystem
     {
         if (PlayerDeployableCalldownRequests.ContainsKey(entityId))
         {
-            Console.WriteLine($"Discarded an unconsumed deployable calldown request");
+            Serilog.Log.Information($"Discarded an unconsumed deployable calldown request");
             PlayerDeployableCalldownRequests.Remove(entityId);
         }
         
@@ -222,7 +222,7 @@ public class AbilitySystem
     {
         if (PlayerThumperCalldownRequests.ContainsKey(entityId))
         {
-            Console.WriteLine($"Discarded an unconsumed thumper calldown request");
+            Serilog.Log.Information($"Discarded an unconsumed thumper calldown request");
             PlayerThumperCalldownRequests.Remove(entityId);
         }
         
@@ -231,16 +231,16 @@ public class AbilitySystem
 
     public void HandleLocalProximityAbilitySuccess(IShard shard, IAptitudeTarget source, uint commandId, uint time, AptitudeTargets targets)
     {
-        Console.WriteLine($"HandleLocalProximityAbilitySuccess Source {source}, Command {commandId}, Time {time}, Targets {string.Join(Environment.NewLine, targets)} ({targets.Count})");
+        Serilog.Log.Information($"HandleLocalProximityAbilitySuccess Source {source}, Command {commandId}, Time {time}, Targets {string.Join(Environment.NewLine, targets)} ({targets.Count})");
 
         var commandDef = SDBInterface.GetRegisterClientProximityCommandDef(commandId);
         if (commandDef == null)
         {
-            Console.WriteLine($"[Proximity] Missing RegisterClientProximityCommandDef for commandId={commandId}");
+            Serilog.Log.Information($"[Proximity] Missing RegisterClientProximityCommandDef for commandId={commandId}");
             return;
         }
 
-        Console.WriteLine($"[Proximity] commandId={commandId}, abilityId={commandDef.AbilityId}, chain={commandDef.Chain}, radius={commandDef.Radius}, maxTargets={commandDef.MaxTargets}, retryMs={commandDef.RetryInterval}");
+        Serilog.Log.Information($"[Proximity] commandId={commandId}, abilityId={commandDef.AbilityId}, chain={commandDef.Chain}, radius={commandDef.Radius}, maxTargets={commandDef.MaxTargets}, retryMs={commandDef.RetryInterval}");
 
         if (commandDef.AbilityId != 0)
         {

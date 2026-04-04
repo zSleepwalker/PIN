@@ -13,7 +13,7 @@ public class AudioFeedbackCommand : ICommand
 
     public bool Execute(Context context)
     {
-        Console.WriteLine($"AudioFeedback {Id} ignored: no validated client transport is implemented yet.");
+        Serilog.Log.Information($"AudioFeedback {Id} ignored: no validated client transport is implemented yet.");
         return true;
     }
 

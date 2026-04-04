@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Configuration;
 using Autofac;
 using GameServer.Data.SDB;
@@ -82,7 +82,7 @@ public class GameServerModule : Module
                     }
                     else
                     {
-                        Console.WriteLine($"Cannot parse LoadMapsCollision setting value");
+                        Serilog.Log.Information($"Cannot parse LoadMapsCollision setting value");
                     }
                 }
             }
@@ -95,7 +95,7 @@ public class GameServerModule : Module
                 }
                 else
                 {
-                    Console.WriteLine($"Cannot parse LoadZoneEntities setting value");
+                    Serilog.Log.Information($"Cannot parse LoadZoneEntities setting value");
                 }
             }
 

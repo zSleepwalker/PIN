@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Numerics;
 using GameServer.Data.SDB.Records.apt;
@@ -31,20 +31,20 @@ public class TargetPBAECommand : Command, ICommand
         float radius = AbilitySystem.RegistryOp(context.Register, Params.Radius, (Operand)Params.RadiusRegop);
         if (Params.UseWeaponRadius == 1)
         {
-            Console.WriteLine($"TargetPBAECommand {Id} has UseWeaponRadius set to 1, investigate what to do");
+            Serilog.Log.Information($"TargetPBAECommand {Id} has UseWeaponRadius set to 1, investigate what to do");
         }
 
         if (Params.Filter == 1)
         {
             // 2202 commands have value 0, 5 commands have value 1
             // Probably remove from context.Targets all targets selected using other Params
-            Console.WriteLine($"TargetPBAECommand {Id} has Filter set to 1, investigate what to do");
+            Serilog.Log.Information($"TargetPBAECommand {Id} has Filter set to 1, investigate what to do");
         }
 
         if (Params.IncludeInteractives == 1)
         {
             // Presumably targets with interactions can or can not be targeted?
-            Console.WriteLine($"TargetPBAECommand {Id} has IncludeInteractives set to 1, investigate what to do");
+            Serilog.Log.Information($"TargetPBAECommand {Id} has IncludeInteractives set to 1, investigate what to do");
         }
 
         // It seems that all 4 combos of UseInitPos and UseBodyPosition are possible (e.g. they can both be 0, both be 1 or be exclusive)

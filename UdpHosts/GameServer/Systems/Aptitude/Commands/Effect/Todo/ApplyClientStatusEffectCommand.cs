@@ -25,7 +25,7 @@ public class ApplyClientStatusEffectCommand : Command, ICommand
         // If we cannot resolve the effect record, skip instead of throwing downstream.
         if (SDBInterface.GetStatusEffectData(Params.StatusEffectId) == null)
         {
-            Console.WriteLine($"ApplyClientStatusEffectCommand {Id} skipped unknown StatusEffectId {Params.StatusEffectId}");
+            Serilog.Log.Information($"ApplyClientStatusEffectCommand {Id} skipped unknown StatusEffectId {Params.StatusEffectId}");
             return true;
         }
 

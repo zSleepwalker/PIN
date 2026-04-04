@@ -61,7 +61,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         AssignedShard.Entities.TryGetValue(CharacterId, out var existing);
         if (existing != null)
         {
-            Console.WriteLine($"Closing login because entity with this id is already zoned in");
+            Serilog.Log.Information($"Closing login because entity with this id is already zoned in");
             var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
             NetChannels[ChannelType.Control].SendMessage(resp);
             return;
@@ -80,12 +80,12 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Could not get character over GRPC. Error: {ex.Message}");
+            Serilog.Log.Information($"Could not get character over GRPC. Error: {ex.Message}");
         }
 
         if (remoteData == null || remoteInventory == null)
         {
-            Console.WriteLine("Closing login because character state could not be loaded from database");
+            Serilog.Log.Information("Closing login because character state could not be loaded from database");
             var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
             NetChannels[ChannelType.Control].SendMessage(resp);
             return;
@@ -107,7 +107,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         if (loadoutId == 0)
         {
-            Console.WriteLine("Closing login because no loadout exists in database for this character");
+            Serilog.Log.Information("Closing login because no loadout exists in database for this character");
             var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
             NetChannels[ChannelType.Control].SendMessage(resp);
             return;

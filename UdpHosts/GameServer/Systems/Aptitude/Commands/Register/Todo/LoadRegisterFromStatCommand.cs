@@ -49,7 +49,7 @@ public class LoadRegisterFromStatCommand : Command, ICommand
         }
         else
         {
-            Console.WriteLine($"LoadRegisterFromStatCommand unsupported self target type {context.Self?.GetType().Name}");
+            Serilog.Log.Information($"LoadRegisterFromStatCommand unsupported self target type {context.Self?.GetType().Name}");
             return true;
         }
 

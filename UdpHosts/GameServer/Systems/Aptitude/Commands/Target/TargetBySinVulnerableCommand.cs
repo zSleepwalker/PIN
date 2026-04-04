@@ -17,7 +17,7 @@ public class TargetBySinVulnerableCommand : Command, ICommand
     {
         // SIN vulnerability system not yet implemented.
         // Pass through all targets (assume none are SIN-vulnerable by default).
-        Console.WriteLine($"[TargetBySinVulnerable] CMD {Id}: SIN vulnerability system not implemented. Passing through targets.");
+        Serilog.Log.Information($"[TargetBySinVulnerable] CMD {Id}: SIN vulnerability system not implemented. Passing through targets.");
         return true;
     }
 }

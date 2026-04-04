@@ -1533,11 +1533,11 @@ public class StaticDBLoader : ISDBLoader
         Table table = sdb.GetTableByName(tableName);
         if (table == null) 
         {
-            Console.WriteLine($"Warning: Table {tableName} not found in SDB. Skipping load.");
+            Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
             return Array.Empty<T>();
         }
         
-        Console.WriteLine($"Loading table {tableName} ({table.Rows.Count} rows)");
+        Serilog.Log.Information($"Loading table {tableName} ({table.Rows.Count} rows)");
 
         var list = new List<T>();
         var properties = typeof(T).GetProperties()
@@ -1584,7 +1584,7 @@ public class StaticDBLoader : ISDBLoader
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Exception field-mapping {tableName} row {i}, column {prop.PropInfo.Name}: {ex.Message}");
+                        Serilog.Log.Information($"Exception field-mapping {tableName} row {i}, column {prop.PropInfo.Name}: {ex.Message}");
                     }
                 }
 
@@ -1593,12 +1593,12 @@ public class StaticDBLoader : ISDBLoader
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fatal exception while iterating rows in {tableName}: {ex.Message}");
+            Serilog.Log.Information($"Fatal exception while iterating rows in {tableName}: {ex.Message}");
         }
 
         foreach(string text in warningsSet)
         {
-            Console.WriteLine(text);
+            Serilog.Log.Information(text);
         }
 
         return list.ToArray();

@@ -24,7 +24,7 @@ public class ParticleEffectAssetCommand : ICommand
             }
 
             deployable.PlacementParticleFired = true;
-            Console.WriteLine($"[ParticleEffect] Placement particle fired for deployable {deployable} command={Id}");
+            Serilog.Log.Information($"[ParticleEffect] Placement particle fired for deployable {deployable} command={Id}");
         }
 
         // TODO: Load apttf::tfParticleEffectAssetCommandDef payload and emit the real asset ID.

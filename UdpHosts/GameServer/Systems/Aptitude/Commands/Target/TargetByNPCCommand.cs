@@ -18,7 +18,7 @@ public class TargetByNPCCommand : Command, ICommand
     {
         // Target an NPC that is owned by / associated with the initiator
         // NPC ownership system not yet fully implemented; logs and passes through
-        Console.WriteLine($"[TargetByNPC] CMD {Id}: NPC targeting not fully implemented. Passing through existing targets.");
+        Serilog.Log.Information($"[TargetByNPC] CMD {Id}: NPC targeting not fully implemented. Passing through existing targets.");
         return true;
     }
 }

@@ -19,12 +19,12 @@ public class ConsumeItemCommand : Command, ICommand
             if (character.Player != null)
             {
                 character.Player.Inventory.ConsumeResource(context.ItemId, 1);
-                System.Console.WriteLine($"ConsumeItemCommand: Consumed 1 of {context.ItemId} for {character}");
+                Serilog.Log.Information($"ConsumeItemCommand: Consumed 1 of {context.ItemId} for {character}");
             }
         }
         else
         {
-            System.Console.WriteLine($"ConsumeItemCommand: Failed to consume item. ItemId: {context.ItemId}, Initiator: {context.Initiator}");
+            Serilog.Log.Information($"ConsumeItemCommand: Failed to consume item. ItemId: {context.ItemId}, Initiator: {context.Initiator}");
         }
         return true;
     }

@@ -27,7 +27,7 @@ public class RegisterAbilityTriggerCommand : Command, ICommand
             AbilityId = Params.AbilityId,
         };
 
-        Console.WriteLine($"[RegisterAbilityTrigger] Registered command={Params.Id}, chain={Params.Chain}, ability={Params.AbilityId}");
+        Serilog.Log.Information($"[RegisterAbilityTrigger] Registered command={Params.Id}, chain={Params.Chain}, ability={Params.AbilityId}");
         return true;
     }
 }

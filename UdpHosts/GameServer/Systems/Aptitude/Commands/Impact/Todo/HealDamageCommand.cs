@@ -89,7 +89,7 @@ public class HealDamageCommand : Command, ICommand
                     context.Shard.EntityMan.FlushChanges(character);
                 }
 
-                Console.WriteLine($"[HealDamage] Character {character} healed {newHealth - currentHealth} ({currentHealth}->{newHealth}/{maxHealth}) deployable={isDeployableSource} command={Params.Id}");
+                Serilog.Log.Information($"[HealDamage] Character {character} healed {newHealth - currentHealth} ({currentHealth}->{newHealth}/{maxHealth}) deployable={isDeployableSource} command={Params.Id}");
                 continue;
             }
 
@@ -121,7 +121,7 @@ public class HealDamageCommand : Command, ICommand
                     context.Shard.EntityMan.FlushChanges(vehicle);
                 }
 
-                Console.WriteLine($"[HealDamage] Vehicle {vehicle} healed {newHealth - currentHealth} ({currentHealth}->{newHealth}) command={Params.Id}");
+                Serilog.Log.Information($"[HealDamage] Vehicle {vehicle} healed {newHealth - currentHealth} ({currentHealth}->{newHealth}) command={Params.Id}");
             }
         }
 

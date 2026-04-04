@@ -83,7 +83,7 @@ public class StatRequirementCommand : Command, ICommand
 
         if (!result)
         {
-            Console.WriteLine($"[StatRequirement] Failed command={Params.Id}, stat1={Params.Stat1} value={lhs}, stat2={Params.Stat2} rhs={rhs}, gt={Params.Greaterthan}, lt={Params.Lessthan}, eq={Params.Equalto}");
+            Serilog.Log.Information($"[StatRequirement] Failed command={Params.Id}, stat1={Params.Stat1} value={lhs}, stat2={Params.Stat2} rhs={rhs}, gt={Params.Greaterthan}, lt={Params.Lessthan}, eq={Params.Equalto}");
         }
 
         return result;
