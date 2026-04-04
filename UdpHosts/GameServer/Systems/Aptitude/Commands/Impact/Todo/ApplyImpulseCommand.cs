@@ -81,14 +81,24 @@ public class ApplyImpulseCommand : Command, ICommand
             return;
         }
 
-        // Clear the end time if it's still ours (no newer impulse was applied)
-        if (activeCommandContext is ApplyImpulseCommandActiveContext impulseCtx
-            && character.ForcedMovementEndTime == impulseCtx.EndTime)
+        if (activeCommandContext is not ApplyImpulseCommandActiveContext impulseCtx)
         {
-            character.ForcedMovementEndTime = 0;
+            return;
         }
 
-        if (character.IsPlayerControlled)
+        // Only the active/owning impulse instance may clear/cancel movement.
+        // This avoids stale remove callbacks from cancelling a newer impulse.
+        bool ownsCurrentImpulse = character.ForcedMovementEndTime == impulseCtx.EndTime;
+        if (!ownsCurrentImpulse)
+        {
+            return;
+        }
+
+        bool endedNaturally = context.Shard.CurrentTime >= impulseCtx.EndTime;
+        character.ForcedMovementEndTime = 0;
+
+        // Send cancel only when removing before natural end time.
+        if (!endedNaturally && character.IsPlayerControlled)
         {
             Console.WriteLine($"ApplyImpulseCommand Sending ForcedMovementCancelled {Params.Id}");
             character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(

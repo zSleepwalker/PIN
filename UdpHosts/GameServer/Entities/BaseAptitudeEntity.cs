@@ -84,9 +84,15 @@ public abstract class BaseAptitudeEntity : BaseEntity, IAptitudeTarget
             Time = state.Time,
             MoreDataFlag = 0
         };
-        var index = state.Index;
-        SetStatusEffect(index, time, data);
-        Shard.EntityMan.FlushChanges(this); // Force flush so that we communicate every change
+
+        // Hidden effects are server-side/internal and should not be replicated
+        // through status effect fields to clients.
+        if (state.Effect.Data.Hidden == 0)
+        {
+            var index = state.Index;
+            SetStatusEffect(index, time, data);
+            Shard.EntityMan.FlushChanges(this); // Force flush so that we communicate every change
+        }
 
         return state;
     }
@@ -94,9 +100,13 @@ public abstract class BaseAptitudeEntity : BaseEntity, IAptitudeTarget
     public void ClearEffect(EffectState state)
     {
         ActiveEffects[state.Index] = null;
-        var time = unchecked((ushort)state.Context.Shard.CurrentTime);
-        ClearStatusEffect(state.Index, time, state.Effect.Id);
-        Shard.EntityMan.FlushChanges(this); // Force flush so that we communicate every change
+
+        if (state.Effect.Data.Hidden == 0)
+        {
+            var time = unchecked((ushort)state.Context.Shard.CurrentTime);
+            ClearStatusEffect(state.Index, time, state.Effect.Id);
+            Shard.EntityMan.FlushChanges(this); // Force flush so that we communicate every change
+        }
     }
 
     public abstract void SetStatusEffect(byte index, ushort time, StatusEffectData data);
