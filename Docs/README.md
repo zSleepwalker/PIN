@@ -2,7 +2,7 @@
 
 PIN is split into two areas:
 - [UdpHosts](#udphosts)
-- [WebHosts](#webhosts)
+- RIN.WebAPI (external HTTP host)
 
 ## UdpHosts
 
@@ -48,19 +48,9 @@ The `NetworkClient` (`NetworkPlayer` as concrete implementation) subscribes via 
 - [Game Server Protocol Overview](https://github.com/themeldingwars/Documentation/wiki/Game-Server-Protocol-Overview)
 - [AeroMessages](https://github.com/themeldingwars/AeroMessages)
 
-## WebHosts
+## HTTP API
 
-Firefall uses a selection of different HTTP-based web hosts for various functionalities.
-PIN implements some of those end points and has split them into the following projects:
-- WebHost.CatchAll - Fallback for any unimplemented endpoint
-- WebHost.Chat - API for handling the various chat channels
-- WebHost.ClientApi - Primary API for characters, armies, social features, etc.
-- WebHost.InGameApi - Secondary API for more bulkier data and game client information
-- WebHost.Market - API for handling marketplace information
-- WebHost.OperatorApi - Basic operation info, such as current API versions
-- WebHost.Replay - Handling of replay actions
-- WebHost.Store - RedBean store information
-- WebHost.WebAsset - Assets of all sorts, from icons, to JavaScript, to streamed audio or textures
+HTTP endpoints are now served by RIN.WebAPI. Legacy PIN WebHost projects are deprecated and can be removed.
 
 ### References
 

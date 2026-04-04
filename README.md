@@ -21,7 +21,7 @@ https://user-images.githubusercontent.com/920861/134824107-03e9f99c-b420-47c7-b7
 9. Start all three applications:
    - GameServer
    - MatrixServer
-   - WebHostManager
+   - RIN.WebAPI
 10. Start Firefall
 11. Login to the server:
     - If Steam auto login has been enabled, you will directly be navigated to the character selection screen
@@ -32,11 +32,11 @@ https://user-images.githubusercontent.com/920861/134824107-03e9f99c-b420-47c7-b7
 
 ```ini
 [Config]
-OperatorHost = "localhost:4400"
+OperatorHost = "localhost:5501"
 
 [FilePaths]
-AssetStreamPath = "http://localhost:4401/AssetStream/%ENVMNEMONIC%-%BUILDNUM%/"
-VTRemotePath = "http://localhost:4401/vtex/%ENVMNEMONIC%-%BUILDNUM%/static.vtex"
+AssetStreamPath = "http://localhost:5501/webasset/AssetStream/%ENVMNEMONIC%-%BUILDNUM%/"
+VTRemotePath = "http://localhost:5501/webasset/vtex/%ENVMNEMONIC%-%BUILDNUM%/static.vtex"
 
 [UI]
 PlayIntroMovie = false
@@ -44,7 +44,7 @@ PlayIntroMovie = false
 
 ### Features
 
-- Loading into any zone (WebHostManager)
+- Loading into any zone (RIN.WebAPI)
 - Basic character movement, including jetpacks and gliders
 - Switch between battleframes with preconfigured loadouts
 - Customize character appearance in NewYou (RIN.WebAPI)
@@ -69,30 +69,19 @@ PlayIntroMovie = false
 4. Edit the `GameServer.dll.config` produced by the build in `UdpHosts\GameServer\bin\Release\net8.0` to ensure that `StaticDBPath` is correct.
 5. Trust self-signed development certificates by running `dotnet dev-certs https --trust`
 6. Start multiple targets at once
-   - Visual Studio: Create a `Multiple Startup Projects` target that start WebHostManager, GameServer and MatrixServer
-   - Rider: Create a `Compound` target that starts WebHostManager, GameServer and MatrixServer
+   - Visual Studio: Create a `Multiple Startup Projects` target that starts RIN.WebAPI, GameServer and MatrixServer
+   - Rider: Create a `Compound` target that starts RIN.WebAPI, GameServer and MatrixServer
 7. Edit the `firefall.ini` located in `steamapps\common\Firefall`
 8. Add content from above
 9. Start Firefall
 
-### Web Hosts
+### HTTP Host
 
-CatchAll (4499 / 44399) is used for now, until the specific APIs are implemented.
+PIN now relies on a single RIN.WebAPI host endpoint. Legacy WebHost projects are deprecated.
 
-| Host       | HTTP | HTTPS | Catch All |
-|------------|------|-------|-----------|
-| Operator   | 4400 | 44300 | ❌        |
-| WebAsset   | 4401 | 44301 | ✔️        |
-| ClientApi  | 4402 | 44302 | ❌        |
-| InGame     | 4403 | 44303 | ❌        |
-| WebAccount | 4404 | 44304 | ✔️        |
-| Frontend   | 4405 | 44305 | ✔️        |
-| Store      | 4406 | 44306 | ✔️        |
-| Chat       | 4407 | 44307 | ❌        |
-| Replay     | 4408 | 44308 | ✔️        |
-| Web        | 4409 | 44309 | ✔️        |
-| Market     | 4410 | 44310 | ✔️        |
-| RedHanded  | 4411 | 44311 | ✔️        |
+| Host       | HTTP | HTTPS |
+|------------|------|-------|
+| RIN.WebAPI | 5501 | 44301 |
 
 ### UDP Servers
 

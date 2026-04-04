@@ -239,22 +239,6 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         // InventoryUpdate
         Inventory.SendFullInventory();
         Inventory.SendCertificateUnlocksUpdate();
-        if (Inventory.TryGetLoadout(CharacterEntity.SelectedLoadout, out var currentLoadout))
-        {
-            var response = new CurrentLoadoutResponse
-            {
-                PlayerId = new EntityId { Backing = CharacterEntity.EntityId },
-                Unk2 = currentLoadout.FrameLoadoutId,
-                Unk3 = 0,
-                Unk4 = currentLoadout.LoadoutName ?? string.Empty,
-                Unk5 = currentLoadout.LoadoutType ?? string.Empty,
-                Unk6 = currentLoadout.ChassisID,
-                LoadoutConfigs = currentLoadout.LoadoutConfigs,
-            };
-
-            NetChannels[ChannelType.ReliableGss].SendMessage(response, CharacterEntity.EntityId);
-        }
-
         Inventory.EnablePartialUpdates = true;
 
         CharacterEntity.Alive = true; // Accept MovementInputs only after Respawn

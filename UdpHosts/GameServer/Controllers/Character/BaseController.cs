@@ -473,8 +473,9 @@ public class BaseController : Base
     public void SlotGearRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<SlotGearRequest>();
-        
-        player.CharacterEntity.EquipItemByGUID(request.LoadoutId, (LoadoutSlotType)request.SlotIdx, request.ItemGUID);
+
+        var normalizedSlot = CharacterInventory.NormalizeRequestedLoadoutSlot(request.SlotIdx);
+        player.CharacterEntity.EquipItemByGUID(request.LoadoutId, normalizedSlot, request.ItemGUID);
 
         var response = new SlotGearResponse()
                        {

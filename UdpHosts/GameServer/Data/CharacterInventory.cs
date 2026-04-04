@@ -42,6 +42,22 @@ public class CharacterInventory
         [76334] = [746, 744],
     };
 
+    // Maps unambiguous AbilitySlotType byte values to their canonical LoadoutSlotType storage values.
+    // Derived from CharacterLoadout.AbilityToLoadoutSlotMap, excluding entries whose AbilitySlotType
+    // byte value collides with a valid LoadoutSlotType value:
+    //   Ability2 (1) collides with LoadoutSlotType.Primary (1)
+    //   Ability3 (2) collides with LoadoutSlotType.Secondary (2)
+    //   AbilityMedical (6) collides with LoadoutSlotType.AbilityHKM (6)
+    // Those three are resolved contextually in NormalizeSlotIndexWithItemContext.
+    private static readonly Dictionary<byte, byte> LegacyAbilitySlotToLoadoutSlot = new()
+    {
+        { (byte)AbilitySlotType.Ability1, (byte)LoadoutSlotType.Ability1 },
+        { (byte)AbilitySlotType.AbilityHKM, (byte)LoadoutSlotType.AbilityHKM },
+        { (byte)AbilitySlotType.AbilityAux, (byte)LoadoutSlotType.GearAuxWeapon },
+        { (byte)AbilitySlotType.AbilityCalldownVehicle, (byte)LoadoutSlotType.Vehicle },
+        { (byte)AbilitySlotType.AbilityCalldownGlider, (byte)LoadoutSlotType.Glider },
+    };
+
     private Dictionary<ulong, Item> _items; // By guid
     private Dictionary<uint, Resource> _resources; // By typeid
     private Dictionary<int, Loadout> _loadouts; // By loadoutid
@@ -58,6 +74,12 @@ public class CharacterInventory
         _items = new();
         _resources = new();
         _loadouts = new();  
+    }
+
+    public static LoadoutSlotType NormalizeRequestedLoadoutSlot(byte rawSlotIndex)
+    {
+        // Request path has no item context. Keep direct legacy mappings only.
+        return (LoadoutSlotType)LegacyAbilitySlotToLoadoutSlot.GetValueOrDefault(rawSlotIndex, rawSlotIndex);
     }
 
     public void LoadHardcodedInventory()
@@ -167,7 +189,11 @@ public class CharacterInventory
                             }
                         }
 
-                        loadout.LoadoutConfigs[0].Items = resolvedItems.ToArray();
+                        loadout.LoadoutConfigs[0].Items = NormalizeLegacyLoadoutSlots(resolvedItems.ToArray(), out bool slotIdsUpdated);
+                        if (slotIdsUpdated)
+                        {
+                            loadoutWasRepaired = true;
+                        }
 
                         // Auto-equip Vehicle and Glider if they are in the bag but not yet slotted.
                         // This migrates existing characters that were created before loadout slot
@@ -802,6 +828,8 @@ public class CharacterInventory
 
     public void EquipItemByGUID(int loadoutId, LoadoutSlotType slot, ulong guid)
     {
+        slot = NormalizeRequestedSlotForItem(slot, guid);
+
         ulong changedOldItemGUID = 0;
         ulong changedNewItemGUID = guid;
 
@@ -974,6 +1002,9 @@ public class CharacterInventory
             config.Perks ??= Array.Empty<uint>();
             config.ConfigName ??= configIndex == 0 ? "pve" : "pvp";
             config.HaveExtraData = 1;
+
+            config.Items = NormalizeLegacyLoadoutSlots(config.Items, out _);
+
             config.ExtraData = BuildLoadoutExtraData(loadout, config);
 
             for (int visualIndex = 0; visualIndex < config.Visuals.Length; visualIndex++)
@@ -1177,6 +1208,84 @@ public class CharacterInventory
 
         resolvedGuid = 0;
         return false;
+    }
+
+    private LoadoutConfig_Item[] NormalizeLegacyLoadoutSlots(LoadoutConfig_Item[] items, out bool changed)
+    {
+        changed = false;
+        if (items == null || items.Length == 0)
+        {
+            return items ?? Array.Empty<LoadoutConfig_Item>();
+        }
+
+        bool hasZeroBasedAbilityMarker = items.Any(item => item.SlotIndex == 0 && IsAbilityModuleGuid(item.ItemGUID));
+
+        for (int i = 0; i < items.Length; i++)
+        {
+            var entry = items[i];
+            byte normalizedSlot = NormalizeSlotIndexWithItemContext(entry.SlotIndex, entry.ItemGUID, hasZeroBasedAbilityMarker);
+            if (normalizedSlot == entry.SlotIndex)
+            {
+                continue;
+            }
+
+            entry.SlotIndex = normalizedSlot;
+            items[i] = entry;
+            changed = true;
+        }
+
+        if (!changed)
+        {
+            return items;
+        }
+
+        return items
+            .GroupBy(item => item.SlotIndex)
+            .Select(group => group.Last())
+            .ToArray();
+    }
+
+    private LoadoutSlotType NormalizeRequestedSlotForItem(LoadoutSlotType requestedSlot, ulong itemGuid)
+    {
+        byte normalized = NormalizeSlotIndexWithItemContext((byte)requestedSlot, itemGuid, hasZeroBasedAbilityMarker: false);
+        return (LoadoutSlotType)normalized;
+    }
+
+    private byte NormalizeSlotIndexWithItemContext(byte rawSlotIndex, ulong itemGuid, bool hasZeroBasedAbilityMarker)
+    {
+        if (IsAbilityModuleGuid(itemGuid))
+        {
+            // Legacy saves can encode ability slot indices instead of dbitems::LoadoutSlot ids.
+            // Resolve ambiguous 1/2/3 by detecting whether this loadout follows zero-based ability indexing.
+            switch (rawSlotIndex)
+            {
+                case 0:
+                    return (byte)LoadoutSlotType.Ability1;
+                case 1:
+                    return hasZeroBasedAbilityMarker ? (byte)LoadoutSlotType.Ability2 : (byte)LoadoutSlotType.Ability1;
+                case 2:
+                    return hasZeroBasedAbilityMarker ? (byte)LoadoutSlotType.Ability3 : (byte)LoadoutSlotType.Ability2;
+                case 3:
+                    return hasZeroBasedAbilityMarker ? (byte)LoadoutSlotType.AbilityHKM : (byte)LoadoutSlotType.Ability3;
+                case 4:
+                    return (byte)LoadoutSlotType.AbilityHKM;
+                case (byte)AbilitySlotType.AbilityMedical: // 6 — collides with LoadoutSlotType.AbilityHKM
+                    return hasZeroBasedAbilityMarker ? (byte)LoadoutSlotType.GearMedicalSystem : (byte)LoadoutSlotType.AbilityHKM;
+            }
+        }
+
+        return LegacyAbilitySlotToLoadoutSlot.GetValueOrDefault(rawSlotIndex, rawSlotIndex);
+    }
+
+    private bool IsAbilityModuleGuid(ulong guid)
+    {
+        if (guid == 0 || !_items.TryGetValue(guid, out var item))
+        {
+            return false;
+        }
+
+        var rootItem = SDBInterface.GetRootItem(item.SdbId);
+        return rootItem != null && rootItem.Type == (byte)ItemType.AbilityModule;
     }
 
     private byte GetInventoryTypeByItemType(byte itemType)
