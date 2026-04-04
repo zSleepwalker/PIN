@@ -21,7 +21,7 @@ public class AbilitySystem
     public AbilitySystem(Shard shard)
     {
         Shard = shard;
-        Factory = new Factory();
+        Factory = new Factory(shard);
         PlayerVehicleCalldownRequests = new();
         PlayerDeployableCalldownRequests = new();
         PlayerThumperCalldownRequests = new();

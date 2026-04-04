@@ -30,6 +30,7 @@ public class Context
     public int Bonus { get; set; }
     public uint InitTime { get; set; }
     public Vector3 InitPosition { get; set; }
+    public uint ExecutionId { get; set; }
     public ExecutionHint ExecutionHint { get; set; }
     public uint ItemId { get; set; }
     public bool ActivationAcknowledged { get; set; }
@@ -53,6 +54,7 @@ public class Context
             Bonus = original.Bonus,
             InitTime = original.InitTime,
             InitPosition = original.InitPosition,
+            ExecutionId = original.ExecutionId,
             ExecutionHint = original.ExecutionHint,
             ItemId = original.ItemId,
             ActivationAcknowledged = original.ActivationAcknowledged,
