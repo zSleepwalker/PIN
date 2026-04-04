@@ -21,7 +21,7 @@ public struct PoseIntegratorCallbacks : IPoseIntegratorCallbacks
     /// Fraction of dynamic body angular velocity to remove per unit of time. Values range from 0 to 1. 0 is fully undamped, while values very close to 1 will remove most velocity.
     /// </summary>
     public float AngularDamping;
-    
+
     private Vector3Wide gravityWideDt;
     private Vector<float> linearDampingDt;
     private Vector<float> angularDampingDt;

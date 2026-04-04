@@ -2,6 +2,7 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <NoWarn>$(NoWarn);SA1108;SA1117;SA1201;SA1202;SA1204;SA1214;SA1611</NoWarn>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Aero.Gen" Version="1.3.0" />

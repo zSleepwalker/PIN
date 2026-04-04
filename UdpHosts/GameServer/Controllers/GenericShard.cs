@@ -1,8 +1,8 @@
 ﻿using System;
 using System.Linq;
 using System.Numerics;
-using AeroMessages.Control;
 using AeroMessages.Common;
+using AeroMessages.Control;
 using AeroMessages.GSS.V66.Generic;
 using GameServer.Aptitude;
 using GameServer.Entities;

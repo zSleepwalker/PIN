@@ -1,4 +1,3 @@
-using System;
 using GameServer.Data.SDB.Records.apt;
 using GameServer.Entities.Character;
 using GameServer.Entities.Vehicle;

@@ -76,7 +76,7 @@ public class WeaponSim
 
         // Ammo
         var ammo = SDBInterface.GetAmmo(activeWeaponDetails.AmmoId);
-        
+
         // Projectile origin
         var origin = entity.GetProjectileOrigin(localAimDir);
 
@@ -112,7 +112,7 @@ public class WeaponSim
         if (weapon.SpreadRampTime != 0)
         {
             uint burstCost = weapon.MsPerBurst;
-            var update = System.Math.Min(weapon.SpreadRampTime, weaponSimState.AccumulatedSpreadTime + burstCost);
+            var update = Math.Min(weapon.SpreadRampTime, weaponSimState.AccumulatedSpreadTime + burstCost);
 
             // Logger.Debug("SpreadRampTime {SpreadRampTime}, AccumulatedSpreadTime: {AccumulatedSpreadTime}, MsPerBurst: {MsPerBurst}, Setting AccumulatedSpreadTime To : {update}", weapon.SpreadRampTime, weaponSimState.AccumulatedSpreadTime, weapon.MsPerBurst, update);
             weaponSimState.AccumulatedSpreadTime = update;
@@ -189,10 +189,10 @@ public class WeaponSim
             int timeCanReturn = (int)(currentTime - weaponSimState.LastBurstTime - weapon.MsSpreadReturnDelay);
             if (timeCanReturn > 0)
             {
-                uint returnedTime = (uint)System.Math.Min(weapon.MsSpreadReturn, timeCanReturn);
+                uint returnedTime = (uint)Math.Min(weapon.MsSpreadReturn, timeCanReturn);
                 float ratioToReturn = (float)returnedTime / weapon.MsSpreadReturn;
                 uint rampTimeToReturn = (uint)(weaponSimState.AccumulatedSpreadTime * ratioToReturn);
-                uint update = (uint)System.Math.Max(0, (int)weaponSimState.AccumulatedSpreadTime - rampTimeToReturn);
+                uint update = (uint)Math.Max(0, (int)weaponSimState.AccumulatedSpreadTime - rampTimeToReturn);
 
                 // Logger.Debug("returnedTime {returnedTime}, ratioToReturn: {ratioToReturn}, rampTimeToReturn: {rampTimeToReturn}, Setting AccumulatedSpreadTime To : {update}", returnedTime, ratioToReturn, rampTimeToReturn, update);
                 weaponSimState.AccumulatedSpreadTime = update;

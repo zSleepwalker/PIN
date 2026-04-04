@@ -23,9 +23,11 @@ public class RequestBattleFrameListCommand : Command, ICommand
             // Opens battleframe station
             character.SetAuthorizedTerminal(
                 new AuthorizedTerminalData
-                 {
-                     TerminalId = 0, TerminalType = 8, TerminalEntityId = 0
-                 });
+                {
+                    TerminalId = 0,
+                    TerminalType = 8,
+                    TerminalEntityId = 0
+                });
         }
 
         return true;

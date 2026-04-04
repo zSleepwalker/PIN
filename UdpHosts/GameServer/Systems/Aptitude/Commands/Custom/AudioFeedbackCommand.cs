@@ -1,5 +1,3 @@
-using System;
-
 namespace GameServer.Aptitude;
 
 public class AudioFeedbackCommand : ICommand

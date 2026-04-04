@@ -73,7 +73,7 @@ public class CharacterInventory
         _character = character;
         _items = new();
         _resources = new();
-        _loadouts = new();  
+        _loadouts = new();
         Unlocks = new CharacterUnlocks(shard, player, character);
     }
 
@@ -87,7 +87,7 @@ public class CharacterInventory
 
     public void LoadHardcodedInventory()
     {
-        foreach(uint item in HardcodedCharacterData.FallbackInventoryItems)
+        foreach (uint item in HardcodedCharacterData.FallbackInventoryItems)
         {
             CreateItem(item);
         }
@@ -97,12 +97,12 @@ public class CharacterInventory
             AddResource(resource, quantity);
         }
 
-        foreach(var data in HardcodedCharacterData.TempHardcodedLoadouts)
+        foreach (var data in HardcodedCharacterData.TempHardcodedLoadouts)
         {
             HardcodedCharacterData.GenerateLoadoutAndItems(this, data);
         }
 
-        foreach((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
+        foreach ((uint createId, uint chassisId) in HardcodedCharacterData.TempCharCreateLoadouts)
         {
             HardcodedCharacterData.GenerateCharCreateLoadoutAndItems(this, createId, chassisId);
         }
@@ -160,21 +160,27 @@ public class CharacterInventory
 
             if (!string.IsNullOrEmpty(loadoutData.Visuals))
             {
-                try {
+                try
+                {
                     var visuals = System.Text.Json.JsonSerializer.Deserialize<LoadoutConfig_Visual[]>(loadoutData.Visuals);
-                    if (visuals != null) {
+                    if (visuals != null)
+                    {
                         loadout.LoadoutConfigs[0].Visuals = visuals;
                     }
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     _shard.Logger.Error(ex, "Failed to parse loadout visuals for {charId}", _character.EntityId);
                 }
             }
 
             if (!string.IsNullOrEmpty(loadoutData.SlottedItems))
             {
-                try {
+                try
+                {
                     var items = System.Text.Json.JsonSerializer.Deserialize<Dictionary<byte, ulong>>(loadoutData.SlottedItems);
-                    if (items != null) {
+                    if (items != null)
+                    {
                         var resolvedItems = new List<LoadoutConfig_Item>();
                         foreach (var item in items)
                         {
@@ -202,11 +208,11 @@ public class CharacterInventory
                         // This migrates existing characters that were created before loadout slot
                         // persistence was added for these two item sub-types.
                         const ushort VehicleSubtype = 83;
-                        const ushort GliderSubtype  = 3709;
+                        const ushort GliderSubtype = 3709;
                         const byte VehicleUiCategory = 6;
                         const byte GliderUiCategory = 9;
                         bool hasVehicleSlot = resolvedItems.Any(r => r.SlotIndex == (byte)LoadoutSlotType.Vehicle);
-                        bool hasGliderSlot  = resolvedItems.Any(r => r.SlotIndex == (byte)LoadoutSlotType.Glider);
+                        bool hasGliderSlot = resolvedItems.Any(r => r.SlotIndex == (byte)LoadoutSlotType.Glider);
                         if (!hasVehicleSlot || !hasGliderSlot)
                         {
                             var equipList = new List<LoadoutConfig_Item>(resolvedItems);
@@ -214,7 +220,11 @@ public class CharacterInventory
                             {
                                 var rootInfo = SDBInterface.GetRootItem(itm.SdbId);
                                 var abilityModule = SDBInterface.GetAbilityModule(itm.SdbId);
-                                if (rootInfo == null) continue;
+                                if (rootInfo == null)
+                                {
+                                    continue;
+                                }
+
                                 bool matchesVehicle = rootInfo.ItemSubtype == VehicleSubtype
                                     || (abilityModule != null && abilityModule.UiCategory == VehicleUiCategory);
                                 bool matchesGlider = rootInfo.ItemSubtype == GliderSubtype
@@ -240,8 +250,13 @@ public class CharacterInventory
                                     loadoutWasRepaired = true;
                                     _shard.Logger.Information("Auto-equipped glider item {sdbId} (guid {guid}) into Glider slot for {charId}", itm.SdbId, guid, _character.EntityId);
                                 }
-                                if (hasVehicleSlot && hasGliderSlot) break;
+
+                                if (hasVehicleSlot && hasGliderSlot)
+                                {
+                                    break;
+                                }
                             }
+
                             loadout.LoadoutConfigs[0].Items = equipList.ToArray();
                         }
 
@@ -260,7 +275,9 @@ public class CharacterInventory
                         // consume visual slots can show equipped vehicle/glider correctly.
                         SyncUtilityVisualsFromLoadoutSlots(loadout);
                     }
-                } catch (Exception ex) {
+                }
+                catch (Exception ex)
+                {
                     _shard.Logger.Error(ex, "Failed to parse loadout items for {charId}", _character.EntityId);
                 }
             }
@@ -273,7 +290,6 @@ public class CharacterInventory
                 PersistLoadoutToDatabase(loadout);
             }
         }
-
     }
 
     public bool ConsumeItem(uint sdbId, uint quantity)
@@ -288,15 +304,16 @@ public class CharacterInventory
         foreach (var item in itemsToConsume)
         {
             _items.Remove(item.GUID);
+
             // Send update to client (TODO: implement SendItemRemove if needed, or send full inventory)
         }
 
         // Inform the backend database asynchronously to consume the items so it persists state
-        _ = GRPCService.ConsumeCharacterItemAsync(new GrpcGameServerAPIClient.ConsumeItemReq 
-        { 
-            CharacterId = (ulong)((NetworkPlayer)_player).CharacterId + 0xFE,
+        _ = GRPCService.ConsumeCharacterItemAsync(new GrpcGameServerAPIClient.ConsumeItemReq
+        {
+            CharacterId = ((NetworkPlayer)_player).CharacterId + 0xFE,
             SdbId = sdbId,
-            Quantity = quantity 
+            Quantity = quantity
         });
 
         // For now, send full inventory to be safe, though a partial remove would be better
@@ -483,7 +500,7 @@ public class CharacterInventory
         else
         {
             res.Quantity -= cost;
-            
+
             if (res.Quantity > 0)
             {
                 _resources[sdbId] = res;
@@ -492,15 +509,15 @@ public class CharacterInventory
             {
                 _resources.Remove(sdbId);
             }
-            
+
             SendResourceUpdate(sdbId);
 
             // Inform the backend database asynchronously to consume the resource so it persists state
-            _ = GRPCService.ConsumeCharacterResourceAsync(new GrpcGameServerAPIClient.ConsumeResourceReq 
-            { 
-                CharacterId = (ulong)((NetworkPlayer)_player).CharacterId + 0xFE,
+            _ = GRPCService.ConsumeCharacterResourceAsync(new GrpcGameServerAPIClient.ConsumeResourceReq
+            {
+                CharacterId = ((NetworkPlayer)_player).CharacterId + 0xFE,
                 SdbId = sdbId,
-                Quantity = cost 
+                Quantity = cost
             });
 
             return true;
@@ -515,7 +532,7 @@ public class CharacterInventory
     public void AddLoadout(Loadout loadout)
     {
         NormalizeLoadoutForSerialization(ref loadout);
-        _loadouts.Add((int)loadout.FrameLoadoutId, loadout);
+        _loadouts.Add(loadout.FrameLoadoutId, loadout);
     }
 
     public void SendCertificateUnlocksUpdate()
@@ -734,7 +751,7 @@ public class CharacterInventory
         {
             ClearExistingData = 0,
             ItemsPart1Length = 1,
-            ItemsPart1 = 
+            ItemsPart1 =
             [
                 item
             ],
@@ -793,7 +810,7 @@ public class CharacterInventory
         {
             NormalizeAndStoreLoadout(loadoutId);
         }
-        
+
         var itemChanges = new Item[]
         {
         };
@@ -809,22 +826,22 @@ public class CharacterInventory
             var newItem = _items[newItemGuid];
             itemChanges = itemChanges.Append(newItem).ToArray();
         }
-        
+
         var update = new InventoryUpdate()
-                     {
-                         ClearExistingData = 0,
-                         ItemsPart1Length = (byte)itemChanges.Length,
-                         ItemsPart1 = itemChanges,
-                         ItemsPart2Length = 0,
-                         ItemsPart2 = Array.Empty<Item>(),
-                         ItemsPart3Length = 0,
-                         ItemsPart3 = Array.Empty<Item>(),
-                         Resources = Array.Empty<Resource>(),
-                         Loadouts = _loadouts.Values.ToArray(),
-                         Unk = 1,
-                         SecondItems = Array.Empty<Item>(),
-                         SecondResources = Array.Empty<Resource>()
-                     };
+        {
+            ClearExistingData = 0,
+            ItemsPart1Length = (byte)itemChanges.Length,
+            ItemsPart1 = itemChanges,
+            ItemsPart2Length = 0,
+            ItemsPart2 = Array.Empty<Item>(),
+            ItemsPart3Length = 0,
+            ItemsPart3 = Array.Empty<Item>(),
+            Resources = Array.Empty<Resource>(),
+            Loadouts = _loadouts.Values.ToArray(),
+            Unk = 1,
+            SecondItems = Array.Empty<Item>(),
+            SecondResources = Array.Empty<Resource>()
+        };
 
         _player.NetChannels[ChannelType.ReliableGss].SendMessage(update, _character.EntityId);
     }
@@ -837,7 +854,7 @@ public class CharacterInventory
         ulong changedNewItemGUID = guid;
 
         NormalizeAndStoreLoadout(loadoutId);
-        
+
         // Unequip old Item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Items.Any((e) => e.SlotIndex == (byte)slot))
         {
@@ -847,46 +864,48 @@ public class CharacterInventory
             var oldItem = _items[oldItemGUID];
             oldItem.DynamicFlags = (byte)(oldItem.DynamicFlags ^ (byte)ItemDynamicFlags.IsEquipped);
             _items[oldItemGUID] = oldItem;
-            
+
             // Update CurrentLoadout
             _character.CurrentLoadout.SlottedItems[slot] = 0;
-            
+
             // Update LoadoutConfigs
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items
                 .Where(e => e.SlotIndex != (byte)slot).ToArray();
         }
-        
+
         // Equip new item (if any)
         if (guid != 0)
-                    // VALIDATION: For ability slots, verify the item can be equipped on the current frame
-                    if ((slot == LoadoutSlotType.Ability1 || slot == LoadoutSlotType.Ability2 || 
-                        slot == LoadoutSlotType.Ability3 || slot == LoadoutSlotType.AbilityHKM) && guid != 0)
-                    {
-                        var tempItem = _items[guid];
-                        uint currentFrameChassisId = _character.CurrentLoadout?.ChassisID ?? 0;
+        {
+            // VALIDATION: For ability slots, verify the item can be equipped on the current frame
+            if ((slot == LoadoutSlotType.Ability1 || slot == LoadoutSlotType.Ability2 ||
+                slot == LoadoutSlotType.Ability3 || slot == LoadoutSlotType.AbilityHKM) && guid != 0)
+            {
+                var tempItem = _items[guid];
+                uint currentFrameChassisId = _character.CurrentLoadout?.ChassisID ?? 0;
 
-                        if (!Unlocks.CanEquipAbilityOnFrame(tempItem.SdbId, currentFrameChassisId))
-                        {
-                            _shard?.Logger?.Warning(
-                                "[INVENTORY] EquipItemByGUID: REJECTED - Ability {itemId} cannot be equipped on frame {frameId}",
-                                tempItem.SdbId, currentFrameChassisId);
-                            return;
-                        }
-                    }
+                if (!Unlocks.CanEquipAbilityOnFrame(tempItem.SdbId, currentFrameChassisId))
+                {
+                    _shard?.Logger?.Warning(
+                        "[INVENTORY] EquipItemByGUID: REJECTED - Ability {itemId} cannot be equipped on frame {frameId}",
+                        tempItem.SdbId, currentFrameChassisId);
+                    return;
+                }
+            }
+        }
 
         {
             // Update Item to Equipped
             var item = _items[guid];
             item.DynamicFlags = (byte)(item.DynamicFlags | (byte)ItemDynamicFlags.IsEquipped);
             _items[guid] = item;
-            
+
             // Update CurrentLoadout
             _character.CurrentLoadout.SlottedItems[slot] = item.SdbId;
 
             // Update LoadoutConfig
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items.Append(new LoadoutConfig_Item() { ItemGUID = guid, SlotIndex = (byte)slot }).ToArray();
         }
-        
+
         // Update StaticInfo when visuals are changed
         var equippedSdbId = (guid != 0) ? _items[guid].SdbId : 0;
         switch (slot)
@@ -914,7 +933,7 @@ public class CharacterInventory
             _ = GRPCService.SaveCharacterLoadoutAsync(charGuid, loadoutId, (int)updatedLoadout.ChassisID, visualsJson, slottedItemsJson);
         }
     }
-    
+
     public void EquipVisualBySdbId(int loadoutId, LoadoutVisualType visual, LoadoutSlotType slot, uint sdb_id)
     {
         NormalizeAndStoreLoadout(loadoutId);
@@ -926,7 +945,7 @@ public class CharacterInventory
             _loadouts[loadoutId].LoadoutConfigs[0].Visuals = _loadouts[loadoutId].LoadoutConfigs[0].Visuals
                 .Where(e => e.VisualType != visual).ToArray();
         }
-        
+
         // Equip new item (if any)
         if (sdb_id != 0)
         {
@@ -938,7 +957,7 @@ public class CharacterInventory
         var equippedGUID = (sdb_id != 0) ? _items.First(e => e.Value.SdbId == sdb_id).Value.GUID : 0;
         EquipItemByGUID(loadoutId, slot, equippedGUID);
     }
-    
+
     private byte GetInventoryTypeByItemTypeId(uint sdbId)
     {
         var itemInfo = SDBInterface.GetRootItem(sdbId);
@@ -949,7 +968,7 @@ public class CharacterInventory
         else
         {
             return (byte)InventoryType.Bag;
-        }        
+        }
     }
 
     private static LoadoutConfig[] CreateDefaultLoadoutConfigs()
@@ -1373,7 +1392,7 @@ public class CharacterInventory
         {
             try
             {
-                await GRPCService.SaveCharacterLoadoutAsync(charGuid, (int)loadout.FrameLoadoutId, (int)loadout.ChassisID, visualsJson, slottedItemsJson);
+                await GRPCService.SaveCharacterLoadoutAsync(charGuid, loadout.FrameLoadoutId, (int)loadout.ChassisID, visualsJson, slottedItemsJson);
             }
             catch (Exception ex)
             {

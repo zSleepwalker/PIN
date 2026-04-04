@@ -46,7 +46,7 @@ public class EntityManager
     private bool hasSpawnedTestEntities = false;
 
     private ConcurrentDictionary<ulong, HashSet<INetworkPlayer>> ScopedPlayersByEntity = new ConcurrentDictionary<ulong, HashSet<INetworkPlayer>>();
-    
+
     private ConcurrentQueue<ScopeInRequest> QueuedScopeIn = new ConcurrentQueue<ScopeInRequest>();
     private ConcurrentDictionary<ulong, Lifetime> LifetimeByEntity = new ConcurrentDictionary<ulong, Lifetime>();
 
@@ -229,9 +229,10 @@ public class EntityManager
     public AreaVisualDataEntity SpawnAreaVisualData(Vector3 position, ScopingComponent scoping)
     {
         var areaVisualData = new AreaVisualDataEntity(Shard, Shard.GetNextGuid())
-            {
-                Scoping = scoping, Position = position,
-            };
+        {
+            Scoping = scoping,
+            Position = position,
+        };
         Add(areaVisualData.EntityId, areaVisualData);
         return areaVisualData;
     }
@@ -1109,7 +1110,7 @@ public class EntityManager
             bool haveObserver = observer != null;
             if (haveObserver)
             {
-                 player.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(observer, entity.EntityId);
+                player.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(observer, entity.EntityId);
             }
         }
         else if (entity is MeldingBubbleEntity meldingBubble)
@@ -1118,7 +1119,7 @@ public class EntityManager
             bool haveObserver = observer != null;
             if (haveObserver)
             {
-                 player.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(observer, entity.EntityId);
+                player.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(observer, entity.EntityId);
             }
         }
         else if (entity is VehicleEntity vehicle)
@@ -1649,7 +1650,7 @@ public class EntityManager
             }
         }
     }
- 
+
     private void OnAddedEntity(IEntity entity)
     {
         // TEMP: Hack to introduce new entities to connected players. This should be replaced with tick logic that sends down entities based on scope and distance.

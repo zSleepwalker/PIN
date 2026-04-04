@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -83,8 +82,8 @@ public class ENWFData
     {
         public uint UserData;
         public string BvTreeType;
-        public string Code; 
-        public string Child; 
+        public string Code;
+        public string Child;
     }
 
     public class HkpConvexTranslateShapeObject : BaseTagfileObject

@@ -1,4 +1,3 @@
-using System;
 using System.Numerics;
 using AeroMessages.Common;
 using AeroMessages.GSS.V66;
@@ -31,10 +30,10 @@ public sealed class ThumperEntity : BaseAptitudeEntity, IAptitudeTarget
         CalldownTimeMs = commandDef.CalldownTimeMs;
         MaxHealth = (uint)commandDef.Health;
         Interaction = new InteractionComponent()
-          {
-              Type = InteractionType.GenericHold,
-              CompletedAbilityId = CompletedAbility,
-          };
+        {
+            Type = InteractionType.GenericHold,
+            CompletedAbilityId = CompletedAbility,
+        };
         InitFields();
         InitViews();
     }
@@ -132,8 +131,8 @@ public sealed class ThumperEntity : BaseAptitudeEntity, IAptitudeTarget
         Logger.Debug("Thumper.SetStatusEffect Index {index}, Time {time}, Id {id}", index, time, data.Id);
 
         // Member
-        this.GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
-        this.GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
+        GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
+        GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
 
         // ObserverView
         ResourceNode_ObserverView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(ResourceNode_ObserverView, time, null);
@@ -145,8 +144,8 @@ public sealed class ThumperEntity : BaseAptitudeEntity, IAptitudeTarget
         Logger.Debug("Thumper.ClearStatusEffect Index {index}, Time {time}, Id {debugEffectId}", index, time, debugEffectId);
 
         // Member
-        this.GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
-        this.GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
+        GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
+        GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
 
         // ObserverView
         ResourceNode_ObserverView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(ResourceNode_ObserverView, time, null);
@@ -162,11 +161,11 @@ public sealed class ThumperEntity : BaseAptitudeEntity, IAptitudeTarget
     public void TransitionToState(ThumperState newState)
     {
         StateInfo = new StateInfoStruct()
-                    {
-                        State = (byte)newState,
-                        Time = Shard.CurrentTime,
-                        CountdownTime = Shard.CurrentTime + newState.CountdownTime(),
-                    };
+        {
+            State = (byte)newState,
+            Time = Shard.CurrentTime,
+            CountdownTime = Shard.CurrentTime + newState.CountdownTime(),
+        };
         ResourceNode_ObserverView.StateInfoProp = StateInfo;
     }
 

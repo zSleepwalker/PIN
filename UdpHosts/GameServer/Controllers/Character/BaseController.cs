@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
 using AeroMessages.Common;
 using AeroMessages.GSS.V66;
@@ -172,7 +171,7 @@ public class BaseController : Base
         var setSteamIdPacket = packet.Unpack<SetSteamUserId>();
         player.SteamUserId = setSteamIdPacket.SteamUserId;
         _logger.Debug("Entity {EntityId:x8} Steam user id (Aero): {SteamUserId}", entityId, player.SteamUserId);
-        
+
         // var conventional = packet.Read<SetSteamIdRequest>();
         // _logger.Verbose("Packet Data: {0}", BitConverter.ToString(packet.PacketData.ToArray()).Replace("-", " "));
         // _logger.Verbose("Entity {0:x8} Steam user id (conventional): {1}", entityId, conventional.SteamId);
@@ -200,7 +199,7 @@ public class BaseController : Base
         {
             return;
         }
-    
+
         var character = player.CharacterEntity;
         var abilities = client.AssignedShard.Abilities;
         abilities.HandleDeployableCalldownRequest(character.EntityId, deployableCalldownRequest);
@@ -214,7 +213,7 @@ public class BaseController : Base
         {
             return;
         }
-    
+
         var character = player.CharacterEntity;
         var abilities = client.AssignedShard.Abilities;
         abilities.HandleResourceNodeBeaconCalldownRequest(character.EntityId, thumperCalldownRequest);
@@ -437,16 +436,16 @@ public class BaseController : Base
             // Before applying the loadout, validate that all slotted abilities are allowed on the current frame
             uint currentFrameChassisId = loadout.ChassisID;
             var unlocks = player.Inventory.Unlocks;
-            
-            _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Player {playerId} switching to frame {frameId} (from {oldFrame})", 
+
+            _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Player {playerId} switching to frame {frameId} (from {oldFrame})",
                 player.EntityId, currentFrameChassisId, player.CharacterEntity?.CurrentLoadout?.ChassisID ?? 0);
-            
+
             var invalidSlots = new List<LoadoutSlotType>();
             foreach (var slotEntry in loadout.SlottedItems)
             {
                 var slotType = slotEntry.Key;
                 var moduleId = slotEntry.Value;
-                
+
                 // Check if this ability can be equipped on the current frame
                 bool canEquip = unlocks.CanEquipAbilityOnFrame(moduleId, currentFrameChassisId);
                 if (!canEquip)
@@ -464,7 +463,7 @@ public class BaseController : Base
             }
 
             player.CharacterEntity.ApplyLoadout(loadout);
-            _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Applied loadout, CurrentLoadout.ChassisID now = {frameId}", 
+            _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Applied loadout, CurrentLoadout.ChassisID now = {frameId}",
                 player.CharacterEntity?.CurrentLoadout?.ChassisID ?? 999);
             player.Inventory.SendCertificateUnlocksUpdate();
 
@@ -487,7 +486,7 @@ public class BaseController : Base
             // Several UI components (like PaperdollSlotting) only refresh when ON_LEVEL_CHANGED fires.
             // Since we dont yet implement progression we just force an update here.
             if (player.CharacterEntity.Character_BaseController != null)
-            {   
+            {
                 player.CharacterEntity.Character_BaseController.LevelProp = HardcodedCharacterData.Level;
                 player.CharacterEntity.Character_BaseController.EffectiveLevelProp = HardcodedCharacterData.EffectiveLevel;
             }
@@ -512,32 +511,32 @@ public class BaseController : Base
         player.CharacterEntity.EquipItemByGUID(request.LoadoutId, normalizedSlot, request.ItemGUID);
 
         var response = new SlotGearResponse()
-                       {
-                           ItemGUID = request.ItemGUID,
-                           SlotIdx = request.SlotIdx,
-                           LoadoutId = request.LoadoutId,
-                           Unk1 = request.Unk,
-                           Result = 1,
-                       };
-        
+        {
+            ItemGUID = request.ItemGUID,
+            SlotIdx = request.SlotIdx,
+            LoadoutId = request.LoadoutId,
+            Unk1 = request.Unk,
+            Result = 1,
+        };
+
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
     }
-    
+
     [MessageID((byte)Commands.SlotVisualRequest)]
     public void SlotVisualRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<SlotVisualRequest>();
-        
+
         player.CharacterEntity.EquipVisualBySdbId(request.LoadoutId, (LoadoutVisualType)request.SlotIdx1, (LoadoutSlotType)request.SlotIdx2, request.ItemSdbId);
-        
+
         var response = new SlotVisualResponse()
-                       {
-                           ConfigId = 1,
-                           SlotIdx = request.SlotIdx2,
-                           LoadoutId = request.LoadoutId,
-                           Result = 1,
-                       };
-        
+        {
+            ConfigId = 1,
+            SlotIdx = request.SlotIdx2,
+            LoadoutId = request.LoadoutId,
+            Result = 1,
+        };
+
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
     }
 
@@ -568,11 +567,11 @@ public class BaseController : Base
         {
             _logger?.Warning("SlotModuleRequest: WARNING - Current frame chassis ID is 0 (null loadout)!");
         }
-        
+
         var unlocks = player.Inventory.Unlocks;
-        
+
         _logger?.Information("SlotModuleRequest: Player {playerId} requesting to slot {count} modules on frame {chassisId}", player.EntityId, request.Modules.Length, currentFrameChassisId);
-        
+
         var validModules = new List<SlotModuleResponseData>();
         foreach (var module in request.Modules)
         {

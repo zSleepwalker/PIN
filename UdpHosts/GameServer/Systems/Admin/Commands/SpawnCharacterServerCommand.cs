@@ -26,7 +26,7 @@ public class SpawnCharacterServerCommand : ServerCommand
             SourceFeedback("No monster data for this typeId", context);
             return;
         }
-        
+
         if (parameters.Length == 4)
         {
             Vector3? paramPosition = ParseVector3Parameters(parameters, 1);

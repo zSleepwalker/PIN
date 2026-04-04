@@ -9,7 +9,7 @@ public class CustomPlaceholderCommand : ICommand
         Label = label;
         Id = id;
     }
-    
+
     public uint Id { get; set; }
 
     public bool Execute(Context context)

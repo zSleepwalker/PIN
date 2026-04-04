@@ -1,4 +1,3 @@
-using System;
 using GameServer.Data.SDB.Records.apt;
 using GameServer.Entities.Deployable;
 using GameServer.Entities.Thumper;
@@ -23,8 +22,8 @@ public class RegisterLoadScaleCommand : Command, ICommand
         var scale = context.Self switch
         {
             DeployableEntity d => d.Scale,
-            ThumperEntity t    => t.Scale,
-            _                  => 0,
+            ThumperEntity t => t.Scale,
+            _ => 0,
         };
 
         if (scale == 0)

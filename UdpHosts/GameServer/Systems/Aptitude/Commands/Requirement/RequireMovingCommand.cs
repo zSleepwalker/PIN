@@ -19,7 +19,7 @@ public class RequireMovingCommand : Command, ICommand
 
         // NOTE: Investigate target handling
         var target = context.Self;
-        
+
         if (target is CharacterEntity character)
         {
             if (Params.CheckVelocity == 1)

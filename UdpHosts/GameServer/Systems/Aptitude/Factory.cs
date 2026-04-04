@@ -1,12 +1,5 @@
-using System;
 using System.Collections.Generic;
-using System.Numerics;
-using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Data.SDB;
-using GameServer.Data.SDB.Records.apt;
-using GameServer.Data.SDB.Records.aptfs;
-using GameServer.Data.SDB.Records.customdata;
-using GameServer.Enums.GSS.Character;
 using Serilog;
 
 namespace GameServer.Aptitude;
@@ -178,7 +171,7 @@ public class Factory
             case CommandType.SetYaw:
                 return new SetYawCommand(CustomDBInterface.GetSetYawCommandDef(commandId));
             case CommandType.SetObjectLifespan:
-            //     return new SetObjectLifespan(CustomDBInterface.GetSetObjectLifespanCommandDef(commandId));
+            // return new SetObjectLifespan(CustomDBInterface.GetSetObjectLifespanCommandDef(commandId));
             // case CommandType.ExtendObjectLifespan:
             //     Zero instances in BaseCommandDef
             case CommandType.LifespanDuration:
@@ -404,7 +397,7 @@ public class Factory
             // case CommandType.RequireEnergyFromTarget:
             //     Zero instances in BaseCommandDef
             case CommandType.RequireResourceFromTarget:
-            //     has environment `server` but is in SDB
+                // has environment `server` but is in SDB
                 return new RequireResourceFromTargetCommand(SDBInterface.GetRequireResourceFromTargetCommandDef(commandId));
             case CommandType.SpawnLoot:
                 return new SpawnLootCommand(CustomDBInterface.GetSpawnLootCommandDef(commandId));
@@ -485,7 +478,7 @@ public class Factory
             // case CommandType.SetPoweredState:
             //     return new SetPoweredStateCommand(CustomDBInterface.GetSetPoweredStateCommandDef(commandId));
             case CommandType.NamedVariableAssign:
-            //     has environment `server` but is in SDB
+                // has environment `server` but is in SDB
                 return new NamedVariableAssignCommand(SDBInterface.GetNamedVariableAssignCommandDef(commandId));
             case CommandType.LoadRegisterFromNamedVar:
                 return new LoadRegisterFromNamedVarCommand(SDBInterface.GetLoadRegisterFromNamedVarCommandDef(commandId));
@@ -758,15 +751,15 @@ public class Factory
             case CommandType.DisableHealthAndIcon:
                 return new DisableHealthAndIconCommand(SDBInterface.GetDisableHealthAndIconCommandDef(commandId));
             // case CommandType.AddInitiatorToStatusEffect:
-                // env `both`, but no such table in SDB?
+            // env `both`, but no such table in SDB?
             // case CommandType.RemoveInitiatorFromStatusEffect:
-                // env `both`, but no such table in SDB?
+            // env `both`, but no such table in SDB?
             case CommandType.ForceRespawn:
                 return new ForceRespawnCommand(CustomDBInterface.GetForceRespawnCommandDef(commandId));
             case CommandType.ReduceCooldowns:
                 return new ReduceCooldownsCommand(CustomDBInterface.GetReduceCooldownsCommandDef(commandId));
             // case CommandType.RequireArcActive:
-                // Zero instances in BaseCommandDef
+            // Zero instances in BaseCommandDef
             case CommandType.AttemptToCalldownVehicle:
                 return new AttemptToCalldownVehicleCommand(SDBInterface.GetAttemptToCalldownVehicleCommandDef(commandId));
             default:

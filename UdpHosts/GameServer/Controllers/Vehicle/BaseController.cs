@@ -1,4 +1,3 @@
-using System;
 using AeroMessages.GSS.V66.Vehicle.Command;
 using GameServer.Entities;
 using GameServer.Enums.GSS.Vehicle;
@@ -81,7 +80,7 @@ public class BaseController : Base
         // implemented later once authoritative collision-damage rules are defined.
         if (query.HaveEntity == 1)
         {
-            Serilog.Log.Information($"Vehicle collision reported by {player.PlayerId}: vehicle=0x{entityId:X}, collidedWith=0x{query.CollidedWithEntity.Backing:X}, shortTime={query.ShortTime}");
+            Log.Information($"Vehicle collision reported by {player.PlayerId}: vehicle=0x{entityId:X}, collidedWith=0x{query.CollidedWithEntity.Backing:X}, shortTime={query.ShortTime}");
         }
     }
 }

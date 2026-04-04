@@ -210,13 +210,13 @@ public class EncounterManager
         encounter.View.PackChanges(serializedData.Span);
 
         var msg = new EncounterUIScopeIn(size)
-                  {
-                      EncounterId = encounter.AeroEntityId,
-                      Header = encounter.View.GetHeader(),
-                      SinCard = new SinCardData[] { },
-                      SchemaVersion = 2,
-                      ShadowFieldValues = serializedData.ToArray()
-                  };
+        {
+            EncounterId = encounter.AeroEntityId,
+            Header = encounter.View.GetHeader(),
+            SinCard = new SinCardData[] { },
+            SchemaVersion = 2,
+            ShadowFieldValues = serializedData.ToArray()
+        };
 
         foreach (var player in encounter.Participants)
         {
@@ -236,11 +236,11 @@ public class EncounterManager
         encounter.View.PackChanges(serializedData.Span);
 
         var msg = new EncounterUIUpdate(size)
-                  {
-                      EncounterId = encounter.AeroEntityId,
-                      ShadowFieldValues = serializedData.ToArray(),
-                      BlobData = new byte[] { },
-                  };
+        {
+            EncounterId = encounter.AeroEntityId,
+            ShadowFieldValues = serializedData.ToArray(),
+            BlobData = new byte[] { },
+        };
 
         foreach (var player in encounter.Participants)
         {

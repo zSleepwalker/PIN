@@ -9,7 +9,7 @@ public class BeginInteractionCommand : ICommand
         Id = id;
     }
 
-    public uint Id { get; set; } 
+    public uint Id { get; set; }
 
     public bool Execute(Context context)
     {

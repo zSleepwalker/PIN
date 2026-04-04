@@ -19,7 +19,7 @@ public class SpectateServerCommand : ServerCommand
         if (newValue != 0)
         {
             context.Shard.EntityMan.ScopeOut(context.SourcePlayer, character);
-            
+
             if (character.Character_SpectatorController == null)
             {
                 character.Character_SpectatorController = new AeroMessages.GSS.V66.Character.Controller.SpectatorController()
@@ -42,7 +42,7 @@ public class SpectateServerCommand : ServerCommand
             character.Character_CombatController.CombatFlagsProp = new AeroMessages.GSS.V66.Character.CombatFlagsData()
             {
                 Time = context.Shard.CurrentTime,
-                Value = (AeroMessages.GSS.V66.Character.CombatFlagsData.CharacterCombatFlags)0,
+                Value = 0,
             };
             character.SetSpawnPose();
             character.SetSpawnTime(context.Shard.CurrentTime);

@@ -30,7 +30,7 @@ public class SetCombatFlagsServerCommand : ServerCommand
         var value = new CombatFlagsData { Value = (CombatFlagsData.CharacterCombatFlags)flags, Time = context.Shard.CurrentTime };
 
         character.SetCombatFlags(value);
-        
+
         SourceFeedback($"Setting {character} combat flags to {flags}", context);
     }
 }

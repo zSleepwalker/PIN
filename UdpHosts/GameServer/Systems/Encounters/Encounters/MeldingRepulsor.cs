@@ -51,10 +51,10 @@ public class MeldingRepulsor : BaseEncounter, IInteractionHandler, IDonationHand
 
         _terminal.Deployable_ObserverView.SinCardTypeProp = 109;
         _terminal.Deployable_ObserverView.SinCardFields_11Prop = new SinCardFieldData()
-            {
-                Type = SinCardFieldData.SincardFieldDataType.Float,
-                Float = MaxMeldedCrystite,
-            };
+        {
+            Type = SinCardFieldData.SincardFieldDataType.Float,
+            Float = MaxMeldedCrystite,
+        };
 
         _melding = (MeldingEntity)Shard.Entities.Values.First(e => e is MeldingEntity meldingEntity
             && meldingEntity.PerimiterSetName == repulsorDef.PerimiterSetName);
@@ -80,11 +80,11 @@ public class MeldingRepulsor : BaseEncounter, IInteractionHandler, IDonationHand
         }
 
         var uiQuery = new NewUiQuery()
-                      {
-                          QueryGuid = Shard.GetNextGuid((byte)Enums.GSS.Controllers.Generic),
-                          Type = 3,
-                          Prompt = 184507,
-                          Inputs = new NewUiQueryInput[]
+        {
+            QueryGuid = Shard.GetNextGuid((byte)Enums.GSS.Controllers.Generic),
+            Type = 3,
+            Prompt = 184507,
+            Inputs = new NewUiQueryInput[]
                                    {
                                        new NewUiQueryInput()
                                        {
@@ -92,7 +92,7 @@ public class MeldingRepulsor : BaseEncounter, IInteractionHandler, IDonationHand
                                            Value = MaxMeldedCrystite - MeldedCrystite,
                                        }
                                    }
-                      };
+        };
 
         Shard.EncounterMan.SendUiQuery(uiQuery, character.Player, this);
     }
@@ -104,10 +104,10 @@ public class MeldingRepulsor : BaseEncounter, IInteractionHandler, IDonationHand
         MeldedCrystite += (uint)response.Outputs[0].Amount;
 
         _terminal.Deployable_ObserverView.SinCardFields_11Prop = new SinCardFieldData()
-            {
-                Type = SinCardFieldData.SincardFieldDataType.Float,
-                Float = MaxMeldedCrystite - MeldedCrystite,
-            };
+        {
+            Type = SinCardFieldData.SincardFieldDataType.Float,
+            Float = MaxMeldedCrystite - MeldedCrystite,
+        };
 
         if (MeldedCrystite < MaxMeldedCrystite)
         {
@@ -133,14 +133,14 @@ public class MeldingRepulsor : BaseEncounter, IInteractionHandler, IDonationHand
 
         Shard.EncounterMan.SetRemainingLifetime(this, PushbackDurationMs);
         _terminal.Deployable_ObserverView.SinCardFields_3Prop = new SinCardFieldData()
+        {
+            Type = SinCardFieldData.SincardFieldDataType.Timer,
+            Timer = new Timer()
             {
-                Type = SinCardFieldData.SincardFieldDataType.Timer,
-                Timer = new Timer()
-                        {
-                            State = Timer.TimerState.CountingDown,
-                            Micro = (Shard.CurrentTimeLong + PushbackDurationMs) * 1000,
-                        },
-            };
+                State = Timer.TimerState.CountingDown,
+                Micro = (Shard.CurrentTimeLong + PushbackDurationMs) * 1000,
+            },
+        };
     }
 
     public void OnTimeOut()
@@ -162,10 +162,10 @@ public class MeldingRepulsor : BaseEncounter, IInteractionHandler, IDonationHand
         MeldedCrystite = 0;
         _terminal.Deployable_ObserverView.SinCardFields_3Prop = null;
         _terminal.Deployable_ObserverView.SinCardFields_11Prop = new SinCardFieldData()
-            {
-                Type = SinCardFieldData.SincardFieldDataType.Float,
-                Float = MaxMeldedCrystite - MeldedCrystite,
-            };
+        {
+            Type = SinCardFieldData.SincardFieldDataType.Float,
+            Float = MaxMeldedCrystite - MeldedCrystite,
+        };
     }
 
     public override void OnUpdate(ulong currentTime)

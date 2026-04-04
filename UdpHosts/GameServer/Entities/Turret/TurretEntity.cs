@@ -54,13 +54,13 @@ public sealed class TurretEntity : BaseEntity
             var character = player.CharacterEntity;
 
             character.SetAttachedTo(new AttachedToData
-                {
-                    Id1 = AeroEntityId,
-                    Id2 = Parent.AeroEntityId,
-                    Role = AttachedToData.AttachmentRoleType.Turret,
-                    Unk2 = Posture,
-                    Unk3 = 0,
-                },
+            {
+                Id1 = AeroEntityId,
+                Id2 = Parent.AeroEntityId,
+                Role = AttachedToData.AttachmentRoleType.Turret,
+                Unk2 = Posture,
+                Unk3 = 0,
+            },
                                     this);
 
             ControllingPlayer = player;
@@ -83,38 +83,38 @@ public sealed class TurretEntity : BaseEntity
     private void InitControllers()
     {
         Turret_BaseController = new BaseController()
-            {
-                TypeProp = Type,
-                ParentObjIdProp = Parent.AeroEntityId,
-                ParentChildIndexProp = ParentChildIndex,
-                GunnerIdProp = ControllingPlayer?.CharacterEntity?.AeroEntityId ?? new EntityId() { Backing = 0 },
-                SpawnPoseProp = new SpawnPoseData() { Rotation = Quaternion.Identity, Time = Shard.CurrentTime },
-                ProcessDelayProp = new ProcessDelayData() { Unk1 = 30721, Unk2 = 236 },
-                WeaponFireBaseTimeProp = new WeaponFireBaseTimeData() { ChangeTime = 0, Unk = 0 },
-                AmmoProp = new AmmoData() { Ammo = new ushort[] { } },
-                FireRateModifierProp = 1.0f,
-                HostilityInfoProp = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 },
-                PersonalFactionStanceProp = null,
-                ScalingLevelProp = 1,
-            };
+        {
+            TypeProp = Type,
+            ParentObjIdProp = Parent.AeroEntityId,
+            ParentChildIndexProp = ParentChildIndex,
+            GunnerIdProp = ControllingPlayer?.CharacterEntity?.AeroEntityId ?? new EntityId() { Backing = 0 },
+            SpawnPoseProp = new SpawnPoseData() { Rotation = Quaternion.Identity, Time = Shard.CurrentTime },
+            ProcessDelayProp = new ProcessDelayData() { Unk1 = 30721, Unk2 = 236 },
+            WeaponFireBaseTimeProp = new WeaponFireBaseTimeData() { ChangeTime = 0, Unk = 0 },
+            AmmoProp = new AmmoData() { Ammo = new ushort[] { } },
+            FireRateModifierProp = 1.0f,
+            HostilityInfoProp = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 },
+            PersonalFactionStanceProp = null,
+            ScalingLevelProp = 1,
+        };
     }
 
     private void InitViews()
     {
         Turret_ObserverView = new ObserverView()
-            {
-                TypeProp = Type,
-                ParentObjIdProp = Parent.AeroEntityId,
-                ParentChildIndexProp = ParentChildIndex,
-                GunnerIdProp = ControllingPlayer?.CharacterEntity?.AeroEntityId ?? new EntityId() { Backing = 0 },
-                CurrentPoseProp = new CurrentPoseStruct() { Rotation = Quaternion.Identity, ShortTime = Shard.CurrentShortTime },
-                ProcessDelayProp = new ProcessDelayData() { Unk1 = 30721, Unk2 = 236 },
-                WeaponBurstFiredProp = Shard.CurrentTime,
-                WeaponBurstEndedProp = Shard.CurrentTime,
-                AmmoProp = new AmmoStruct() { AmmoIndex = new ushort[] { } },
-                FireRateModifierProp = 1.0f,
-                HostilityInfoProp = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 },
-                PersonalFactionStanceProp = null,
-            };
+        {
+            TypeProp = Type,
+            ParentObjIdProp = Parent.AeroEntityId,
+            ParentChildIndexProp = ParentChildIndex,
+            GunnerIdProp = ControllingPlayer?.CharacterEntity?.AeroEntityId ?? new EntityId() { Backing = 0 },
+            CurrentPoseProp = new CurrentPoseStruct() { Rotation = Quaternion.Identity, ShortTime = Shard.CurrentShortTime },
+            ProcessDelayProp = new ProcessDelayData() { Unk1 = 30721, Unk2 = 236 },
+            WeaponBurstFiredProp = Shard.CurrentTime,
+            WeaponBurstEndedProp = Shard.CurrentTime,
+            AmmoProp = new AmmoStruct() { AmmoIndex = new ushort[] { } },
+            FireRateModifierProp = 1.0f,
+            HostilityInfoProp = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 },
+            PersonalFactionStanceProp = null,
+        };
     }
 }

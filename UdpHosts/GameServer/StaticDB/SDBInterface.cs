@@ -3,7 +3,6 @@ using System;
 
 using System.Collections.Generic;
 using System.Linq;
-using FauFau.Formats;
 using Records.apt;
 using Records.aptfs;
 using Records.dbcharacter;
@@ -53,7 +52,7 @@ public class SDBInterface
     private static Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LevelCategoryScalars;
     private static Dictionary<uint, FrameProgressionLevel> FrameProgressionLevel;
     private static Dictionary<uint, Blueprints> Blueprints;
-    private static Dictionary<uint, List<Blueprint_Items>> Blueprint_Items;
+    private static Dictionary<uint, List<Blueprint_Items>> BlueprintItems;
 
     // dbzonemetadata
     private static Dictionary<uint, ZoneRecord> ZoneRecord;
@@ -305,11 +304,10 @@ public class SDBInterface
         LevelCategoryScalars = loader.LoadLevelCategoryScalars();
         FrameProgressionLevel = loader.LoadFrameProgressionLevel();
         Blueprints = loader.LoadBlueprints();
-        Blueprint_Items = loader.LoadBlueprintItems();
+        BlueprintItems = loader.LoadBlueprintItems();
 
         // dbzonemetadata
         ZoneRecord = loader.LoadZoneRecord();
-
 
         // apt
         StatusEffectData = loader.LoadStatusEffectData();
@@ -351,6 +349,7 @@ public class SDBInterface
                 effectsForTag.Add(patch.Key);
             }
         }
+
         BaseCommandDef = loader.LoadBaseCommandDef();
         CommandType = loader.LoadCommandType();
         AbilityData = loader.LoadAbilityData();
@@ -564,63 +563,63 @@ public class SDBInterface
             Serilog.Log.Information(diag);
         }
 
-            // Print database chain summary for diagnostics
-            PrintChainSummary();
+        // Print database chain summary for diagnostics
+        PrintChainSummary();
     }
 
-        /// <summary>
-        /// Print summary of chain data found in the database for diagnostic purposes.
-        /// Shows count of abilities with chains, effects with chains, and validates basic structure.
-        /// </summary>
-        private static void PrintChainSummary()
+    /// <summary>
+    /// Print summary of chain data found in the database for diagnostic purposes.
+    /// Shows count of abilities with chains, effects with chains, and validates basic structure.
+    /// </summary>
+    private static void PrintChainSummary()
+    {
+        Serilog.Log.Information("\n[CHAIN-DATABASE-SUMMARY]");
+
+        try
         {
-            Serilog.Log.Information("\n[CHAIN-DATABASE-SUMMARY]");
-        
-            try
-            {
-                // Summarize ability chains
-                var abilitiesWithChains = AbilityData.Values.Where(a => a.Chain != 0).Count();
-                Serilog.Log.Information($"  Abilities with chains: {abilitiesWithChains}/{AbilityData.Count}");
+            // Summarize ability chains
+            var abilitiesWithChains = AbilityData.Values.Where(a => a.Chain != 0).Count();
+            Serilog.Log.Information($"  Abilities with chains: {abilitiesWithChains}/{AbilityData.Count}");
 
-                // Summarize status effect chains
-                var effectsWithApply = StatusEffectData.Values.Where(e => e.ApplyChain != 0).Count();
-                var effectsWithRemove = StatusEffectData.Values.Where(e => e.RemoveChain != 0).Count();
-                var effectsWithUpdate = StatusEffectData.Values.Where(e => e.UpdateChain != 0).Count();
-                var effectsWithDuration = StatusEffectData.Values.Where(e => e.DurationChain != 0).Count();
-                Serilog.Log.Information($"  Status Effects: {StatusEffectData.Count} total");
-                Serilog.Log.Information($"    - With ApplyChain: {effectsWithApply}");
-                Serilog.Log.Information($"    - With RemoveChain: {effectsWithRemove}");
-                Serilog.Log.Information($"    - With UpdateChain: {effectsWithUpdate}");
-                Serilog.Log.Information($"    - With DurationChain: {effectsWithDuration}");
+            // Summarize status effect chains
+            var effectsWithApply = StatusEffectData.Values.Where(e => e.ApplyChain != 0).Count();
+            var effectsWithRemove = StatusEffectData.Values.Where(e => e.RemoveChain != 0).Count();
+            var effectsWithUpdate = StatusEffectData.Values.Where(e => e.UpdateChain != 0).Count();
+            var effectsWithDuration = StatusEffectData.Values.Where(e => e.DurationChain != 0).Count();
+            Serilog.Log.Information($"  Status Effects: {StatusEffectData.Count} total");
+            Serilog.Log.Information($"    - With ApplyChain: {effectsWithApply}");
+            Serilog.Log.Information($"    - With RemoveChain: {effectsWithRemove}");
+            Serilog.Log.Information($"    - With UpdateChain: {effectsWithUpdate}");
+            Serilog.Log.Information($"    - With DurationChain: {effectsWithDuration}");
 
-                // Summarize conditional branches
-                var branching = ConditionalBranchCommandDef.Values.Count();
-                var looping = WhileLoopCommandDef.Values.Count();
-                Serilog.Log.Information($"  Control Flow: {branching} branches, {looping} loops");
+            // Summarize conditional branches
+            var branching = ConditionalBranchCommandDef.Values.Count;
+            var looping = WhileLoopCommandDef.Values.Count;
+            Serilog.Log.Information($"  Control Flow: {branching} branches, {looping} loops");
 
-                // Summarize logic operators
-                var logicAnd = LogicAndChainCommandDef.Values.Count();
-                var logicOr = LogicOrChainCommandDef.Values.Count();
-                var logicNegate = LogicNegateCommandDef.Values.Count();
-                Serilog.Log.Information($"  Logic Operators: {logicAnd} AND, {logicOr} OR, {logicNegate} NEGATE");
+            // Summarize logic operators
+            var logicAnd = LogicAndChainCommandDef.Values.Count;
+            var logicOr = LogicOrChainCommandDef.Values.Count;
+            var logicNegate = LogicNegateCommandDef.Values.Count;
+            Serilog.Log.Information($"  Logic Operators: {logicAnd} AND, {logicOr} OR, {logicNegate} NEGATE");
 
-                // Summarize special commands
-                var toggles = ImpactToggleEffectCommandDef.Values.Count();
-                var waitFire = UpdateWaitAndFireOnceCommandDef.Values.Count();
-                var proximity = RegisterClientProximityCommandDef.Values.Count();
-                Serilog.Log.Information($"  Special Commands: {toggles} toggles, {waitFire} wait/fire, {proximity} proximity");
+            // Summarize special commands
+            var toggles = ImpactToggleEffectCommandDef.Values.Count;
+            var waitFire = UpdateWaitAndFireOnceCommandDef.Values.Count;
+            var proximity = RegisterClientProximityCommandDef.Values.Count;
+            Serilog.Log.Information($"  Special Commands: {toggles} toggles, {waitFire} wait/fire, {proximity} proximity");
 
-                // Summarize item bridges
-                var itemsWithAbilities = AbilityModule.Values.Where(m => m.AbilityChainId != 0).Count();
-                Serilog.Log.Information($"  Item-to-Ability Bridges: {itemsWithAbilities}/{AbilityModule.Count} modules link abilities");
+            // Summarize item bridges
+            var itemsWithAbilities = AbilityModule.Values.Where(m => m.AbilityChainId != 0).Count();
+            Serilog.Log.Information($"  Item-to-Ability Bridges: {itemsWithAbilities}/{AbilityModule.Count} modules link abilities");
 
-                Serilog.Log.Information("[CHAIN-DATABASE-SUMMARY] Complete - database is ready for validation.\n");
-            }
-            catch (Exception ex)
-            {
-                Serilog.Log.Information($"[CHAIN-DATABASE-SUMMARY] Error generating summary: {ex.Message}");
-            }
+            Serilog.Log.Information("[CHAIN-DATABASE-SUMMARY] Complete - database is ready for validation.\n");
         }
+        catch (Exception ex)
+        {
+            Serilog.Log.Information($"[CHAIN-DATABASE-SUMMARY] Error generating summary: {ex.Message}");
+        }
+    }
 
     // dbcharacter
     public static CharCreateLoadout GetCharCreateLoadout(uint id) => CharCreateLoadout.GetValueOrDefault(id);
@@ -638,7 +637,7 @@ public class SDBInterface
         .Select(pair => new KeyValuePair<ushort, AttributeRange>(pair.Key.Value, pair.Value))
         .ToDictionary();
     }
-    
+
     public static Dictionary<ushort, (float, float)> GetItemModuleScalars(uint itemId)
     {
         return ItemModuleScalars
@@ -688,7 +687,6 @@ public class SDBInterface
 
     // dbzonemetadata
     public static ZoneRecord GetZoneRecord(uint id) => ZoneRecord.GetValueOrDefault(id);
-
 
     // apt
     public static BaseCommandDef GetBaseCommandDef(uint id) => BaseCommandDef.GetValueOrDefault(id);
@@ -762,7 +760,7 @@ public class SDBInterface
     public static TargetByObjectTypeCommandDef GetTargetByObjectTypeCommandDef(uint id) => TargetByObjectTypeCommandDef.GetValueOrDefault(id);
     public static TargetHostilesCommandDef GetTargetHostilesCommandDef(uint id) => TargetHostilesCommandDef.GetValueOrDefault(id);
     public static Blueprints GetBlueprint(uint id) => Blueprints.GetValueOrDefault(id);
-    public static List<Blueprint_Items> GetBlueprintItems(uint blueprintId) => Blueprint_Items.GetValueOrDefault(blueprintId);
+    public static List<Blueprint_Items> GetBlueprintItems(uint blueprintId) => BlueprintItems.GetValueOrDefault(blueprintId);
 
     // --- Traversal Logic ---
 
@@ -770,11 +768,15 @@ public class SDBInterface
     /// Resolves the full connected chain for an item, including its ability-triggered effects, 
     /// blueprints, and specific subtypes like boosts, pets, or emotes.
     /// </summary>
+    /// <returns></returns>
     public static SdbItemChainResult ResolveConnectedChains(uint itemSdbId)
     {
         var result = new SdbItemChainResult { ItemSdbId = itemSdbId };
         var rootItem = GetRootItem(itemSdbId);
-        if (rootItem == null) return result;
+        if (rootItem == null)
+        {
+            return result;
+        }
 
         // 1. Resolve Ability Modules
         var module = GetAbilityModule(itemSdbId);
@@ -797,7 +799,7 @@ public class SDBInterface
                 NameId = rootItem.NameId
             };
 
-            if (Blueprint_Items.TryGetValue(blueprint.Id, out var ingredients))
+            if (BlueprintItems.TryGetValue(blueprint.Id, out var ingredients))
             {
                 foreach (var ing in ingredients.Where(i => i.IsOutput == 0))
                 {
@@ -815,15 +817,25 @@ public class SDBInterface
 
     private static void TraverseAbilityChain(uint chainId, SdbItemChainResult result, HashSet<uint> visited = null)
     {
-        if (chainId == 0) return;
+        if (chainId == 0)
+        {
+            return;
+        }
+
         visited ??= new HashSet<uint>();
-        if (!visited.Add(chainId)) return;
+        if (!visited.Add(chainId))
+        {
+            return;
+        }
 
         uint next = chainId;
         while (next != 0)
         {
             var baseDef = GetBaseCommandDef(next);
-            if (baseDef == null) break;
+            if (baseDef == null)
+            {
+                break;
+            }
 
             AnalyzeCommand(baseDef, result, visited);
             next = baseDef.Next;
@@ -837,17 +849,26 @@ public class SDBInterface
         {
             case 2:   // ImpactApplyEffect
                 var impactDef = GetImpactApplyEffectCommandDef(baseDef.Id);
-                if (impactDef != null) ResolveStatusEffect(impactDef.EffectId, result);
+                if (impactDef != null)
+                {
+                    ResolveStatusEffect(impactDef.EffectId, result);
+                }
+
                 break;
 
             case 243: // ApplyClientStatusEffect
                 var applyDef = GetApplyClientStatusEffectCommandDef(baseDef.Id);
-                if (applyDef != null) ResolveStatusEffect(applyDef.StatusEffectId, result);
+                if (applyDef != null)
+                {
+                    ResolveStatusEffect(applyDef.StatusEffectId, result);
+                }
+
                 break;
 
             case 91:  // DeployableSpawn
             case 48:  // CreateAbilityObject (Used for pets)
                 var petEntry = new SdbEffectEntry { Type = SdbEffectType.PetSpawn, SdbId = baseDef.Id, Name = "Pet/Deployable Spawn" };
+
                 // Note: PIN SDB records for these are currently stubs (Todo), so we only capture the command ID for now.
                 result.Effects.Add(petEntry);
                 break;
@@ -863,8 +884,12 @@ public class SDBInterface
                 if (callDef != null)
                 {
                     var calledAbility = GetAbilityData(callDef.AbilityId);
-                    if (calledAbility != null) TraverseAbilityChain(calledAbility.Chain, result, visited);
+                    if (calledAbility != null)
+                    {
+                        TraverseAbilityChain(calledAbility.Chain, result, visited);
+                    }
                 }
+
                 break;
 
             case 102: // ConditionalBranch
@@ -874,6 +899,7 @@ public class SDBInterface
                     TraverseAbilityChain(branchDef.ThenChain, result, visited);
                     TraverseAbilityChain(branchDef.ElseChain, result, visited);
                 }
+
                 break;
 
             // Unlocks (Custom GSS commands usually)
@@ -893,7 +919,10 @@ public class SDBInterface
     private static void ResolveStatusEffect(uint effectId, SdbItemChainResult result)
     {
         var effect = GetStatusEffectData(effectId);
-        if (effect == null) return;
+        if (effect == null)
+        {
+            return;
+        }
 
         var entry = new SdbEffectEntry
         {
@@ -905,13 +934,25 @@ public class SDBInterface
         // Identify Boosts by Tags (Consistency with RIN)
         if (StatusEffectTag.TryGetValue(effectId, out var tags))
         {
-            if (tags.Contains(147)) entry.Type = SdbEffectType.Boost; // XP
-            if (tags.Contains(148)) entry.Type = SdbEffectType.Boost; // Resource
-            if (tags.Contains(222)) entry.Type = SdbEffectType.Boost; // VIP
+            if (tags.Contains(147))
+            {
+                entry.Type = SdbEffectType.Boost; // XP
+            }
+
+            if (tags.Contains(148))
+            {
+                entry.Type = SdbEffectType.Boost; // Resource
+            }
+
+            if (tags.Contains(222))
+            {
+                entry.Type = SdbEffectType.Boost; // VIP
+            }
         }
 
         result.Effects.Add(entry);
     }
+
     public static TargetByCharacterStateCommandDef GetTargetByCharacterStateCommandDef(uint id) => TargetByCharacterStateCommandDef.GetValueOrDefault(id);
     public static InflictDamageCommandDef GetInflictDamageCommandDef(uint id) => InflictDamageCommandDef.GetValueOrDefault(id);
     public static ForcePushCommandDef GetForcePushCommandDef(uint id) => ForcePushCommandDef.GetValueOrDefault(id);
@@ -1043,7 +1084,6 @@ public class SDBInterface
 
     // ===== Chain Integrity Validator Access ======
     // These methods provide dictionary-level access for chain validation
-    
     public static Dictionary<uint, BaseCommandDef> GetBaseCommandDefDictionary() => BaseCommandDef;
     public static Dictionary<uint, AbilityData> GetAbilityDataDictionary() => AbilityData;
     public static Dictionary<uint, StatusEffectData> GetStatusEffectDataDictionary() => StatusEffectData;

@@ -84,7 +84,7 @@ public static class HardcodedCharacterData
         { 247, 77733 }, // BattleLab Trainee
     };
 
-    public static List<LoadoutReferenceData> TempHardcodedLoadouts = 
+    public static List<LoadoutReferenceData> TempHardcodedLoadouts =
     [
         /*
         // Accord
@@ -912,9 +912,9 @@ public static class HardcodedCharacterData
             var guid = inventory.CreateItem(typeId);
             pveItems.Add(new LoadoutConfig_Item() { ItemGUID = guid, SlotIndex = (byte)slot });
         }
-        
+
         pveConfig.Items = pveItems.ToArray();
-        
+
         var pvpConfig = new LoadoutConfig()
         {
             ConfigID = 1,
@@ -927,7 +927,7 @@ public static class HardcodedCharacterData
             PerkRespecLockRemainingSeconds = 0,
             HaveExtraData = 0
         };
-        
+
         var pvpItems = new List<LoadoutConfig_Item>();
         foreach (var (slot, typeId) in sourceData.SlottedItemsPvP)
         {
@@ -941,8 +941,8 @@ public static class HardcodedCharacterData
         }
 
         pvpConfig.Items = pvpItems.ToArray();
-        
-        loadout.LoadoutConfigs = 
+
+        loadout.LoadoutConfigs =
         [
             pveConfig,
             pvpConfig
@@ -970,7 +970,6 @@ public class BasicCharacterInfo
     public uint EffectiveLevel { get; set; }
     public uint VipLevel { get; set; }
 }
-
 
 public class BasicCharacterVisuals
 {

@@ -34,7 +34,7 @@ public class SDBUtils
     {
         var loadouts = SDBInterface.GetCharCreateLoadoutsByFrame(chassisId); // yolo
         CharCreateLoadout defaultLoadout;
-        if (loadouts.Length == 0) 
+        if (loadouts.Length == 0)
         {
             return null;
         }
@@ -61,7 +61,7 @@ public class SDBUtils
     {
         var loadouts = SDBInterface.GetCharCreateLoadoutsByFrame(chassisId); // yolo
         CharCreateLoadout defaultLoadout;
-        if (loadouts.Length == 0) 
+        if (loadouts.Length == 0)
         {
             return 0;
         }
@@ -80,7 +80,7 @@ public class SDBUtils
         {
             return 0;
         }
-        
+
         defaultLoadoutSlots.TryGetValue((byte)LoadoutSlotType.Backpack, out CharCreateLoadoutSlots defaultBackpackSlot);
         if (defaultBackpackSlot == null)
         {
@@ -108,9 +108,9 @@ public class SDBUtils
         var armor = SDBInterface.GetWarpaintPalette(armorId);
         var bodysuit = SDBInterface.GetWarpaintPalette(bodysuitId);
         var glow = SDBInterface.GetWarpaintPalette(glowId);
-    
+
         var input = new[] { fullbody, armor, bodysuit, glow };
-        
+
         var gradients = new List<uint>();
         var palettes = new List<VisualsPaletteBlock>();
         var colors = new uint[7]
@@ -131,7 +131,7 @@ public class SDBUtils
             {
                 continue;
             }
-            
+
             // Add palette
             palettes.Add(new() { PaletteId = data.Id, PaletteType = (byte)data.TypeFlags });
 
@@ -321,7 +321,7 @@ public class SDBUtils
             var scope = SDBInterface.GetWeaponScope(main.ScopeId);
             scopeStatusFx = scope.Statusfx;
         }
-        
+
         if (main.UnderbarrelId != 0)
         {
             mainUnderbarrel = SDBInterface.GetWeaponUnderbarrel(main.UnderbarrelId);
@@ -353,7 +353,7 @@ public class SDBUtils
         {
             // Debug
             DebugName = $"{(isUnderbarrel ? "Underbarrel" : "Main")} {weaponSdbId} (Type {weaponTypeId} - {template.Name.TrimEnd('\0')})",
-            
+
             // Components
             ScopeId = WeaponTemplateOverrider(template.DefaultScopeId, modifiers?.DefaultScopeId),
             UnderbarrelId = WeaponTemplateOverrider(template.DefaultUnderbarrelId, modifiers?.DefaultUnderbarrelId),
@@ -389,9 +389,9 @@ public class SDBUtils
 
             // Targets
             MaxTargets = WeaponTemplateModifier(template.MaxTargets, modifiers?.MaxTargets),
-            BurstBonusPerTarget = WeaponTemplateModifier(template.BurstbonusPerTarget, modifiers?.BurstbonusPerTarget), 
+            BurstBonusPerTarget = WeaponTemplateModifier(template.BurstbonusPerTarget, modifiers?.BurstbonusPerTarget),
             TargetingRange = WeaponTemplateModifier(template.TargetingRange, modifiers?.TargetingRange, modifiers?.TargetingRangeMult),
-            
+
             // Burst
             MsPerBurst = WeaponTemplateModifier(template.MsPerBurst, modifiers?.MsPerBurst, modifiers?.MsPerBurstMult),
             MsBurstDuration = WeaponTemplateModifier(template.MsBurstDuration, modifiers?.MsBurstDuration),
@@ -517,7 +517,7 @@ public class WeaponTemplateResult
 
     // Debug
     public string DebugName;
-    
+
     // Components
     public uint ScopeId;
     public uint UnderbarrelId;
@@ -530,7 +530,7 @@ public class WeaponTemplateResult
     public float Range;
     public uint EquipEnterMs;
     public uint EquipExitMs;
-    
+
     // Abilities
     public uint MeleeAbility;
     public uint AttackAbility;
@@ -629,10 +629,10 @@ public class ChassisWarpaintResult
 // Yoink it from RIN
 public class FColor
 {
-    public static uint   CombineLightDark(uint light, uint dark) => ARGB8888ToRGB565(dark) | (uint)(ARGB8888ToRGB565(light) << 16);
-    public static uint   ExtractLight(uint     combined) => RGB565ToARGB8888((ushort)(combined >> 16));
-    public static uint   ExtractDark(uint      combined) => RGB565ToARGB8888((ushort)combined);
-    public static ushort ARGB8888ToRGB565(uint argb)     => (ushort)(((((byte)(argb >> 16) >> 3) & 0x1f) << 11) | ((((byte)(argb >> 8) >> 2) & 0x3f) << 5) | (((byte)argb >> 3) & 0x1f));
+    public static uint CombineLightDark(uint light, uint dark) => ARGB8888ToRGB565(dark) | (uint)(ARGB8888ToRGB565(light) << 16);
+    public static uint ExtractLight(uint combined) => RGB565ToARGB8888((ushort)(combined >> 16));
+    public static uint ExtractDark(uint combined) => RGB565ToARGB8888((ushort)combined);
+    public static ushort ARGB8888ToRGB565(uint argb) => (ushort)(((((byte)(argb >> 16) >> 3) & 0x1f) << 11) | ((((byte)(argb >> 8) >> 2) & 0x3f) << 5) | (((byte)argb >> 3) & 0x1f));
 
     public static uint RGB565ToARGB8888(ushort rgb)
     {

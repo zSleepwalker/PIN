@@ -7,7 +7,6 @@ using GameServer.Data.SDB;
 using GameServer.Entities.Character;
 using GameServer.GRPC;
 using GrpcGameServerAPIClient;
-using NetworkPlayer = GameServer.NetworkPlayer;
 
 namespace GameServer.Data;
 
@@ -139,8 +138,8 @@ public class CharacterUnlocks
         // Same logic as RebuildAutoUnlocks
         var frameCertIds = new HashSet<uint>(_manualFrameCertificates.Select(f => f.CertId));
         _manualGlobalCertificates.ExceptWith(frameCertIds);
-        
-        _shard?.Logger?.Warning("[PERSIST-DEBUG] LoadPersistedUnlocks: {globalCerts} manual global certs, {frameCerts} manual frame certs", 
+
+        _shard?.Logger?.Warning("[PERSIST-DEBUG] LoadPersistedUnlocks: {globalCerts} manual global certs, {frameCerts} manual frame certs",
             _manualGlobalCertificates.Count, _manualFrameCertificates.Count);
     }
 
@@ -152,12 +151,13 @@ public class CharacterUnlocks
         }
 
         bool changed = false;
-        
+
         // If this is a frame-specific unlock, add it to frame collection and remove from global
         if (frameId.HasValue && frameId.Value != 0)
         {
             _shard?.Logger?.Warning("[CERT-UNLOCK] Unlocking FRAME-SPECIFIC cert {certId} for frame {frameId}", certificateId, frameId);
             changed |= _manualFrameCertificates.Add((certificateId, frameId.Value));
+
             // Frame-scoped certs should NOT be in global collection
             if (_manualGlobalCertificates.Contains(certificateId))
             {
@@ -278,14 +278,14 @@ public class CharacterUnlocks
         {
             bool inFrameAuto = _autoFrameCertificates.Any(f => f.CertId == certificateId && f.FrameId == currentFrameId.Value);
             bool inFrameManual = _manualFrameCertificates.Any(f => f.CertId == certificateId && f.FrameId == currentFrameId.Value);
-            
+
             if (inFrameAuto || inFrameManual)
             {
-                _shard?.Logger?.Debug("[CERT-DEBUG] HasCertificate: Cert {certId} found on frame {frameId} (auto={a}, manual={m})", 
+                _shard?.Logger?.Debug("[CERT-DEBUG] HasCertificate: Cert {certId} found on frame {frameId} (auto={a}, manual={m})",
                     certificateId, currentFrameId, inFrameAuto, inFrameManual);
                 return true;
             }
-            
+
             _shard?.Logger?.Debug("[CERT-DEBUG] HasCertificate: Cert {certId} NOT found on frame {frameId}", certificateId, currentFrameId);
         }
 
@@ -323,12 +323,15 @@ public class CharacterUnlocks
     /// <summary>
     /// Get all certificate IDs required by an ability module from its command chain.
     /// </summary>
+    /// <returns></returns>
     public HashSet<uint> GetAbilityRequiredCertificates(uint abilityModuleSdbId)
     {
         var requiredCerts = new HashSet<uint>();
-        
+
         if (abilityModuleSdbId == 0)
+        {
             return requiredCerts;
+        }
 
         var abilityModule = SDBInterface.GetAbilityModule(abilityModuleSdbId);
         if (abilityModule == null || abilityModule.AbilityChainId == 0)
@@ -353,7 +356,7 @@ public class CharacterUnlocks
         int maxIterations = 1000;
         int foundCerts = 0;
         int commandCount = 0;
-        
+
         while (next != 0 && maxIterations-- > 0)
         {
             var baseCommandDef = SDBInterface.GetBaseCommandDef(next);
@@ -364,7 +367,7 @@ public class CharacterUnlocks
             }
 
             commandCount++;
-            _shard?.Logger?.Debug("[ABILITY-DEBUG] Module {moduleId}: Command {idx} - ID={cmdId}, Type={type}, Next={next}", 
+            _shard?.Logger?.Debug("[ABILITY-DEBUG] Module {moduleId}: Command {idx} - ID={cmdId}, Type={type}, Next={next}",
                 abilityModuleSdbId, commandCount, baseCommandDef.Id, baseCommandDef.Subtype, baseCommandDef.Next);
 
             if (baseCommandDef.Subtype == (uint)CommandType.RequireHasCertificate)
@@ -380,7 +383,7 @@ public class CharacterUnlocks
 
             next = baseCommandDef.Next;
         }
-        
+
         _shard?.Logger?.Warning("[ABILITY-DEBUG] Module {moduleId}: Scanned {cmdCount} commands, found {certCount} cert requirements", abilityModuleSdbId, commandCount, foundCerts);
         return requiredCerts;
     }
@@ -389,16 +392,19 @@ public class CharacterUnlocks
     /// Check if an ability module can be equipped on the given frame.
     /// Validates that the frame provides all certificates required by the ability.
     /// </summary>
+    /// <returns></returns>
     public bool CanEquipAbilityOnFrame(uint abilityModuleSdbId, uint currentFrameChassisId)
     {
         if (abilityModuleSdbId == 0)
+        {
             return true;  // Empty slot is always valid
+        }
 
         _shard?.Logger?.Warning("[EQUIP-DEBUG] CanEquipAbilityOnFrame: Module {moduleId} on frame {frameId}", abilityModuleSdbId, currentFrameChassisId);
 
         // Get all certificates required by this ability
         var requiredCerts = GetAbilityRequiredCertificates(abilityModuleSdbId);
-        
+
         // If the ability has NO certificate requirements, it can be used on any frame
         // This is by design for common/universal abilities
         if (requiredCerts.Count == 0)
@@ -406,7 +412,7 @@ public class CharacterUnlocks
             _shard?.Logger?.Warning("[EQUIP-DEBUG] *** UNIVERSAL ABILITY: Module {moduleId} has NO cert requirements, ALLOWING on any frame ***", abilityModuleSdbId);
             return true;
         }
-        
+
         _shard?.Logger?.Warning("[EQUIP-DEBUG] Module {moduleId}: Checking {certCount} required certificates...", abilityModuleSdbId, requiredCerts.Count);
 
         // Check that ALL required certificates are available on the current frame
@@ -414,7 +420,7 @@ public class CharacterUnlocks
         {
             bool hasCert = HasCertificate(cert, currentFrameChassisId);
             _shard?.Logger?.Warning("[EQUIP-DEBUG] Module {moduleId}: Cert {certId} check: {result}", abilityModuleSdbId, cert, hasCert ? "PASS" : "FAIL");
-            
+
             if (!hasCert)
             {
                 _shard?.Logger?.Warning("[EQUIP-DEBUG] >>>>>>> MODULE {moduleId} BLOCKED - missing cert {certId} on frame {frameId} <<<<<<<", abilityModuleSdbId, cert, currentFrameChassisId);
@@ -536,7 +542,7 @@ public class CharacterUnlocks
             return;
         }
 
-        _shard?.Logger?.Warning("[REBUILD-DEBUG] AddAutoCertificatesForFrame: chassis {frameId} grants {certCount} certs: {certs}", 
+        _shard?.Logger?.Warning("[REBUILD-DEBUG] AddAutoCertificatesForFrame: chassis {frameId} grants {certCount} certs: {certs}",
             chassisId, certs.Length, string.Join(", ", certs));
 
         foreach (uint certId in certs)

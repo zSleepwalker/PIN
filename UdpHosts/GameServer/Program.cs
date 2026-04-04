@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Autofac;
 using CommandLine;
@@ -73,7 +72,7 @@ internal static class Program
                                                   {
                                                       h.AdditionalNewLineAfterOption = false;
                                                       return HelpText.DefaultParsingErrorsHandler(result, h);
-                                                  }, 
+                                                  },
                                           e => e);
         Serilog.Log.Information(helpText);
     }

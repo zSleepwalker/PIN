@@ -74,12 +74,12 @@ public static class ArmyEventHandler
         }
 
         var message = new ArmyMessage
-                      {
-                          message_type = "army_invite",
-                          initiator = e.InitiatorName,
-                          army = new Army { army_guid = e.ArmyGuid, name = e.ArmyName },
-                          application = new Application { id = e.Id, message = e.Message }
-                      };
+        {
+            message_type = "army_invite",
+            initiator = e.InitiatorName,
+            army = new Army { army_guid = e.ArmyGuid, name = e.ArmyName },
+            application = new Application { id = e.Id, message = e.Message }
+        };
 
         string json = JsonSerializer.Serialize(message, SerializerOptions);
 
@@ -178,21 +178,21 @@ public static class ArmyEventHandler
 #pragma warning disable SA1300 // Element should begin with upper-case letter
     private record ArmyMessage
     {
-        public string      message_type { get; init; }
-        public string      initiator    { get; init; }
-        public Army        army         { get; init; }
-        public Application application  { get; init; }
+        public string message_type { get; init; }
+        public string initiator { get; init; }
+        public Army army { get; init; }
+        public Application application { get; init; }
     }
 
     private record Army
     {
-        public ulong  army_guid { get; init; }
-        public string name      { get; init; }
+        public ulong army_guid { get; init; }
+        public string name { get; init; }
     }
 
     private record Application
     {
-        public ulong  id      { get; init; }
+        public ulong id { get; init; }
         public string message { get; init; }
     }
 #pragma warning restore SA1300 // Element should begin with upper-case letter

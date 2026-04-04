@@ -21,7 +21,7 @@ public class RegisterComparisonCommand : Command, ICommand
         {
             float minValue = Params.CompareVal - Params.EqualTol;
             float maxValue = Params.CompareVal + Params.EqualTol;
-            
+
             if (context.Register >= minValue && context.Register <= maxValue)
             {
                 result = true;

@@ -82,7 +82,7 @@ public class GameServerModule : Module
                     }
                     else
                     {
-                        Serilog.Log.Information($"Cannot parse LoadMapsCollision setting value");
+                        Log.Information($"Cannot parse LoadMapsCollision setting value");
                     }
                 }
             }
@@ -95,7 +95,7 @@ public class GameServerModule : Module
                 }
                 else
                 {
-                    Serilog.Log.Information($"Cannot parse LoadZoneEntities setting value");
+                    Log.Information($"Cannot parse LoadZoneEntities setting value");
                 }
             }
 
@@ -178,7 +178,7 @@ public class GameServerModule : Module
                 }
 
                 var systemName = key[SystemLevelPrefix.Length..];
-                var levelStr   = appSettings[key];
+                var levelStr = appSettings[key];
                 if (!Enum.TryParse<LogEventLevel>(levelStr, out var systemLevel))
                 {
                     continue;

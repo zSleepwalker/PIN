@@ -3,7 +3,7 @@ namespace GameServer.Aptitude;
 public class CustomNOOPCommand : ICommand
 {
     public string Label;
-    
+
     public CustomNOOPCommand(string label, uint id)
     {
         Label = label;

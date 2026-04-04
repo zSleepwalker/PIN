@@ -1,4 +1,3 @@
-using System;
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
 
@@ -20,7 +19,7 @@ public class RequireMovestateCommand : Command, ICommand
 
         // NOTE: Investigate target handling
         var target = context.Self;
-        
+
         if (target is CharacterEntity character)
         {
             var movestate = character.MovementStateContainer.Movestate;

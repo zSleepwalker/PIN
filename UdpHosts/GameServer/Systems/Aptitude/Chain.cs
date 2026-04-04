@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace GameServer.Aptitude;
@@ -40,7 +39,7 @@ public class Chain
         if (method == ExecutionMethod.AndChain)
         {
             bool chainSuccess = true;
-            foreach(var command in Commands)
+            foreach (var command in Commands)
             {
                 if (debug)
                 {
@@ -61,7 +60,7 @@ public class Chain
         else if (method == ExecutionMethod.OrChain)
         {
             bool chainSuccess = false;
-            foreach(var command in Commands)
+            foreach (var command in Commands)
             {
                 if (debug)
                 {
@@ -76,17 +75,17 @@ public class Chain
                     break; // Note: Should further research to confirm if this is correct
                 }
             }
-    
+
             return chainSuccess;
         }
-        
+
         return true;
     }
 
     public void DebugPrintCommands()
     {
         Serilog.Log.Information($"Chain {Id}");
-        foreach(var command in Commands)
+        foreach (var command in Commands)
         {
             Serilog.Log.Information($"- Command {command.Id} {command}");
         }

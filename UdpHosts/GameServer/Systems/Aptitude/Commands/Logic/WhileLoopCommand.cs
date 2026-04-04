@@ -26,7 +26,7 @@ public class WhileLoopCommand : Command, ICommand
 
         var prevExecutionHint = context.ExecutionHint;
         context.ExecutionHint = ExecutionHint.Logic;
-    
+
         uint lap = 0;
         while (lap < MaximumLaps)
         {

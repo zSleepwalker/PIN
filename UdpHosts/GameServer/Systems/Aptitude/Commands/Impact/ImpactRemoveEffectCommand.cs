@@ -26,7 +26,7 @@ public class ImpactRemoveEffectCommand : Command, ICommand
             {
                 foreach (IAptitudeTarget target in context.Targets)
                 {
-                   context.Abilities.DoRemoveEffect(target, effectId);
+                    context.Abilities.DoRemoveEffect(target, effectId);
                 }
             }
         }

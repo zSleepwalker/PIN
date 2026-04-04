@@ -16,7 +16,7 @@ public class AttemptToCalldownVehicleCommand : Command, ICommand
     public bool Execute(Context context)
     {
         var caller = context.Self;
-        
+
         var request = context.Abilities.TryConsumeVehicleCalldownRequest(caller.EntityId);
         if (request != null)
         {

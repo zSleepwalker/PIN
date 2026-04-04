@@ -1,6 +1,5 @@
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities;
-using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 

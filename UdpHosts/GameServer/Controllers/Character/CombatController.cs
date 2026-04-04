@@ -40,7 +40,7 @@ public class CombatController : Base
     public void FireWeaponProjectile(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var fireWeaponProjectile = packet.Unpack<FireWeaponProjectile>();
-        
+
         player.HandleFireWeaponProjectile(fireWeaponProjectile.Time, fireWeaponProjectile.AimDirection);
 
         var weaponProjectileFired = new WeaponProjectileFired
@@ -76,8 +76,8 @@ public class CombatController : Base
         var query = packet.Unpack<UseScope>();
         player.CharacterEntity.SetFireMode(1, new FireModeData
         {
-           Mode = (byte)query.InScope,
-           Time = query.Time,
+            Mode = (byte)query.InScope,
+            Time = query.Time,
         });
     }
 
@@ -100,8 +100,8 @@ public class CombatController : Base
         var query = packet.Unpack<SelectFireMode>();
         player.CharacterEntity.SetFireMode(0, new FireModeData
         {
-           Mode = query.FireMode,
-           Time = query.Time,
+            Mode = query.FireMode,
+            Time = query.Time,
         });
     }
 
@@ -203,49 +203,49 @@ public class CombatController : Base
             if (abilitySlot == 0)
             {
             }
-            
+
             // Ability2 - Default button 2
             if (abilitySlot == 1)
             {
             }
-            
+
             // Ability3 - Default button 3
             if (abilitySlot == 2)
             {
             }
-            
+
             // AbilityHKM - Default button 4
             if (abilitySlot == 3)
             {
             }
-            
+
             // AbilityInteract - Default button E
             if (abilitySlot == 4)
             {
                 abilityId = 187; // Interact
             }
-            
+
             // Auxiliary - Default button G
             if (abilitySlot == 5)
             {
             }
-            
+
             // AbilityMedical - Default button Q
             if (abilitySlot == 6)
             {
             }
-            
+
             // AbilitySIN - Default button F
             if (abilitySlot == 13)
             {
                 abilityId = 43; // 40? SIN Targetting
             }
-            
+
             // Vehicle - Default button V
             if (abilitySlot == 16)
             {
             }
-            
+
             // Auxiliary - Default button T
             if (abilitySlot == 17)
             {

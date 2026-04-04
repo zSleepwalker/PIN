@@ -59,7 +59,7 @@ public class Context
             ItemId = original.ItemId,
             ActivationAcknowledged = original.ActivationAcknowledged,
         };
-    } 
+    }
 
     /*
     public uint NamedVar;

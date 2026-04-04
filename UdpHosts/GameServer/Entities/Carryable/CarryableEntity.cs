@@ -1,4 +1,3 @@
-using System;
 using System.Numerics;
 using AeroMessages.Common;
 using AeroMessages.GSS.V66;
@@ -108,8 +107,8 @@ public sealed class CarryableEntity : BaseAptitudeEntity, IAptitudeTarget
         Logger.Debug("Carryable.SetStatusEffect Index {index}, Time {time}, Id {effectId}", index, time, data.Id);
 
         // Member
-        this.GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
-        this.GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
+        GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
+        GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
 
         // ObserverView
         CarryableObject_ObserverView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(CarryableObject_ObserverView, time, null);
@@ -121,8 +120,8 @@ public sealed class CarryableEntity : BaseAptitudeEntity, IAptitudeTarget
         Logger.Debug("Carryable.ClearStatusEffect Index {index}, Time {time}, Id {effectId}", index, time, debugEffectId);
 
         // Member
-        this.GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
-        this.GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
+        GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
+        GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
 
         // ObserverView
         CarryableObject_ObserverView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(CarryableObject_ObserverView, time, null);

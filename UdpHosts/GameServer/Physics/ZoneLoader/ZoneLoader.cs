@@ -71,7 +71,7 @@ public class ZoneLoader
             ts.Minutes,
             ts.Seconds,
             ts.Milliseconds / 10);
-        
+
         _logger.Information("ZoneLoader LoadCollision Finished in {ElapsedTime}", elapsedTime);
     }
 
@@ -98,7 +98,7 @@ public class ZoneLoader
             string json = File.ReadAllText(path);
             PinChunk chunk = JsonSerializer.Deserialize<PinChunk>(json, _serializerOptions);
 
-            foreach (PinChunkSubChunk subChunk in chunk.SubChunks) 
+            foreach (PinChunkSubChunk subChunk in chunk.SubChunks)
             {
                 if (subChunk.Cg != null)
                 {
@@ -140,7 +140,7 @@ public class ZoneLoader
                 return ProcessShape(cylinder, ref layer);
             case HkpExtendedMeshShapeObject extendedMesh:
                 return ProcessShape(extendedMesh, ref layer);
-            
+
             /*
             case HkpConvexVerticesShapeObject convexVertices:
                 return ProcessShape(convexVertices, ref layer);
@@ -151,7 +151,7 @@ public class ZoneLoader
                 return ProcessContainer(list, ref layer);
             case HkpMoppBvTreeShapeObject moppBvTree:
                 return ProcessContainer(moppBvTree, ref layer);
-            
+
             // Modifiers
             case HkpConvexTranslateShapeObject convexTranslate:
                 return ProcessModifier(convexTranslate, ref layer);
@@ -210,7 +210,7 @@ public class ZoneLoader
     {
         var childShapeObj = layer.GetTagfileObject(obj.ChildShape);
         var childShapeStaticArr = ProcessChunkObject(childShapeObj, ref layer);
-    
+
         var rot = new Quaternion(obj.Rotation[0], obj.Rotation[1], obj.Rotation[2], obj.Rotation[3]);
         var pos = new Vector3(obj.Transform[3][0], obj.Transform[3][1], obj.Transform[3][2]);
 
@@ -258,7 +258,7 @@ public class ZoneLoader
             0,
             0);
         var rot = Quaternion.Normalize(Quaternion.CreateFromRotationMatrix(matrix));
-        
+
         return childShapeStaticArr.Select((StaticDescription childShapeStatic) =>
         {
             childShapeStatic.Pose.Orientation = rot;
@@ -270,15 +270,15 @@ public class ZoneLoader
     private StaticDescription[] ProcessShape(HkpBoxShapeObject obj, ref ENWFLayer layer)
     {
         var box = new Box(obj.HalfExtents[0] * 2, obj.HalfExtents[1] * 2, obj.HalfExtents[2] * 2);
-        var stat = new StaticDescription(RigidPose.Identity,  Simulation.Shapes.Add(box));
-        return[stat];
+        var stat = new StaticDescription(RigidPose.Identity, Simulation.Shapes.Add(box));
+        return [stat];
     }
 
     private StaticDescription[] ProcessShape(HkpSphereShapeObject obj, ref ENWFLayer layer)
     {
         var sphere = new Sphere(obj.Radius);
-        var stat = new StaticDescription(RigidPose.Identity,  Simulation.Shapes.Add(sphere));
-        return[stat];
+        var stat = new StaticDescription(RigidPose.Identity, Simulation.Shapes.Add(sphere));
+        return [stat];
     }
 
     private StaticDescription[] ProcessShape(HkpCapsuleShapeObject obj, ref ENWFLayer layer)
@@ -308,7 +308,7 @@ public class ZoneLoader
             throw new Exception();
         }
 
-        return[stat];
+        return [stat];
     }
 
     private StaticDescription[] ProcessShape(HkpCylinderShapeObject obj, ref ENWFLayer layer)
@@ -328,7 +328,7 @@ public class ZoneLoader
         pose.Position = mid;
 
         var stat = new StaticDescription(pose, Simulation.Shapes.Add(cylinder));
-        return[stat];
+        return [stat];
     }
 
     private StaticDescription[] ProcessShape(HkpExtendedMeshShapeObject obj, ref ENWFLayer layer)
@@ -357,8 +357,8 @@ public class ZoneLoader
             var scale = new Vector3(transform[2][0], transform[2][1], transform[2][2]);
             var pos = new Vector3(transform[0][0], transform[0][1], transform[0][2]);
 
-            var mesh = BepuData.LoadMeshContent(meshContent, BufferPool, scale, ThreadDispatcher);
-            
+            var mesh = LoadMeshContent(meshContent, BufferPool, scale, ThreadDispatcher);
+
             var pose = RigidPose.Identity;
             pose.Orientation = rot;
             pose.Position = pos;

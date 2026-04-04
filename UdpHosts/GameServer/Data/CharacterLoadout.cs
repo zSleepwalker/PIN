@@ -17,7 +17,7 @@ public enum LoadoutSlotType : byte
     Ability2 = 8,
     Ability3 = 9,
     Backpack = 11,
-   
+
     GearTorso = 116,
     GearAuxWeapon = 122,
     GearMedicalSystem = 123,
@@ -131,7 +131,7 @@ public class CharacterLoadout
     private static readonly Dictionary<ushort, float> _fallbackCharacterScalars = new()
     {
     };
- 
+
     /// <summary>
     /// Initializes a new instance of the <see cref="CharacterLoadout"/> class.
     /// </summary>
@@ -350,9 +350,14 @@ public class CharacterLoadout
         // Items may sit in CharacterItems (inventory) rather than CharacterLoadoutItems (loadout slots),
         // in which case they won't be in SlottedItemsPvE but VehicleID/GliderID will still be set.
         if (!SlottedItems.ContainsKey(LoadoutSlotType.Vehicle) && VehicleID != 0)
+        {
             SlottedItems[LoadoutSlotType.Vehicle] = VehicleID;
+        }
+
         if (!SlottedItems.ContainsKey(LoadoutSlotType.Glider) && GliderID != 0)
+        {
             SlottedItems[LoadoutSlotType.Glider] = GliderID;
+        }
 
         CalculateItemAttributes();
     }
@@ -449,7 +454,6 @@ public class CharacterLoadout
                 }
             }
         }
-
 
         ApplyItemStats(ChassisID, attributes, moduleScalars, characterScalars);
         foreach (var pair in SlottedItems)

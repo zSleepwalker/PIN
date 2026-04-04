@@ -125,7 +125,7 @@ public class AbilitySystem
         // client activation time. TimeDurationCommand compares Shard.CurrentTime against
         // InitTime, so using a client-side timestamp causes immediate expiry and effects end
         // after exactly one UpdateFrequency interval instead of their correct DurationMs.
-        applyContext.InitTime = (uint)context.Shard.CurrentTime;
+        applyContext.InitTime = context.Shard.CurrentTime;
 
         var effect = Factory.LoadEffect(effectId);
 
@@ -203,7 +203,7 @@ public class AbilitySystem
             Serilog.Log.Information($"Discarded an unconsumed vehicle calldown request");
             PlayerVehicleCalldownRequests.Remove(entityId);
         }
-        
+
         PlayerVehicleCalldownRequests.Add(entityId, request);
     }
 
@@ -214,7 +214,7 @@ public class AbilitySystem
             Serilog.Log.Information($"Discarded an unconsumed deployable calldown request");
             PlayerDeployableCalldownRequests.Remove(entityId);
         }
-        
+
         PlayerDeployableCalldownRequests.Add(entityId, request);
     }
 
@@ -225,7 +225,7 @@ public class AbilitySystem
             Serilog.Log.Information($"Discarded an unconsumed thumper calldown request");
             PlayerThumperCalldownRequests.Remove(entityId);
         }
-        
+
         PlayerThumperCalldownRequests.Add(entityId, request);
     }
 

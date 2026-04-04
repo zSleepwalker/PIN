@@ -19,7 +19,7 @@ public class RequireSprintModifierCommand : Command, ICommand
 
         // NOTE: Investigate target handling
         var target = context.Self;
-        
+
         if (target is CharacterEntity character)
         {
             result = character.MovementStateContainer.Sprint;

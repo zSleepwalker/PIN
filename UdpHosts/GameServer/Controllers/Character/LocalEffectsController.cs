@@ -1,5 +1,3 @@
-using GameServer.Enums.GSS.Character;
-using GameServer.Packets;
 using Serilog;
 
 namespace GameServer.Controllers.Character;

@@ -25,7 +25,7 @@ internal class GameServer : PacketServer
     private readonly ConcurrentDictionary<ulong, IShard> _shards;
 
     private readonly ulong _serverId;
-    private GameServerSettings  _settings;
+    private GameServerSettings _settings;
 
     private byte _nextShardId;
 

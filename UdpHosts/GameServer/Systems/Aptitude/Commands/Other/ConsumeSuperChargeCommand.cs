@@ -1,5 +1,4 @@
-﻿using System;
-using AeroMessages.GSS.V66.Character.Controller;
+﻿using AeroMessages.GSS.V66.Character.Controller;
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
 using GameServer.Enums;
@@ -28,10 +27,10 @@ public class ConsumeSuperChargeCommand : Command, ICommand
             var value = percent / 100 * currentValue;
 
             character.Character_CombatController.SuperChargeProp = new SuperChargeData()
-               {
-                   Value = currentValue - value,
-                   Op = (byte)Operand.ASSIGN,
-               };
+            {
+                Value = currentValue - value,
+                Op = (byte)Operand.ASSIGN,
+            };
 
             return true;
         }

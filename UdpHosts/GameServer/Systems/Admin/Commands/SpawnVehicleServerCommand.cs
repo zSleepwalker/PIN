@@ -26,7 +26,7 @@ public class SpawnVehicleServerCommand : ServerCommand
             SourceFeedback("No vehicle data for this typeId", context);
             return;
         }
-        
+
         var orientation = context.SourcePlayer.CharacterEntity.Rotation;
 
         if (parameters.Length == 4)

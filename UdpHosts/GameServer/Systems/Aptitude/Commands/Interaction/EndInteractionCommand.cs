@@ -13,7 +13,7 @@ public class EndInteractionCommand : ICommand
         Id = id;
     }
 
-    public uint Id { get; set; } 
+    public uint Id { get; set; }
 
     public bool Execute(Context context)
     {
@@ -43,23 +43,23 @@ public class EndInteractionCommand : ICommand
         var abilityId = interactionEntity.Interaction.CompletedAbilityId;
         if (abilityId != 0)
         {
-                context.Shard.Abilities.HandleActivateAbility(
-                    context.Shard,
-                    (IAptitudeTarget)interactionEntity,
-                    abilityId,
-                    context.Shard.CurrentTime,
-                    new AptitudeTargets(character),
-                    context.ExecutionId);
+            context.Shard.Abilities.HandleActivateAbility(
+                context.Shard,
+                (IAptitudeTarget)interactionEntity,
+                abilityId,
+                context.Shard.CurrentTime,
+                new AptitudeTargets(character),
+                context.ExecutionId);
         }
 
         var interactionType = interactionEntity.Interaction.Type;
 
-            // if (hack is DeployableEntity { Turret: not null } deployable)
-            // {
-            //     var character = initiator as CharacterEntity;
-            //
-            //     deployable.Turret.SetControllingPlayer(character.Player);
-            // }
+        // if (hack is DeployableEntity { Turret: not null } deployable)
+        // {
+        //     var character = initiator as CharacterEntity;
+        //
+        //     deployable.Turret.SetControllingPlayer(character.Player);
+        // }
         if (interactionType == InteractionType.Vehicle && interactionEntity is VehicleEntity vehicle)
         {
             vehicle.AddOccupant(character);

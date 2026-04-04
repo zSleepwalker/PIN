@@ -25,7 +25,7 @@ public class SetPermissionFlagsServerCommand : ServerCommand
         character.SetPermissionFlag(CharacterPermissionFlags.cheat_float, newFloatValue);
 
         SourceFeedback($"Setting CharacterPermissionFlags.cheat_float to {newFloatValue}", context);
-        
+
         const uint customRef = 99999991;
         if (newFloatValue)
         {

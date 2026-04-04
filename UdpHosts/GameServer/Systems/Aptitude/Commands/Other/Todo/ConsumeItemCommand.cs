@@ -26,6 +26,7 @@ public class ConsumeItemCommand : Command, ICommand
         {
             Serilog.Log.Information($"ConsumeItemCommand: Failed to consume item. ItemId: {context.ItemId}, Initiator: {context.Initiator}");
         }
+
         return true;
     }
 }

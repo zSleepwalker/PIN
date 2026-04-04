@@ -21,7 +21,7 @@ public class RequireWeaponArmedCommand : Command, ICommand
         if (target is CharacterEntity character)
         {
             var selectedIndex = character.WeaponIndex.Index;
-            
+
             // The command seems to consider 1 holstered, 2 primary, 3 secondary.
             // The net view uses 0, 1, 2 instead.
             result = Params.WeaponIndex == (selectedIndex + 1);

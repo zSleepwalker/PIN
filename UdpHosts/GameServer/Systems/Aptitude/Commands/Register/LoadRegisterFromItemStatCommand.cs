@@ -1,9 +1,6 @@
-using System;
-using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.apt;
 using GameServer.Entities.Character;
 using GameServer.Enums;
-using SharpCompress;
 
 namespace GameServer.Aptitude;
 

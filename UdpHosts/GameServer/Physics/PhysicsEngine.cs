@@ -15,7 +15,7 @@ using Serilog;
 namespace GameServer.Physics;
 
 public class PhysicsEngine
-{    
+{
     public const float TargetTimestepDuration = 50; // (1/20f)
 
     private Shard _shard;
@@ -35,10 +35,10 @@ public class PhysicsEngine
         BufferPool = new BufferPool();
         ThreadDispatcher = new ThreadDispatcher(targetThreadCount);
         Simulation = Simulation.Create(BufferPool, new NarrowPhaseCallbacks(), new PoseIntegratorCallbacks(new Vector3(0, 0, -8)), new SolveDescription(8, 1));
-        
+
         // Default shapes
         _defaultCharacterShape = Simulation.Shapes.Add(new Sphere(0.9f));
-        
+
         // Load zone
         if (_shard.Settings.LoadMapsCollision)
         {
@@ -81,7 +81,7 @@ public class PhysicsEngine
     {
         var speed = 500f;
         var maxRange = 500f;
-        
+
         SendDebugProjectileSpawn(source, trace, origin, direction, speed);
 
         var hitHandler = default(RayHitHandler);
@@ -91,7 +91,7 @@ public class PhysicsEngine
 
         Simulation.RayCast(origin, direction, float.MaxValue, ref hitHandler);
         if (hitHandler.T < maxRange)
-        {   
+        {
             var hitPosition = origin + (direction * hitHandler.T);
             _logger.Debug("HitHandler {Mobility} T {T} HitCollidable {HitCollidable} at {HitPosition}", hitHandler.HitCollidable.Mobility, hitHandler.T, hitHandler.HitCollidable, hitPosition);
 
@@ -122,7 +122,7 @@ public class PhysicsEngine
         hitHandler.SourceBody = source.BodyHandle;
         Simulation.RayCast(origin, direction, float.MaxValue, ref hitHandler);
         if (hitHandler.T < maxRange)
-        {   
+        {
             outHit = true;
             outPos = origin + (direction * hitHandler.T);
             outEnt = _bodyToEntityId[hitHandler.HitCollidable.BodyHandle];
@@ -130,7 +130,7 @@ public class PhysicsEngine
 
         return (outHit, outPos, outEnt);
     }
-    
+
     private BodyDescription CreateTestBall(Vector3 pos)
     {
         var bulletShape = new Sphere(3f);

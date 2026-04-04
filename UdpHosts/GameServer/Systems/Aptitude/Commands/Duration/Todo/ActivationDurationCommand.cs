@@ -55,7 +55,7 @@ public class ActivationDurationCommand : Command, ICommand
         }
 
         // Missmatch, either we didn't have this ability activated or we shouldn't have had it
-        else 
+        else
         {
             return false;
         }

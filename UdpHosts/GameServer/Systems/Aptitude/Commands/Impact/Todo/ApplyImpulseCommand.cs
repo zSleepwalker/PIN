@@ -1,6 +1,5 @@
 using System;
 using System.Numerics;
-using AeroMessages.GSS.V66;
 using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
@@ -47,7 +46,7 @@ public class ApplyImpulseCommand : Command, ICommand
             var verticalSpeed = (float)(speed * Math.Sin(loft));
             velocity = new Vector3(forward.X * horizontalSpeed, forward.Y * horizontalSpeed, verticalSpeed);
 
-            var startTime = (uint)context.Shard.CurrentTime;
+            var startTime = context.Shard.CurrentTime;
             var endTime = startTime + duration;
 
             character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(

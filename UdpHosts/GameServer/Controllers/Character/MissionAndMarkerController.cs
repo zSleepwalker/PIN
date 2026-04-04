@@ -37,8 +37,13 @@ public class MissionAndMarkerController : Base
     public void RequestAchievementStatus(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<RequestAchievementStatus>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("RequestAchievementStatus AchievementId={AchievementId} from entity {EntityId:x8}", request.AchievementId, entityId);
+
         // No achievement backend yet – client will have to rely on cached data.
     }
 
@@ -60,8 +65,13 @@ public class MissionAndMarkerController : Base
     public void RequestMissionAvailability(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<RequestMissionAvailability>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("RequestMissionAvailability Unk1={Unk1} Unk2={Unk2} from entity {EntityId:x8}", request.Unk1, request.Unk2, entityId);
+
         // No mission system yet.
     }
 
@@ -69,6 +79,7 @@ public class MissionAndMarkerController : Base
     public void RequestNewActivity(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         _logger.Verbose("RequestNewActivity from entity {EntityId:x8}", entityId);
+
         // No activity / mission push system yet.
     }
 
@@ -76,6 +87,7 @@ public class MissionAndMarkerController : Base
     public void RequestPushMission(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         _logger.Verbose("RequestPushMission from entity {EntityId:x8}", entityId);
+
         // No mission push system yet.
     }
 
@@ -83,8 +95,13 @@ public class MissionAndMarkerController : Base
     public void AbortCampaignMission(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<AbortCampaignMission>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("AbortCampaignMission MissionId={MissionId} from entity {EntityId:x8}", request.MissionId, entityId);
+
         // No mission system yet.
     }
 
@@ -92,7 +109,11 @@ public class MissionAndMarkerController : Base
     public void DebugMission(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<DebugMission>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("DebugMission Unk1={Unk1} Unk2={Unk2} from entity {EntityId:x8}", request.Unk1, request.Unk2, entityId);
     }
 
@@ -120,8 +141,13 @@ public class MissionAndMarkerController : Base
     public void AssignBounties(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<AssignBounties>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("AssignBounties Unk1={Unk1} from entity {EntityId:x8}", request.Unk1, entityId);
+
         // No bounty system yet.
     }
 
@@ -129,7 +155,11 @@ public class MissionAndMarkerController : Base
     public void AbortBounty(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<AbortBounty>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("AbortBounty BountyId={BountyId} from entity {EntityId:x8}", request.Unk, entityId);
     }
 
@@ -179,6 +209,7 @@ public class MissionAndMarkerController : Base
     public void RequestRerollBounties(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         _logger.Verbose("RequestRerollBounties from entity {EntityId:x8}", entityId);
+
         // No bounty system yet; send empty reroll info so the client's UI doesn't stall.
         var response = new BountyRerollProductInfoUpdateEvt
         {
@@ -191,7 +222,11 @@ public class MissionAndMarkerController : Base
     public void TrackBounty(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<TrackBounty>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("TrackBounty BountyId={BountyId} from entity {EntityId:x8}", request.Unk1, entityId);
     }
 
@@ -211,6 +246,7 @@ public class MissionAndMarkerController : Base
     public void ClaimBountyRewards(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         _logger.Verbose("ClaimBountyRewards from entity {EntityId:x8}", entityId);
+
         // No bounty reward system yet.
     }
 
@@ -219,6 +255,7 @@ public class MissionAndMarkerController : Base
     public void TryResumeTutorialChain(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         _logger.Verbose("TryResumeTutorialChain from entity {EntityId:x8}", entityId);
+
         // Send an empty init so the client knows there is no active tutorial chain.
         var response = new TutorialStateInitializeEvt
         {
@@ -231,7 +268,11 @@ public class MissionAndMarkerController : Base
     public void ResetTutorialId(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<ResetTutorialId>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("ResetTutorialId TutorialId={TutorialId} from entity {EntityId:x8}", request.Unk1, entityId);
     }
 
@@ -239,7 +280,11 @@ public class MissionAndMarkerController : Base
     public void DismissTutorialId(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<DismissTutorialId>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("DismissTutorialId TutorialId={TutorialId} from entity {EntityId:x8}", request.Unk1, entityId);
     }
 
@@ -247,7 +292,11 @@ public class MissionAndMarkerController : Base
     public void TutorialEventTriggeredCmd(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var request = packet.Unpack<TutorialEventTriggeredCmd>();
-        if (request == null) return;
+        if (request == null)
+        {
+            return;
+        }
+
         _logger.Verbose("TutorialEventTriggeredCmd Unk1={Unk1} Unk2={Unk2} Unk3={Unk3} from entity {EntityId:x8}", request.Unk1, request.Unk2, request.Unk3, entityId);
     }
 }

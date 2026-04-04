@@ -84,7 +84,7 @@ public class TargetFilterMovestateCommand : Command, ICommand
 
         if (Params.FailNoTargets == 1 && context.Targets.Count == 0)
         {
-           result = false;
+            result = false;
         }
         else
         {

@@ -14,7 +14,6 @@ public class ChainIntegrityValidator
 {
     private readonly ISDBLoader _loader;
     private List<ValidationResult> _results = new();
-    
 
     // Category constants for result grouping
     public const string MissingNode = "MissingNode";

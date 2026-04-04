@@ -19,13 +19,13 @@ public static class ThumperStateExtension
     public static uint CountdownTime(this ThumperState state)
     {
         return state switch
-               {
-                   ThumperState.WARMINGUP => 10_000,
-                   ThumperState.THUMPING => 300_000,
-                   ThumperState.CLOSING => 6_000,
-                   ThumperState.COMPLETED => 120_000,
-                   ThumperState.LEAVING => 12_000,
-                   _ => 0,
-               };
+        {
+            ThumperState.WARMINGUP => 10_000,
+            ThumperState.THUMPING => 300_000,
+            ThumperState.CLOSING => 6_000,
+            ThumperState.COMPLETED => 120_000,
+            ThumperState.LEAVING => 12_000,
+            _ => 0,
+        };
     }
 }

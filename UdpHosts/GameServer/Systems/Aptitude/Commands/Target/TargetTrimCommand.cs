@@ -29,13 +29,13 @@ public class TargetTrimCommand : Command, ICommand
             }
 
             if (Params.FromFront == 1)
-                {
-                    context.FormerTargets.RemoveBottomN(targetsToRemove);
-                }
-                else
-                {
-                    context.FormerTargets.PopN(targetsToRemove);
-                }
+            {
+                context.FormerTargets.RemoveBottomN(targetsToRemove);
+            }
+            else
+            {
+                context.FormerTargets.PopN(targetsToRemove);
+            }
         }
 
         if (Params.Current == 1)

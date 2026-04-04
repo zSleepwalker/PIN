@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.aptfs;

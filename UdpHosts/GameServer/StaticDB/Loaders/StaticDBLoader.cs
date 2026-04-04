@@ -25,7 +25,7 @@ public class StaticDBLoader : ISDBLoader
         { "OrnamentsMapGroupId2", "ornaments_map_group_id_2" }, // dbitems::Weapons
         { "FlightFx1stPersonId", "flight_fx_1st_person_id" }, // dbitems::Ammo
     };
-    
+
     // Chain-critical tables: for these, duplicate handling is strict and logged
     private static readonly HashSet<string> ChainCriticalTables = new()
     {
@@ -49,7 +49,7 @@ public class StaticDBLoader : ISDBLoader
         "dbcharacter::CharCreateLoadout",         // Character loadouts
         "dbcharacter::Deployable",                // Deployables (ability references)
     };
-    
+
     // Per-table duplicate resolution policy: how to handle duplicate keys
     // "Keep" = use first, "Last" = use last, "Skip" = warn and skip
     private static readonly Dictionary<string, string> DuplicatePolicy = new()
@@ -60,7 +60,7 @@ public class StaticDBLoader : ISDBLoader
         { "dbitems::AttributeRange", "Last" },     // Special case: known duplicates, last is observed in-game (see comment in original)
         { "dbitems::RootItem", "Keep" },           // Items: first instance
     };
-    
+
     private static StaticDB sdb;
     private static List<string> LoadDiagnostics = new();
 
@@ -93,7 +93,8 @@ public class StaticDBLoader : ISDBLoader
     /// <returns>The selected record from the group.</returns>
     private static T ResolveDuplicate<TKey, T>(
         string tableName,
-        IGrouping<TKey, T> group) where T : class
+        IGrouping<TKey, T> group)
+        where T : class
     {
         if (group.Count() <= 1)
         {
@@ -141,7 +142,7 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, CharCreateLoadout>("dbcharacter::CharCreateLoadout", group));
     }
 
-    public Dictionary<uint, Dictionary<byte, CharCreateLoadoutSlots>> LoadCharCreateLoadoutSlots() 
+    public Dictionary<uint, Dictionary<byte, CharCreateLoadoutSlots>> LoadCharCreateLoadoutSlots()
     {
         return LoadStaticDB<CharCreateLoadoutSlots>("dbcharacter::CharCreateLoadoutSlots")
         .GroupBy(row => row.LoadoutId)
@@ -204,43 +205,43 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, WarpaintPalette> LoadWarpaintPalettes() 
+    public Dictionary<uint, WarpaintPalette> LoadWarpaintPalettes()
     {
         return LoadStaticDB<WarpaintPalette>("dbvisualrecords::WarpaintPalette")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, AttributeCategory> LoadAttributeCategory() 
+    public Dictionary<uint, AttributeCategory> LoadAttributeCategory()
     {
         return LoadStaticDB<AttributeCategory>("dbitems::AttributeCategory")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, AttributeDefinition> LoadAttributeDefinition() 
+    public Dictionary<uint, AttributeDefinition> LoadAttributeDefinition()
     {
         return LoadStaticDB<AttributeDefinition>("dbitems::AttributeDefinition")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<KeyValuePair<uint, ushort>, AttributeRange> LoadAttributeRange() 
+    public Dictionary<KeyValuePair<uint, ushort>, AttributeRange> LoadAttributeRange()
     {
         // There are duplicates, like item 78084 which has the range attribute twice. Ingame, it seems too use only one result for that one, so chosing to do the same here.
         return LoadStaticDB<AttributeRange>("dbitems::AttributeRange")
         .GroupBy(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeId))
         .ToDictionary(group => group.Key, group => group.Last());
     }
-    
-    public Dictionary<KeyValuePair<uint, ushort>, ItemModuleScalars> LoadItemModuleScalars() 
+
+    public Dictionary<KeyValuePair<uint, ushort>, ItemModuleScalars> LoadItemModuleScalars()
     {
         return LoadStaticDB<ItemModuleScalars>("dbitems::ItemModuleScalars")
         .GroupBy(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeCategory))
         .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<KeyValuePair<uint, ushort>, ItemCharacterScalars> LoadItemCharacterScalars() 
+    public Dictionary<KeyValuePair<uint, ushort>, ItemCharacterScalars> LoadItemCharacterScalars()
     {
         return LoadStaticDB<ItemCharacterScalars>("dbitems::ItemCharacterScalars")
         .GroupBy(row => new KeyValuePair<uint, ushort>(row.ItemId, row.AttributeCategory))
@@ -278,13 +279,13 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, BaseCommandDef> LoadBaseCommandDef()
     {
         return LoadStaticDB<BaseCommandDef>("apt::BaseCommandDef")
-        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, BaseCommandDef>("apt::BaseCommandDef", group)); 
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => ResolveDuplicate<uint, BaseCommandDef>("apt::BaseCommandDef", group));
     }
 
     public Dictionary<uint, CommandType> LoadCommandType()
     {
         return LoadStaticDB<CommandType>("apt::CommandType")
-        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First()); 
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
     public Dictionary<uint, AbilityData> LoadAbilityData()
@@ -474,7 +475,7 @@ public class StaticDBLoader : ISDBLoader
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, TargetByCharacterStateCommandDef>  LoadTargetByCharacterStateCommandDef()
+    public Dictionary<uint, TargetByCharacterStateCommandDef> LoadTargetByCharacterStateCommandDef()
     {
         return LoadStaticDB<TargetByCharacterStateCommandDef>("aptfs::TargetByCharacterStateCommandDef")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
@@ -1531,12 +1532,12 @@ public class StaticDBLoader : ISDBLoader
         HashSet<string> warningsSet = new HashSet<string>();
 
         Table table = sdb.GetTableByName(tableName);
-        if (table == null) 
+        if (table == null)
         {
             Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
             return Array.Empty<T>();
         }
-        
+
         Serilog.Log.Information($"Loading table {tableName} ({table.Rows.Count} rows)");
 
         var list = new List<T>();
@@ -1596,7 +1597,7 @@ public class StaticDBLoader : ISDBLoader
             Serilog.Log.Information($"Fatal exception while iterating rows in {tableName}: {ex.Message}");
         }
 
-        foreach(string text in warningsSet)
+        foreach (string text in warningsSet)
         {
             Serilog.Log.Information(text);
         }

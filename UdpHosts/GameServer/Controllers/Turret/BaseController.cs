@@ -27,10 +27,10 @@ public class BaseController : Base
         if (turret.ControllingPlayer == player)
         {
             turret.Turret_ObserverView.CurrentPoseProp = new CurrentPoseStruct()
-                 {
-                     Rotation = poseUpdate.Unk1,
-                     ShortTime = client.AssignedShard.CurrentShortTime
-                 };
+            {
+                Rotation = poseUpdate.Unk1,
+                ShortTime = client.AssignedShard.CurrentShortTime
+            };
         }
     }
 

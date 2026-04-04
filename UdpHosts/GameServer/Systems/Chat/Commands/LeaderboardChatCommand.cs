@@ -16,7 +16,9 @@ public class LeaderboardChatCommand : ChatCommand
         context.SourcePlayer.CharacterEntity.SetAuthorizedTerminal(
              new AuthorizedTerminalData
              {
-                 TerminalId = ParseUIntParameter(parameters[0]), TerminalType = 14, TerminalEntityId = 0
+                 TerminalId = ParseUIntParameter(parameters[0]),
+                 TerminalType = 14,
+                 TerminalEntityId = 0
              });
     }
 }

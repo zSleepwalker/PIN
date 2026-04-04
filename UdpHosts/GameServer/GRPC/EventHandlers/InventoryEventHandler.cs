@@ -11,7 +11,7 @@ public static class InventoryEventHandler
     {
         // Find the player with the matching character GUID
         var player = clients.Values.FirstOrDefault(p => p.CharacterId + 0xFE == e.CharacterGuid);
-        
+
         if (player != null)
         {
             // Trigger an inventory refresh

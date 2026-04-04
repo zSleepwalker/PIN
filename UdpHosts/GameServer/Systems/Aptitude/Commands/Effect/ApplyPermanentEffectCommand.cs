@@ -1,6 +1,5 @@
 using GameServer.Data.SDB.Records.customdata;
 using GameServer.GRPC;
-using GrpcGameServerAPIClient;
 
 namespace GameServer.Aptitude;
 
@@ -20,7 +19,7 @@ public class ApplyPermanentEffectCommand : Command, ICommand
         {
             var characterId = character.Player.CharacterId;
             var duration = Params.DurationSeconds;
-            
+
             // Check for XP Boost
             if (Params.ExperienceBoost > 0)
             {
@@ -60,7 +59,7 @@ public class ApplyPermanentEffectCommand : Command, ICommand
             // Also apply the visual status effect locally
             if (Params.EffectId > 0)
             {
-                 context.Abilities.DoApplyEffect(Params.EffectId, context.Self, context);
+                context.Abilities.DoApplyEffect(Params.EffectId, context.Self, context);
             }
         }
 

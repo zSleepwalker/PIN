@@ -39,7 +39,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         AeroEntityId = new EntityId() { Backing = EntityId, ControllerId = Controller.Character };
 
         CurrentStatModifiers = new Dictionary<StatModifierIdentifier, Dictionary<uint, ActiveStatModifier>>();
-        foreach(StatModifierIdentifier stat in Enum.GetValues(typeof(StatModifierIdentifier)))
+        foreach (StatModifierIdentifier stat in Enum.GetValues(typeof(StatModifierIdentifier)))
         {
             CurrentStatModifiers.Add(stat, new Dictionary<uint, ActiveStatModifier>());
 
@@ -343,14 +343,20 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             SetWeaponIndex(new WeaponIndexData()
             {
-                Index = 1, Unk1 = 1, Unk2 = 0, Time = Shard.CurrentTime
+                Index = 1,
+                Unk1 = 1,
+                Unk2 = 0,
+                Time = Shard.CurrentTime
             });
         }
         else if (monsterInfo.Weapon2Id != 0)
         {
             SetWeaponIndex(new WeaponIndexData()
             {
-                Index = 2, Unk1 = 1, Unk2 = 0, Time = Shard.CurrentTime
+                Index = 2,
+                Unk1 = 1,
+                Unk2 = 0,
+                Time = Shard.CurrentTime
             });
         }
     }
@@ -501,11 +507,10 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         ArmyGUID = info.ArmyGuid;
         ArmyIsOfficer = (sbyte)(info.ArmyIsOfficer ? 1 : 0);
 
-
         SetTimePlayed(info.TimePlayed);
         SetArmyGUID(info.ArmyGuid);
         SetArmyIsOfficer((sbyte)(info.ArmyIsOfficer ? 1 : 0));
-        
+
         // Add setters for the new dynamic fields
         SetPvPRank((byte)info.PvPRank);
         SetEliteLevel((byte)info.EliteLevel);
@@ -627,7 +632,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             EndUnk1 = 0,
             EndUnk2 = 0
         });
-        
+
         SetCharacterStats(new CharacterStatsData
         {
             ItemAttributes = loadout.GetItemAttributes(),
@@ -647,12 +652,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         StatusEffectsChangeTime_0 = loadout.ChassisChangeTime != 0 ? (ushort)loadout.ChassisChangeTime : (ushort)0;
-        
+
         RefreshStats();
     }
 
     public float GetItemAttribute(ushort id) => CurrentLoadout.ItemAttributes.GetValueOrDefault(id);
-
 
     public void AddStatModifier(uint reference, ActiveStatModifier mod)
     {
@@ -835,6 +839,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Character_BaseController.PvPRankProp = value;
         }
+
         if (Character_EquipmentView != null)
         {
             Character_EquipmentView.PvPRankProp = value;
@@ -848,6 +853,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Character_BaseController.EliteLevelProp = value;
         }
+
         if (Character_EquipmentView != null)
         {
             Character_EquipmentView.EliteLevelProp = value;
@@ -874,7 +880,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             Player.Inventory.SendCertificateUnlocksUpdate();
         }
     }
-
 
     public void SetEffectiveLevel(byte value)
     {
@@ -925,7 +930,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         CharacterState = new CharacterStateData
         {
-            State = characterStatus, Time = time
+            State = characterStatus,
+            Time = time
         };
         Character_ObserverView.CharacterStateProp = CharacterState;
         if (Character_BaseController != null)
@@ -938,7 +944,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             TraceRecoveryState($"character state changed {previousCharacterState} -> {characterStatus}");
         }
     }
-    
+
     public void SetControllingPlayer(INetworkPlayer player)
     {
         Player = player;
@@ -1085,7 +1091,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     {
         WeaponIndex = value;
         Character_CombatView.WeaponIndexProp = value;
-        
+
         if (Character_CombatController != null)
         {
             Character_CombatController.WeaponIndexProp = value;
@@ -1146,21 +1152,21 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         // Member
         GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
         GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
-        
+
         // CombatController
         if (Character_CombatController != null)
         {
             Character_CombatController.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatController, time, null);
             Character_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatController, data, null);
         }
-        
+
         // CombatView
         Character_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatView, time, null);
         Character_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatView, data, null);
 
         TraceRecoveryEffect("set", index, time, data.Id);
     }
-    
+
     public override void ClearStatusEffect(byte index, ushort time, uint debugEffectId)
     {
         Serilog.Log.Information($"Character.ClearStatusEffect Index {index}, Time {time}, Id {debugEffectId}");
@@ -1168,14 +1174,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         // Member
         GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
         GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
-        
+
         // CombatController
         if (Character_CombatController != null)
         {
             Character_CombatController.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatController, time, null);
             Character_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatController, null, null);
         }
-        
+
         // CombatView
         Character_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatView, time, null);
         Character_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatView, null, null);
@@ -1257,14 +1263,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             // Member
             GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
             GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
-            
+
             // CombatController
             if (Character_CombatController != null)
             {
                 Character_CombatController.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatController, time, null);
                 Character_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatController, null, null);
             }
-            
+
             // CombatView
             Character_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Character_CombatView, time, null);
             Character_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Character_CombatView, null, null);
@@ -1329,7 +1335,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         Player.Inventory.EquipItemByGUID(loadoutId, slot, guid);
         ApplyLoadout(CurrentLoadout);
     }
-    
+
     public void EquipVisualBySdbId(int loadoutId, LoadoutVisualType visualSlot, LoadoutSlotType slot, uint sdb_id)
     {
         Player.Inventory.EquipVisualBySdbId(loadoutId, visualSlot, slot, sdb_id);
@@ -1373,7 +1379,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             weapon = weaponDetails.Alt;
         }
-  
+
         var weaponAttributesDict = weaponAttributes.ToDictionary((StatsData p) => p.Id);
 
         float weaponAttributeSpread = 1f;
@@ -1489,7 +1495,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             Time = Shard.CurrentTime,
             Value = (PermissionFlagsData.CharacterPermissionFlags)GetCurrentPermissionsValue(),
         };
-        
+
         Level = 1;
         EffectiveLevel = 1;
         VipLevel = 0;
@@ -1584,13 +1590,13 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             LeaveZoneTimeProp = null,
             ChatMuteStatusProp = 0,
             TimedDailyRewardProp = new TimedDailyRewardData
-                                {
-                                    Stage = 0,
-                                    State = 0,
-                                    RollNumber = 0,
-                                    MaxRolls = 0,
-                                    CountdownToTime = 0
-                                },
+            {
+                Stage = 0,
+                State = 0,
+                RollNumber = 0,
+                MaxRolls = 0,
+                CountdownToTime = 0
+            },
             TimedDailyRewardResultProp = null,
             SinCardTypeProp = 0,
             SinCardFields_0Prop = null,
@@ -1728,7 +1734,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             LevelProp = Level
         };
 
-
         Character_CombatView = new CombatView
         {
             FireMode_0Prop = FireMode_0,
@@ -1808,14 +1813,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     private ulong GetCurrentPermissionsValue()
     {
         ulong result = 0ul;
-        foreach(var pair in CurrentPermissions)
+        foreach (var pair in CurrentPermissions)
         {
             if (pair.Value)
             {
                 result += (ulong)pair.Key;
             }
         }
-        
+
         return result;
     }
 
@@ -1827,7 +1832,10 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void RefreshStats()
     {
-        if (CurrentLoadout == null) return;
+        if (CurrentLoadout == null)
+        {
+            return;
+        }
 
         CurrentLoadout.Level = Level;
         CurrentLoadout.CalculateItemAttributes();

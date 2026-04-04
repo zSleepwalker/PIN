@@ -1,4 +1,3 @@
-using System;
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
 using static AeroMessages.GSS.V66.Character.CharacterStateData;
@@ -25,7 +24,7 @@ public class RequireCStateCommand : Command, ICommand
         {
             source = context.Initiator;
         }
-        
+
         if (source is CharacterEntity character)
         {
             var cstate = character.CharacterState.State;

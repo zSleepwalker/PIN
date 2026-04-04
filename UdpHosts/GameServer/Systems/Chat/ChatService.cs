@@ -39,7 +39,7 @@ public class ChatService
             // TODO: AlternateType messages
             return;
         }
-        
+
         ChatChannel queryChannel = (ChatChannel)query.Channel;
 
         var trimmed = query.Message.Trim();

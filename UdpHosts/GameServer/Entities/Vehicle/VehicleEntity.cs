@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
@@ -210,7 +209,7 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
     public uint SpawnAbility { get; set; } = 0;
     public uint DespawnAbility { get; set; } = 0;
     public uint DeathAbility { get; set; } = 0;
-    
+
     public void Load(VehicleInfoResult vehicleInfo)
     {
         VehicleId = vehicleInfo.VehicleId;
@@ -261,11 +260,11 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         foreach (var ability in vehicleInfo.Abilities)
         {
             byte idx = ability.AbilityType switch
-               {
-                   1 => (byte)AbilitySlotIndex.Honk,
-                   2 => (byte)AbilitySlotIndex.Boost,
-                   _ => 0,
-               };
+            {
+                1 => (byte)AbilitySlotIndex.Honk,
+                2 => (byte)AbilitySlotIndex.Boost,
+                _ => 0,
+            };
 
             Abilities[idx] = ability.AbilityId;
         }
@@ -351,7 +350,7 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         WaterLevelAndDesc = newValue;
         Vehicle_ObserverView.WaterLevelAndDescProp = WaterLevelAndDesc;
         if (Vehicle_BaseController != null)
-        { 
+        {
             Vehicle_BaseController.WaterLevelAndDescProp = WaterLevelAndDesc;
         }
     }
@@ -367,16 +366,16 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         Logger.Debug("Vehicle.SetStatusEffect Index {index}, Time {time}, Id {id}", index, time, data.Id);
 
         // Member
-        this.GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
-        this.GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
-        
+        GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
+        GetType().GetProperty($"StatusEffects_{index}").SetValue(this, data, null);
+
         // CombatController
         if (Vehicle_CombatController != null)
         {
             Vehicle_CombatController.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatController, time, null);
             Vehicle_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatController, data, null);
         }
-        
+
         // CombatView
         Vehicle_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatView, time, null);
         Vehicle_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatView, data, null);
@@ -387,16 +386,16 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         Logger.Debug("Vehicle.ClearStatusEffect Index {index}, Time {time}, Id {debugEffectId}", index, time, debugEffectId);
 
         // Member
-        this.GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
-        this.GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
-        
+        GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
+        GetType().GetProperty($"StatusEffects_{index}").SetValue(this, null, null);
+
         // CombatController
         if (Vehicle_CombatController != null)
         {
             Vehicle_CombatController.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatController, time, null);
             Vehicle_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatController, null, null);
         }
-        
+
         // CombatView
         Vehicle_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatView, time, null);
         Vehicle_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatView, null, null);
@@ -498,13 +497,13 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         }
 
         character.SetAttachedTo(new AttachedToData
-                                {
-                                    Id1 = AeroEntityId,
-                                    Id2 = AeroEntityId,
-                                    Role = (AttachedToData.AttachmentRoleType)seatConfig.Role,
-                                    Unk2 = seatConfig.Posture,
-                                    Unk3 = 1, // mostly 1 in replays
-                                },
+        {
+            Id1 = AeroEntityId,
+            Id2 = AeroEntityId,
+            Role = (AttachedToData.AttachmentRoleType)seatConfig.Role,
+            Unk2 = seatConfig.Posture,
+            Unk3 = 1, // mostly 1 in replays
+        },
                                 this);
 
         if (character.IsPlayerControlled && seatConfig.Role == AttachmentRole.Driver)
@@ -560,13 +559,13 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         }
 
         character.SetAttachedTo(new AttachedToData
-                                {
-                                    Id1 = AeroEntityId,
-                                    Id2 = AeroEntityId,
-                                    Role = (AttachedToData.AttachmentRoleType)seatConfig.Role,
-                                    Unk2 = seatConfig.Posture,
-                                    Unk3 = 1, // mostly 1 in replays
-                                },
+        {
+            Id1 = AeroEntityId,
+            Id2 = AeroEntityId,
+            Role = (AttachedToData.AttachmentRoleType)seatConfig.Role,
+            Unk2 = seatConfig.Posture,
+            Unk3 = 1, // mostly 1 in replays
+        },
                                 this);
 
         if (character.IsPlayerControlled && seatConfig.Role == AttachmentRole.Driver)
@@ -704,7 +703,7 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
         };
 
         Vehicle_CombatView = new CombatView()
-        {  
+        {
         };
 
         Vehicle_MovementView = new MovementView()

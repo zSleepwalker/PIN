@@ -1,4 +1,3 @@
-using System;
 using System.Linq;
 using System.Numerics;
 using GameServer.Data.SDB.Records.apt;
@@ -67,7 +66,7 @@ public class TargetPBAECommand : Command, ICommand
                     return true;
                 }
             }
-            
+
             return false;
         })
         .Select((pair) => pair.Value as BaseAptitudeEntity)

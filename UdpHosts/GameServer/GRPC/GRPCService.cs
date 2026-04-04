@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
@@ -62,9 +61,12 @@ public static class GRPCService
     public static async Task SaveCharacterSessionDataAsync(ulong characterId, uint zoneId, uint outpostId, uint timePlayed)
     {
         var data = new SaveGameSessionData()
-           {
-               CharacterId = characterId, ZoneId = zoneId, OutpostId = outpostId, TimePlayed = timePlayed
-           };
+        {
+            CharacterId = characterId,
+            ZoneId = zoneId,
+            OutpostId = outpostId,
+            TimePlayed = timePlayed
+        };
 
         await SendCommandAsync(new Command() { SaveGameSessionData = data });
     }
@@ -73,10 +75,10 @@ public static class GRPCService
     {
         var data = new SaveCharacterLoadout()
         {
-            CharacterGuid    = characterGuid,
-            LoadoutId        = loadoutId,
-            ChassisSdbId     = chassisSdbId,
-            VisualsJson      = visualsJson,
+            CharacterGuid = characterGuid,
+            LoadoutId = loadoutId,
+            ChassisSdbId = chassisSdbId,
+            VisualsJson = visualsJson,
             SlottedItemsJson = slottedItemsJson,
         };
 

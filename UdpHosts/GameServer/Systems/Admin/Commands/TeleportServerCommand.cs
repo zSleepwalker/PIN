@@ -28,7 +28,7 @@ public class TeleportServerCommand : ServerCommand
             TryParseFloat(parameters[2], out float z))
         {
             Vector3 destination = new Vector3(x, y, z);
-            
+
             character.SetPosition(destination);
             var forcedMove = new ForcedMovement
             {
@@ -45,7 +45,7 @@ public class TeleportServerCommand : ServerCommand
         }
         else
         {
-           SourceFeedback("Invalid float format in teleport command", context);
+            SourceFeedback("Invalid float format in teleport command", context);
         }
     }
 

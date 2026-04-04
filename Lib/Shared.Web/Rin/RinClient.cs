@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net.Http;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
@@ -54,11 +52,14 @@ public class RinClient : IRinClient
 
     private void ForwardHeaders(HttpRequestMessage request, IHeaderDictionary headers)
     {
-        if (headers == null) return;
+        if (headers == null)
+        {
+            return;
+        }
 
         foreach (var header in headers)
         {
-            if (header.Key.StartsWith("X-Red5-", StringComparison.OrdinalIgnoreCase) || 
+            if (header.Key.StartsWith("X-Red5-", StringComparison.OrdinalIgnoreCase) ||
                 header.Key.Equals("Authorization", StringComparison.OrdinalIgnoreCase))
             {
                 request.Headers.TryAddWithoutValidation(header.Key, header.Value.ToArray());

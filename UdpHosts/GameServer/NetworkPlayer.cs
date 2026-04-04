@@ -2,12 +2,10 @@ using System;
 using System.Net;
 using System.Numerics;
 using System.Threading;
-using AeroMessages.Common;
 using AeroMessages.GSS.V66;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Controller;
 using AeroMessages.GSS.V66.Character.Event;
-using AeroMessages.GSS.V66.Generic;
 using AeroMessages.Matrix.V25;
 using GameServer.Data;
 using GameServer.Data.SDB.Records.customdata;
@@ -61,7 +59,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         AssignedShard.Entities.TryGetValue(CharacterId, out var existing);
         if (existing != null)
         {
-            Serilog.Log.Information($"Closing login because entity with this id is already zoned in");
+            Log.Information($"Closing login because entity with this id is already zoned in");
             var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
             NetChannels[ChannelType.Control].SendMessage(resp);
             return;
@@ -80,12 +78,12 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         }
         catch (Exception ex)
         {
-            Serilog.Log.Information($"Could not get character over GRPC. Error: {ex.Message}");
+            Log.Information($"Could not get character over GRPC. Error: {ex.Message}");
         }
 
         if (remoteData == null || remoteInventory == null)
         {
-            Serilog.Log.Information("Closing login because character state could not be loaded from database");
+            Log.Information("Closing login because character state could not be loaded from database");
             var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
             NetChannels[ChannelType.Control].SendMessage(resp);
             return;
@@ -107,7 +105,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         if (loadoutId == 0)
         {
-            Serilog.Log.Information("Closing login because no loadout exists in database for this character");
+            Log.Information("Closing login because no loadout exists in database for this character");
             var resp = new AeroMessages.Control.CloseConnection { Unk = new byte[] { 0, 0, 0, 0 } };
             NetChannels[ChannelType.Control].SendMessage(resp);
             return;
@@ -196,7 +194,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         CharacterEntity.SetSpawnTime(AssignedShard.CurrentTime);
         CharacterEntity.SetCharacterState(CharacterStateData.CharacterStatus.Respawning, AssignedShard.CurrentTime);
         CharacterEntity.SetSpawnPose();
-        baseController.RespawnTimesProp = new RespawnTimesData(); 
+        baseController.RespawnTimesProp = new RespawnTimesData();
         baseController.RespawnTimesProp = null; // Make the field dirty so we send clear because we probably should send clear. At some point investigaste if this is neccessary.
         baseController.TimedDailyRewardProp = new TimedDailyRewardData { State = TimedDailyRewardData.TimedDailyRewardState.ROLLED, MaxRolls = 1, CountdownToTime = AssignedShard.CurrentTime };
         NetChannels[ChannelType.ReliableGss].SendChanges(baseController, CharacterEntity.EntityId);

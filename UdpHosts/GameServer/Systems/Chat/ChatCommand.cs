@@ -1,5 +1,4 @@
-﻿using System;
-using System.Numerics;
+﻿using System.Numerics;
 using Serilog;
 
 namespace GameServer.Systems.Chat;
@@ -12,6 +11,7 @@ public abstract class ChatCommand
     {
         Logger = Log.ForContext(GetType());
     }
+
     public abstract void Execute(string[] parameters, ChatCommandContext context);
     public virtual void SourceFeedback(string message, ChatCommandContext context)
     {

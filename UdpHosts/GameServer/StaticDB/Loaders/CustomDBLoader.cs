@@ -16,31 +16,31 @@ public class CustomDBLoader
         IncludeFields = true
     };
 
-    public Dictionary<uint, AuthorizeTerminalCommandDef> LoadAuthorizeTerminalCommandDef() 
+    public Dictionary<uint, AuthorizeTerminalCommandDef> LoadAuthorizeTerminalCommandDef()
     {
         return LoadJSON<AuthorizeTerminalCommandDef>("./StaticDB/CustomData/aptgss_AuthorizeTerminalCommandDef.json")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, SetGliderParametersCommandDef> LoadSetGliderParametersCommandDef() 
+    public Dictionary<uint, SetGliderParametersCommandDef> LoadSetGliderParametersCommandDef()
     {
         return LoadJSON<SetGliderParametersCommandDef>("./StaticDB/CustomData/aptgss_agsSetGliderParametersDef.json")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, ModifyPermissionCommandDef> LoadModifyPermissionCommandDef() 
+    public Dictionary<uint, ModifyPermissionCommandDef> LoadModifyPermissionCommandDef()
     {
         return LoadJSON<ModifyPermissionCommandDef>("./StaticDB/CustomData/aptgss_agsModifyPermissionCommandDef.json")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, ImpactRemoveEffectCommandDef> LoadImpactRemoveEffectCommandDef() 
+    public Dictionary<uint, ImpactRemoveEffectCommandDef> LoadImpactRemoveEffectCommandDef()
     {
         return LoadJSON<ImpactRemoveEffectCommandDef>("./StaticDB/CustomData/aptgss_agsImpactRemoveEffectCommandDef.json")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, DeployableSpawnCommandDef> LoadDeployableSpawnCommandDef() 
+    public Dictionary<uint, DeployableSpawnCommandDef> LoadDeployableSpawnCommandDef()
     {
         return LoadJSON<DeployableSpawnCommandDef>("./StaticDB/CustomData/aptgss_agsDeployableSpawnCommandDef.json")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
@@ -874,21 +874,21 @@ public class CustomDBLoader
             .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<uint, Dictionary<uint, Deployable>> LoadDeployable() 
+    public Dictionary<uint, Dictionary<uint, Deployable>> LoadDeployable()
     {
         return LoadJSON<Deployable>("./StaticDB/CustomData/deployable.json")
         .GroupBy(row => row.ZoneId)
         .ToDictionary(group => group.Key, group => group.ToDictionary(row => row.Id, row => row));
     }
 
-    public Dictionary<uint, Dictionary<uint, Melding>> LoadMelding() 
+    public Dictionary<uint, Dictionary<uint, Melding>> LoadMelding()
     {
         return LoadJSON<Melding>("./StaticDB/CustomData/melding.json")
         .GroupBy(row => row.ZoneId)
         .ToDictionary(group => group.Key, group => group.ToDictionary(row => row.Id, row => row));
     }
 
-    public Dictionary<uint, Dictionary<uint, Outpost>> LoadOutpost() 
+    public Dictionary<uint, Dictionary<uint, Outpost>> LoadOutpost()
     {
         return LoadJSON<Outpost>("./StaticDB/CustomData/outpost.json")
         .GroupBy(row => row.ZoneId)
