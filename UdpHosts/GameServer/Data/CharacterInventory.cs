@@ -74,7 +74,10 @@ public class CharacterInventory
         _items = new();
         _resources = new();
         _loadouts = new();  
+        Unlocks = new CharacterUnlocks(shard, player, character);
     }
+
+    public CharacterUnlocks Unlocks { get; private set; }
 
     public static LoadoutSlotType NormalizeRequestedLoadoutSlot(byte rawSlotIndex)
     {
@@ -855,6 +858,22 @@ public class CharacterInventory
         
         // Equip new item (if any)
         if (guid != 0)
+                    // VALIDATION: For ability slots, verify the item can be equipped on the current frame
+                    if ((slot == LoadoutSlotType.Ability1 || slot == LoadoutSlotType.Ability2 || 
+                        slot == LoadoutSlotType.Ability3 || slot == LoadoutSlotType.AbilityHKM) && guid != 0)
+                    {
+                        var tempItem = _items[guid];
+                        uint currentFrameChassisId = _character.CurrentLoadout?.ChassisID ?? 0;
+
+                        if (!Unlocks.CanEquipAbilityOnFrame(tempItem.SdbId, currentFrameChassisId))
+                        {
+                            _shard?.Logger?.Warning(
+                                "[INVENTORY] EquipItemByGUID: REJECTED - Ability {itemId} cannot be equipped on frame {frameId}",
+                                tempItem.SdbId, currentFrameChassisId);
+                            return;
+                        }
+                    }
+
         {
             // Update Item to Equipped
             var item = _items[guid];

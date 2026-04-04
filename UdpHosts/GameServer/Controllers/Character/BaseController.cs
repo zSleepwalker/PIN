@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Numerics;
 using AeroMessages.Common;
@@ -431,7 +432,39 @@ public class BaseController : Base
         if (loadoutRefData != null)
         {
             var loadout = new CharacterLoadout(loadoutRefData);
+
+            // Before applying the loadout, validate that all slotted abilities are allowed on the current frame
+            uint currentFrameChassisId = loadout.ChassisID;
+            var unlocks = player.Inventory.Unlocks;
+            
+            _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Player {playerId} switching to frame {frameId} (from {oldFrame})", 
+                player.EntityId, currentFrameChassisId, player.CharacterEntity?.CurrentLoadout?.ChassisID ?? 0);
+            
+            var invalidSlots = new List<LoadoutSlotType>();
+            foreach (var slotEntry in loadout.SlottedItems)
+            {
+                var slotType = slotEntry.Key;
+                var moduleId = slotEntry.Value;
+                
+                // Check if this ability can be equipped on the current frame
+                bool canEquip = unlocks.CanEquipAbilityOnFrame(moduleId, currentFrameChassisId);
+                if (!canEquip)
+                {
+                    _logger?.Warning("SelectLoadout: Module {moduleId} rejected for slot {slot} on frame {chassisId}", moduleId, slotType, currentFrameChassisId);
+                    invalidSlots.Add(slotType);
+                }
+            }
+
+            // Remove invalid abilities from the loadout
+            foreach (var slotType in invalidSlots)
+            {
+                _logger?.Information("SelectLoadout: Clearing invalid slot {slot}", slotType);
+                loadout.SlottedItems[slotType] = 0;  // Clear invalid ability slot
+            }
+
             player.CharacterEntity.ApplyLoadout(loadout);
+            _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Applied loadout, CurrentLoadout.ChassisID now = {frameId}", 
+                player.CharacterEntity?.CurrentLoadout?.ChassisID ?? 999);
             player.Inventory.SendCertificateUnlocksUpdate();
 
             if (player.Inventory.TryGetLoadout(query.LoadoutId, out var serializedLoadout))
@@ -528,15 +561,41 @@ public class BaseController : Base
     {
         var request = packet.Unpack<SlotModuleRequest>();
 
+        // Validate all modules can be equipped on the current frame
+        uint currentFrameChassisId = player.CharacterEntity?.CurrentLoadout?.ChassisID ?? 0;
+        if (currentFrameChassisId == 0)
+        {
+            _logger?.Warning("SlotModuleRequest: WARNING - Current frame chassis ID is 0 (null loadout)!");
+        }
+        
+        var unlocks = player.Inventory.Unlocks;
+        
+        _logger?.Information("SlotModuleRequest: Player {playerId} requesting to slot {count} modules on frame {chassisId}", player.EntityId, request.Modules.Length, currentFrameChassisId);
+        
+        var validModules = new List<SlotModuleResponseData>();
+        foreach (var module in request.Modules)
+        {
+            // Only accept modules that are valid for the current frame
+            bool canEquip = unlocks.CanEquipAbilityOnFrame(module.SdbId, currentFrameChassisId);
+            if (canEquip)
+            {
+                _logger?.Information("SlotModuleRequest: Module {moduleId} accepted", module.SdbId);
+                validModules.Add(new SlotModuleResponseData { Unk1 = module.SdbId, Unk2 = 1 });
+            }
+            else
+            {
+                _logger?.Warning("SlotModuleRequest: Module {moduleId} REJECTED on frame {chassisId}", module.SdbId, currentFrameChassisId);
+            }
+        }
+
         var response = new SlotModuleResponse
         {
             ItemGUID = request.ItemGUID,
-            Unk1 = request.Modules
-                         .Select(m => new SlotModuleResponseData { Unk1 = m.SdbId, Unk2 = 1 })
-                         .ToArray(),
+            Unk1 = validModules.ToArray(),
             Unk2 = 1,
         };
 
+        _logger?.Information("SlotModuleRequest: Returning {validCount} valid modules out of {totalCount}", validModules.Count, request.Modules.Length);
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
     }
 

@@ -80,6 +80,19 @@ public static class GRPCService
         await SendCommandAsync(new Command() { SaveCharacterLoadout = data });
     }
 
+    public static async Task SaveCharacterUnlockAsync(ulong characterGuid, string unlockType, uint unlockId, uint frameId)
+    {
+        var data = new SaveCharacterUnlock()
+        {
+            CharacterGuid = characterGuid,
+            UnlockType = unlockType,
+            UnlockId = unlockId,
+            FrameId = frameId,
+        };
+
+        await SendCommandAsync(new Command() { SaveCharacterUnlock = data });
+    }
+
     public static async Task SendCommandAsync(Command command)
     {
         await _stream.RequestStream.WriteAsync(command);

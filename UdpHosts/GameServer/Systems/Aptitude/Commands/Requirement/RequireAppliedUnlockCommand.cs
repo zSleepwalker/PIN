@@ -1,4 +1,5 @@
 using GameServer.Data.SDB.Records.customdata;
+using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
@@ -14,6 +15,11 @@ public class RequireAppliedUnlockCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        return true;
+        if (context.Self is not CharacterEntity { IsPlayerControlled: true } character)
+        {
+            return false;
+        }
+
+        return character.Player.Inventory.Unlocks.HasAppliedUnlock(Params.Id);
     }
 }

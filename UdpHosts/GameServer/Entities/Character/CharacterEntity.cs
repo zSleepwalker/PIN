@@ -810,6 +810,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         RefreshStats();
+
+        if (IsPlayerControlled && Player?.Inventory != null)
+        {
+            Player.Inventory.SendCertificateUnlocksUpdate();
+        }
     }
 
 

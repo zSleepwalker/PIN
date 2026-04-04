@@ -3,11 +3,11 @@ using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
-public class ApplyUnlockCommand : Command, ICommand
+public class UnlockContentCommand : Command, ICommand
 {
-    private ApplyUnlockCommandDef Params;
+    private UnlockContentCommandDef Params;
 
-    public ApplyUnlockCommand(ApplyUnlockCommandDef par)
+    public UnlockContentCommand(UnlockContentCommandDef par)
 : base(par)
     {
         Params = par;
@@ -20,7 +20,7 @@ public class ApplyUnlockCommand : Command, ICommand
             return true;
         }
 
-        bool changed = character.Player.Inventory.Unlocks.ApplyUnlock(Params.Id, "apt_apply_unlock");
+        bool changed = character.Player.Inventory.Unlocks.UnlockContent(Params.Id, "apt_unlock_content");
         if (changed)
         {
             character.Player.Inventory.SendCertificateUnlocksUpdate();
