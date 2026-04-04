@@ -18,6 +18,7 @@ public class ImpactApplyEffectCommand : Command, ICommand
     {
         Context effectContext = new Context(context.Shard, context.Initiator)
         {
+            ExecutionId = context.ExecutionId,
             InitTime = context.InitTime,
             ExecutionHint = ExecutionHint.ApplyEffect
         };
@@ -65,7 +66,7 @@ public class ImpactApplyEffectCommand : Command, ICommand
                 }
                 else
                 {
-                    Console.WriteLine($"ApplyEffect {Params.Id} (effect {Params.EffectId}) specifies OverrideInitiatorWithTarget but there are no targets");
+                    Logger.Warning("{Command} {CommandId} (effect {EffectId}) specifies OverrideInitiatorWithTarget but there are no targets", nameof(ImpactApplyEffectCommand), Params.Id, Params.EffectId);
                 }
             }
             else
@@ -76,14 +77,14 @@ public class ImpactApplyEffectCommand : Command, ICommand
                 }
                 else
                 {
-                    Console.WriteLine($"ApplyEffect {Params.Id} (effect {Params.EffectId}) specifies OverrideInitiatorWithTarget but there are no targets");
+                    Logger.Warning("{Command} {CommandId} (effect {EffectId}) specifies OverrideInitiatorWithTarget but there are no targets", nameof(ImpactApplyEffectCommand), Params.Id, Params.EffectId);
                 }
             }
         }
 
         if (Params.RemoveOnRollback == 1)
         {
-            Console.WriteLine($"The ApplyEffect {Params.EffectId} specifies it should be RemovedOnRollback");
+            Logger.Debug("{Command} {CommandId} (effect {EffectId}) specifies it should be RemovedOnRollback", nameof(ImpactApplyEffectCommand), Params.Id, Params.EffectId);
         }
 
         if (Params.ApplyToSelf == 1)
@@ -122,7 +123,7 @@ public class ImpactApplyEffectCommand : Command, ICommand
         var rollbackContext = (RemoveOnRollbackCommandActiveContext)activeCommandContext;
         foreach (IAptitudeTarget target in rollbackContext.Targets)
         {
-            Console.WriteLine($"RemoveOnRollback of {Params.Id} triggers removal of {Params.EffectId}");
+            Logger.Information("RemoveOnRollback of {Command} {CommandId} triggers removal of {EffectId}", nameof(ImpactApplyEffectCommand), Params.Id, Params.EffectId);
             context.Abilities.DoRemoveEffect(target, Params.EffectId);
         }
     }
