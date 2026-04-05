@@ -415,6 +415,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             }
         });
 
+        ApplyRemoteBattleframeVisuals(remoteData.BattleframeVisuals);
+
         Shard.Logger.Debug(
             "HairVisualsOut entity=0x{EntityId:X} headMain={HeadMain} headAcc={HeadAccessories} colors=[0x{Skin:X8},0x{Lip:X8},0x{Eye:X8},0x{Hair:X8},0x{FacialHair:X8}]",
             EntityId,
@@ -449,6 +451,119 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         // Fall back to head_accessories for legacy characters that do not have hair fields populated.
         return visuals.HeadAccessories.ToList<WebIdValueColor>().Select(item => (uint)item.Id).ToArray();
+    }
+
+    private void ApplyRemoteBattleframeVisuals(PlayerBattleframeVisuals battleframeVisuals)
+    {
+        if (battleframeVisuals == null)
+        {
+            return;
+        }
+
+        var equipment = CurrentEquipment;
+        var chassis = equipment.Chassis;
+        chassis.Visuals = BuildChassisVisualsFromRemoteBattleframe(chassis.Visuals, battleframeVisuals);
+        equipment.Chassis = chassis;
+        SetCurrentEquipment(equipment);
+
+        SetVisualOverrides(new VisualOverridesField
+        {
+            Data = BuildVisualOverridesFromRemoteBattleframe(battleframeVisuals),
+        });
+    }
+
+    private static VisualsBlock BuildChassisVisualsFromRemoteBattleframe(VisualsBlock existing, PlayerBattleframeVisuals battleframeVisuals)
+    {
+        var colors = battleframeVisuals.Warpaint.Count > 0
+            ? battleframeVisuals.Warpaint.ToArray()
+            : existing.Colors ?? Array.Empty<uint>();
+
+        var palettes = battleframeVisuals.WarpaintId > 0
+            ? new[]
+            {
+                new VisualsPaletteBlock
+                {
+                    PaletteType = 0,
+                    PaletteId = (uint)battleframeVisuals.WarpaintId,
+                },
+            }
+            : Array.Empty<VisualsPaletteBlock>();
+
+        var patterns = battleframeVisuals.WarpaintPatterns
+            .Where(patternId => patternId > 0)
+            .Select((patternId, index) => new VisualsPatternBlock
+            {
+                PatternId = (uint)patternId,
+                TransformValues = (HalfVector4)Vector4.Zero,
+                Usage = (byte)Math.Clamp(index, 0, 3),
+            })
+            .ToArray();
+
+        var decals = battleframeVisuals.Decals
+            .Where(decal => decal != null && decal.SdbId > 0)
+            .Select(decal => new VisualsDecalsBlock
+            {
+                DecalId = (uint)decal.SdbId,
+                Color = unchecked((uint)decal.Color),
+                Transform = BuildDecalTransforms(decal.Transform),
+                Usage = 0,
+            })
+            .ToArray();
+
+        var gradients = battleframeVisuals.Decalgradients
+            .Where(gradient => gradient > 0)
+            .Select(gradient => (uint)gradient)
+            .ToArray();
+
+        return new VisualsBlock
+        {
+            Decals = decals,
+            Gradients = gradients,
+            Colors = colors,
+            Palettes = palettes,
+            Patterns = patterns,
+            OrnamentGroupIds = existing.OrnamentGroupIds ?? Array.Empty<uint>(),
+            CziMapAssetIds = existing.CziMapAssetIds ?? Array.Empty<uint>(),
+            MorphWeights = existing.MorphWeights ?? Array.Empty<HalfFloat>(),
+            Overlays = existing.Overlays ?? Array.Empty<VisualsOverlayBlock>(),
+        };
+    }
+
+    private static HalfVector4[] BuildDecalTransforms(global::Google.Protobuf.Collections.RepeatedField<float> rawTransform)
+    {
+        var transforms = new HalfVector4[3];
+        if (rawTransform == null || rawTransform.Count == 0)
+        {
+            return transforms;
+        }
+
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            int baseIndex = i * 4;
+
+            var source = new Vector4(
+                baseIndex < rawTransform.Count ? rawTransform[baseIndex] : 0f,
+                baseIndex + 1 < rawTransform.Count ? rawTransform[baseIndex + 1] : 0f,
+                baseIndex + 2 < rawTransform.Count ? rawTransform[baseIndex + 2] : 0f,
+                baseIndex + 3 < rawTransform.Count ? rawTransform[baseIndex + 3] : 0f);
+
+            transforms[i] = (HalfVector4)source;
+        }
+
+        return transforms;
+    }
+
+    private static VisualOverridesData[] BuildVisualOverridesFromRemoteBattleframe(PlayerBattleframeVisuals battleframeVisuals)
+    {
+        return battleframeVisuals.VisualOverrides
+            .Where(visualGroupId => visualGroupId > 0)
+            .Distinct()
+            .Select(visualGroupId => new VisualOverridesData
+            {
+                SlotType = 0,
+                VisualsGroupId = (uint)visualGroupId,
+            })
+            .ToArray();
     }
 
     public void Load(BasicCharacterData data)
@@ -915,6 +1030,16 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         if (Character_BaseController != null)
         {
             Character_BaseController.CurrentEquipmentProp = CurrentEquipment;
+        }
+    }
+
+    public void SetVisualOverrides(VisualOverridesField value)
+    {
+        VisualOverrides = value;
+        Character_EquipmentView.VisualOverridesProp = value;
+        if (Character_BaseController != null)
+        {
+            Character_BaseController.VisualOverridesProp = value;
         }
     }
 

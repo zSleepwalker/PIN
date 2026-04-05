@@ -18,11 +18,6 @@ public static class CharacterEventHandler
 
         character.LoadRemote(e.CharacterAndBattleframeVisuals);
 
-        // Re-assert local combat permissions after a live visuals refresh.
-        // This keeps weapon usage enabled if the client enters a stale local control state.
-        character.SetPermissionFlag(AeroMessages.GSS.V66.Character.Controller.PermissionFlagsData.CharacterPermissionFlags.weapon, true);
-        character.SetPermissionFlag(AeroMessages.GSS.V66.Character.Controller.PermissionFlagsData.CharacterPermissionFlags.abilities, true);
-
         // Push updated static info immediately so body/gender swaps don't wait for relog.
         character.Shard.EntityMan.FlushChanges(character);
 
@@ -45,40 +40,17 @@ public static class CharacterEventHandler
 
         if (character.IsPlayerControlled && character.Player == client)
         {
-            // Force a full owner-side reload so body/gender swaps are rebuilt exactly
-            // as if the character re-entered scope after a visuals update.
-            character.Shard.EntityMan.ScopeOut(client, character);
-            character.Shard.EntityMan.ScopeIn(client, character);
+            var baseController = character.Character_BaseController;
+            if (baseController != null)
+            {
+                channel.SendControllerKeyframe(baseController, entityId, client.PlayerId);
+            }
         }
 
         if (character.Character_ObserverView != null)
         {
             channel.SendViewScopeOut(character.Character_ObserverView, entityId);
             channel.SendViewKeyframe(character.Character_ObserverView, entityId);
-        }
-
-        if (character.Character_EquipmentView != null)
-        {
-            channel.SendViewScopeOut(character.Character_EquipmentView, entityId);
-            channel.SendViewKeyframe(character.Character_EquipmentView, entityId);
-        }
-
-        if (character.Character_CombatView != null)
-        {
-            channel.SendViewScopeOut(character.Character_CombatView, entityId);
-            channel.SendViewKeyframe(character.Character_CombatView, entityId);
-        }
-
-        if (character.Character_MovementView != null)
-        {
-            channel.SendViewScopeOut(character.Character_MovementView, entityId);
-            channel.SendViewKeyframe(character.Character_MovementView, entityId);
-        }
-
-        if (character.Character_TinyObjectView != null)
-        {
-            channel.SendViewScopeOut(character.Character_TinyObjectView, entityId);
-            channel.SendViewKeyframe(character.Character_TinyObjectView, entityId);
         }
     }
 }
