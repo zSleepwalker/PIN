@@ -15,6 +15,17 @@ namespace GameServer.Data;
 
 public class CharacterInventory
 {
+    private sealed class FrameProgressionState
+    {
+        public uint ChassisId { get; init; }
+        public uint Level { get; init; }
+        public uint CurrentXp { get; init; }
+        public uint LifetimeXp { get; init; }
+        public uint EliteLevel { get; init; }
+        public uint EliteXp { get; init; }
+        public uint ElitePoints { get; init; }
+    }
+
     public bool EnablePartialUpdates = true;
 
     // Mirror of client lib_Battleframes.lua cert grants per chassis.
@@ -61,6 +72,7 @@ public class CharacterInventory
     private Dictionary<ulong, Item> _items; // By guid
     private Dictionary<uint, Resource> _resources; // By typeid
     private Dictionary<int, Loadout> _loadouts; // By loadoutid
+    private Dictionary<uint, FrameProgressionState> _frameProgressions; // By chassis id
 
     private IShard _shard;
     private INetworkClient _player;
@@ -74,6 +86,7 @@ public class CharacterInventory
         _items = new();
         _resources = new();
         _loadouts = new();
+        _frameProgressions = new();
         Unlocks = new CharacterUnlocks(shard, player, character);
     }
 
@@ -110,6 +123,11 @@ public class CharacterInventory
 
     public void LoadDatabaseInventory(GrpcGameServerAPIClient.CharacterInventoryResponse inventoryData)
     {
+        _items.Clear();
+        _resources.Clear();
+        _loadouts.Clear();
+        _frameProgressions.Clear();
+
         foreach (var item in inventoryData.Items)
         {
             var dbItem = new Item
@@ -147,6 +165,17 @@ public class CharacterInventory
         foreach (var loadoutData in inventoryData.Loadouts)
         {
             bool loadoutWasRepaired = false;
+
+            _frameProgressions[(uint)loadoutData.ChassisSdbId] = new FrameProgressionState
+            {
+                ChassisId = (uint)loadoutData.ChassisSdbId,
+                Level = ClampToUInt(loadoutData.Level, 1),
+                CurrentXp = ClampToUInt(loadoutData.CurrentXp),
+                LifetimeXp = ClampToUInt(loadoutData.LifetimeXp),
+                EliteLevel = ClampToUInt(loadoutData.EliteLevel),
+                EliteXp = ClampToUInt(loadoutData.EliteXp),
+                ElitePoints = ClampToUInt(loadoutData.ElitePoints),
+            };
 
             // Parse the loadout from the database format
             var loadout = new Loadout
@@ -290,6 +319,9 @@ public class CharacterInventory
                 PersistLoadoutToDatabase(loadout);
             }
         }
+
+        Unlocks.LoadPersistedUnlocks(inventoryData.Unlocks);
+        Unlocks.RebuildAutoUnlocks(_loadouts.Values, _items.Values.Select(item => item.SdbId), _character.Level);
     }
 
     public bool ConsumeItem(uint sdbId, uint quantity)
@@ -327,49 +359,74 @@ public class CharacterInventory
         var charId = (long)((NetworkPlayer)_player).CharacterId + 0xFE;
         var inventoryData = await GRPCService.GetCharacterInventoryAsync(charId);
 
-        // 1. Sync Resources
-        foreach (var resource in inventoryData.Resources)
+        LoadDatabaseInventory(inventoryData);
+        SendFullInventory();
+        SendCertificateUnlocksUpdate();
+        SendBattleframeProgressionUpdate();
+    }
+
+    public void SendBattleframeProgressionUpdate(uint currentFrameChassisId = 0)
+    {
+        if (_frameProgressions.Count == 0)
         {
-            if (!_resources.TryGetValue(resource.SdbId, out var existing))
-            {
-                // New resource
-                AddResource(resource.SdbId, resource.Quantity);
-            }
-            else if (existing.Quantity != resource.Quantity)
-            {
-                // Quantity changed (e.g., claimed from mail)
-                existing.Quantity = resource.Quantity;
-                _resources[resource.SdbId] = existing;
-                SendResourceUpdate(resource.SdbId);
-            }
+            return;
         }
 
-        // 2. Sync Items
-        foreach (var item in inventoryData.Items)
+        uint resolvedCurrentFrameId = currentFrameChassisId;
+        if (resolvedCurrentFrameId == 0)
         {
-            if (!_items.ContainsKey(item.Guid))
-            {
-                // New unique item claimed from mail
-                var dbItem = new Item
-                {
-                    SdbId = item.SdbId,
-                    GUID = item.Guid,
-                    SubInventory = GetInventoryTypeByItemTypeId(item.SdbId),
-                    Durability = 1000,
-                    DynamicFlags = 0,
-                    TimestampEpoch = (uint)DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
-                    Modules = Array.Empty<uint>(),
-                    Unk1 = 0,
-                    Unk3 = 0,
-                    Unk4 = 0,
-                    Unk5 = 0,
-                    Unk6 = Array.Empty<ItemUnkData>(),
-                    Unk7 = 0,
-                };
-                _items.Add(item.Guid, dbItem);
-                SendItemUpdate(item.Guid);
-            }
+            resolvedCurrentFrameId = _character.CurrentLoadout?.ChassisID ?? 0;
         }
+
+        if (resolvedCurrentFrameId == 0 || !_frameProgressions.ContainsKey(resolvedCurrentFrameId))
+        {
+            resolvedCurrentFrameId = _frameProgressions.Keys.FirstOrDefault();
+        }
+
+        var eliteInfo = new EliteLevels_Initialized_Info
+        {
+            LevelsPerRare = 1,
+            AwardFrameMinLevel = 1,
+            RevertCost = 0,
+            RerollCost = 0,
+        };
+
+        var eliteFrames = _frameProgressions.Values
+            .OrderBy(frame => frame.ChassisId)
+            .Select(frame => new EliteFrameInfoAll
+            {
+                ChassisId_1 = frame.ChassisId,
+                ChassisId_2 = frame.ChassisId,
+                EliteRank = frame.EliteLevel,
+                EliteXP = frame.EliteXp,
+                ElitePoints = frame.ElitePoints,
+                AvailableUpgrades = Array.Empty<EliteAvailableUpgradeInfo>(),
+                PreviousUpgrades = Array.Empty<ElitePreviousUpgradeInfo>(),
+            })
+            .ToArray();
+
+        var progressionFrames = _frameProgressions.Values
+            .OrderBy(frame => frame.ChassisId)
+            .Select(frame => new ProgressionFrameInfo
+            {
+                ChassisID = frame.ChassisId,
+                XpValue1 = frame.CurrentXp,
+                XpValue2 = frame.LifetimeXp,
+                CurrentLevel = frame.Level,
+                Unk = frame.EliteLevel,
+            })
+            .ToArray();
+
+        _player.NetChannels[ChannelType.ReliableGss].SendMessage(eliteInfo, _character.EntityId);
+        _player.NetChannels[ChannelType.ReliableGss].SendMessage(new EliteLevels_InitAllFrames
+        {
+            CurrentFrame_Id = resolvedCurrentFrameId,
+            Frames = eliteFrames,
+        }, _character.EntityId);
+        _player.NetChannels[ChannelType.ReliableGss].SendMessage(new ProgressionXPRefresh
+        {
+            Frames = progressionFrames,
+        }, _character.EntityId);
     }
 
     public int GetLoadoutIdForChassis(uint chassisId)
@@ -383,6 +440,16 @@ public class CharacterInventory
         }
 
         return 0;
+    }
+
+    private static uint ClampToUInt(long value, uint defaultValue = 0)
+    {
+        if (value < 0)
+        {
+            return defaultValue;
+        }
+
+        return value > uint.MaxValue ? uint.MaxValue : (uint)value;
     }
 
     public int GetAnyLoadoutId()

@@ -10,48 +10,8 @@ namespace GameServer.Data;
 
 public static class HardcodedCharacterData
 {
-    public static string ArmyTag = "ARMY";
-    public static ulong ArmyGUID = 1u;
-    public static int SelectedLoadout = 184538131;
-    public static byte Level = 45;
-    public static byte EffectiveLevel = 45;
-    public static int MaxHealth = 19192;
     public static int GeneratedLoadoutCounter = 20001;
     public static HashSet<uint> HostileFactionIds = new() { 2, 3, 5, 6, 7, 8, 17, 22, 42, 43, 45, 46, 47, 48 };
-
-    public static BasicCharacterData FallbackData = new BasicCharacterData()
-    {
-        CharacterInfo = new BasicCharacterInfo()
-        {
-            Name = "Fallback",
-            Gender = (uint)CharacterGender.Male,
-            Race = (uint)CharacterRace.Human,
-            TitleId = 135,
-            CurrentBattleframeSDBId = 76331,
-            ArmyTag = ArmyTag,
-            ArmyGuid = ArmyGUID,
-            ArmyIsOfficer = true,
-            Level = 1,
-            EffectiveLevel = 1,
-            VipLevel = 0,
-        },
-        CharacterVisuals = new BasicCharacterVisuals()
-        {
-            Head = 10002,
-            Eyes = 0,
-            VoiceSet = 1000,
-            Vehicle = 1000,
-            Glider = 1000,
-            HeadAccessories = new uint[2] { 10089, 10106 },
-            Ornaments = new uint[] { 10224, 10270, 10061 },
-
-            SkinColor = 0x52680000u,
-            EyeColor = 0x6a2440e0u,
-            LipColor = 0xffff0000u,
-            HairColor = 0x320D0021u,
-            FacialHairColor = 0x320D0021u,
-        }
-    };
 
     public static Dictionary<uint, uint> TempCharCreateLoadouts = new Dictionary<uint, uint>()
     {

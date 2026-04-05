@@ -98,6 +98,17 @@ public static class GRPCService
         await SendCommandAsync(new Command() { SaveCharacterUnlock = data });
     }
 
+    public static async Task SaveCurrentBattleframeAsync(ulong characterGuid, int chassisSdbId)
+    {
+        var data = new SaveCurrentBattleframe()
+        {
+            CharacterGuid = characterGuid,
+            ChassisSdbId = chassisSdbId,
+        };
+
+        await SendCommandAsync(new Command() { SaveCurrentBattleframe = data });
+    }
+
     public static async Task SendCommandAsync(Command command)
     {
         await _stream.RequestStream.WriteAsync(command);

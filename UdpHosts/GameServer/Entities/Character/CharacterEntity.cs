@@ -364,6 +364,13 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public void LoadRemote(CharacterAndBattleframeVisuals remoteData)
     {
         var headAccessories = BuildHeadAccessories(remoteData.CharacterVisuals);
+        uint[] currentColors = StaticInfo.Visuals.Colors ?? Array.Empty<uint>();
+
+        uint skinColor = ResolveRemoteColor(remoteData.CharacterVisuals.SkinColor, currentColors.Length > 0 ? currentColors[0] : 0u);
+        uint lipColor = ResolveRemoteColor(remoteData.CharacterVisuals.LipColor, currentColors.Length > 1 ? currentColors[1] : 0u);
+        uint eyeColor = ResolveRemoteColor(remoteData.CharacterVisuals.EyeColor, currentColors.Length > 2 ? currentColors[2] : 0u);
+        uint hairColor = ResolveRemoteColor(remoteData.CharacterVisuals.HairColor, currentColors.Length > 3 ? currentColors[3] : 0u);
+        uint facialHairColor = ResolveRemoteColor(remoteData.CharacterVisuals.FacialHairColor, currentColors.Length > 4 ? currentColors[4] : 0u);
 
         Shard.Logger.Debug(
             "HairVisualsIn entity=0x{EntityId:X} name={Name} hairId={HairId} facialHairId={FacialHairId} headAcc={HeadAccessories} hairColor=0x{HairColor:X8} facialHairColor=0x{FacialHairColor:X8}",
@@ -372,8 +379,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             remoteData.CharacterVisuals.Hair?.Id ?? 0,
             remoteData.CharacterVisuals.FacialHair?.Id ?? 0,
             string.Join(",", headAccessories),
-            remoteData.CharacterVisuals.HairColor?.Value?.Color ?? 0u,
-            remoteData.CharacterVisuals.FacialHairColor?.Value?.Color ?? 0u);
+            hairColor,
+            facialHairColor);
 
         Load(new BasicCharacterData()
         {
@@ -397,21 +404,21 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             },
             CharacterVisuals = new Data.BasicCharacterVisuals()
             {
-                Vehicle = (uint)remoteData.CharacterVisuals.Vehicle.Id,
-                Glider = (uint)remoteData.CharacterVisuals.Glider.Id,
+                Vehicle = ResolveRemoteId(remoteData.CharacterVisuals.Vehicle, StaticInfo.LoadoutVehicle),
+                Glider = ResolveRemoteId(remoteData.CharacterVisuals.Glider, StaticInfo.LoadoutGlider),
 
-                Head = (uint)remoteData.CharacterVisuals.Head.Id,
-                Eyes = (uint)remoteData.CharacterVisuals.Eyes.Id,
-                VoiceSet = (uint)remoteData.CharacterVisuals.VoiceSet.Id,
+                Head = ResolveRemoteId(remoteData.CharacterVisuals.Head, StaticInfo.HeadMain),
+                Eyes = ResolveRemoteId(remoteData.CharacterVisuals.Eyes, StaticInfo.Eyes),
+                VoiceSet = ResolveRemoteId(remoteData.CharacterVisuals.VoiceSet, StaticInfo.VoiceSet),
 
                 HeadAccessories = headAccessories,
-                Ornaments = remoteData.CharacterVisuals.Ornaments.ToList<WebId>().Select(item => (uint)item.Id).ToArray(),
+                Ornaments = ResolveRemoteOrnaments(remoteData.CharacterVisuals.Ornaments, StaticInfo.Visuals.OrnamentGroupIds),
 
-                SkinColor = remoteData.CharacterVisuals.SkinColor.Value.Color,
-                LipColor = remoteData.CharacterVisuals.LipColor.Value.Color,
-                EyeColor = remoteData.CharacterVisuals.EyeColor.Value.Color,
-                HairColor = remoteData.CharacterVisuals.HairColor.Value.Color,
-                FacialHairColor = remoteData.CharacterVisuals.FacialHairColor.Value.Color
+                SkinColor = skinColor,
+                LipColor = lipColor,
+                EyeColor = eyeColor,
+                HairColor = hairColor,
+                FacialHairColor = facialHairColor
             }
         });
 
@@ -432,6 +439,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     private static uint[] BuildHeadAccessories(GrpcGameServerAPIClient.CharacterVisuals visuals)
     {
         var accessories = new List<uint>(2);
+        bool hasExplicitHairFields = visuals.Hair != null || visuals.FacialHair != null;
 
         // Prefer explicit hair/facial_hair fields, since those are authoritative in New You updates.
         if (visuals.Hair != null && visuals.Hair.Id > 0)
@@ -444,13 +452,56 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             accessories.Add((uint)visuals.FacialHair.Id);
         }
 
-        if (accessories.Count > 0)
+        if (hasExplicitHairFields)
         {
             return accessories.ToArray();
         }
 
         // Fall back to head_accessories for legacy characters that do not have hair fields populated.
-        return visuals.HeadAccessories.ToList<WebIdValueColor>().Select(item => (uint)item.Id).ToArray();
+        // Some update flows append into this list without pruning old entries, so keep only the latest
+        // valid slots to avoid layered/stuck hairstyles.
+        var fallback = visuals.HeadAccessories
+            .ToList<WebIdValueColor>()
+            .Select(item => (uint)item.Id)
+            .Where(id => id > 0)
+            .ToList();
+
+        if (fallback.Count <= 2)
+        {
+            return fallback.ToArray();
+        }
+
+        return fallback.Skip(fallback.Count - 2).ToArray();
+    }
+
+    private static uint ResolveRemoteId(WebId value, uint fallback)
+    {
+        if (value == null || value.Id <= 0)
+        {
+            return fallback;
+        }
+
+        return (uint)value.Id;
+    }
+
+    private static uint ResolveRemoteColor(WebIdValueColor value, uint fallback)
+    {
+        uint remote = value?.Value?.Color ?? 0u;
+        return remote != 0 ? remote : fallback;
+    }
+
+    private static uint[] ResolveRemoteOrnaments(global::Google.Protobuf.Collections.RepeatedField<WebId> ornaments, uint[] fallback)
+    {
+        if (ornaments == null || ornaments.Count == 0)
+        {
+            return fallback ?? Array.Empty<uint>();
+        }
+
+        return ornaments
+            .ToList()
+            .Select(item => (uint)item.Id)
+            .Where(id => id > 0)
+            .ToArray();
     }
 
     private void ApplyRemoteBattleframeVisuals(PlayerBattleframeVisuals battleframeVisuals)

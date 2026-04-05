@@ -16,6 +16,7 @@ using GameServer.Entities.Turret;
 using GameServer.Entities.Vehicle;
 using GameServer.Enums.GSS.Character;
 using GameServer.Extensions;
+using GameServer.GRPC;
 using GameServer.Packets;
 using GameServer.Systems.Encounters;
 using Serilog;
@@ -465,30 +466,18 @@ public class BaseController : Base
             player.CharacterEntity.ApplyLoadout(loadout);
             _logger?.Warning("[FRAME-TRACKING] SelectLoadout: Applied loadout, CurrentLoadout.ChassisID now = {frameId}",
                 player.CharacterEntity?.CurrentLoadout?.ChassisID ?? 999);
+            ulong charGuid = ((NetworkPlayer)player).CharacterId + 0xFE;
+            _ = GRPCService.SaveCurrentBattleframeAsync(charGuid, (int)currentFrameChassisId);
             player.Inventory.SendCertificateUnlocksUpdate();
 
-            if (player.Inventory.TryGetLoadout(query.LoadoutId, out var serializedLoadout))
-            {
-                var response = new CurrentLoadoutResponse
-                {
-                    PlayerId = new EntityId { Backing = player.EntityId },
-                    Unk2 = serializedLoadout.FrameLoadoutId,
-                    Unk3 = 0,
-                    Unk4 = serializedLoadout.LoadoutName ?? string.Empty,
-                    Unk5 = serializedLoadout.LoadoutType ?? string.Empty,
-                    Unk6 = serializedLoadout.ChassisID,
-                    LoadoutConfigs = serializedLoadout.LoadoutConfigs,
-                };
-
-                client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
-            }
+            player.Inventory.SendBattleframeProgressionUpdate(currentFrameChassisId);
 
             // Several UI components (like PaperdollSlotting) only refresh when ON_LEVEL_CHANGED fires.
             // Since we dont yet implement progression we just force an update here.
             if (player.CharacterEntity.Character_BaseController != null)
             {
-                player.CharacterEntity.Character_BaseController.LevelProp = HardcodedCharacterData.Level;
-                player.CharacterEntity.Character_BaseController.EffectiveLevelProp = HardcodedCharacterData.EffectiveLevel;
+                player.CharacterEntity.Character_BaseController.LevelProp = player.CharacterEntity.Level;
+                player.CharacterEntity.Character_BaseController.EffectiveLevelProp = player.CharacterEntity.EffectiveLevel;
             }
         }
     }

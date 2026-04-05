@@ -237,6 +237,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         // InventoryUpdate
         Inventory.SendFullInventory();
         Inventory.SendCertificateUnlocksUpdate();
+        Inventory.SendBattleframeProgressionUpdate();
         Inventory.EnablePartialUpdates = true;
 
         CharacterEntity.Alive = true; // Accept MovementInputs only after Respawn
@@ -248,6 +249,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         // Re-send cert unlocks after the client reaches ready state to avoid any init-order race.
         Inventory.SendCertificateUnlocksUpdate();
+        Inventory.SendBattleframeProgressionUpdate();
     }
 
     public void Jump()
