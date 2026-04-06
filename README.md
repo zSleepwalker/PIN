@@ -63,10 +63,10 @@ PlayIntroMovie = false
 ## Development
 
 1. Install Visual Studio or JetBrains Rider
-   - Include the [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) component or install it separately
+   - Include the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) component or install it separately
 2. Recursive clone the repository `git clone --recurse-submodules https://github.com/themeldingwars/PIN.git`
 3. Build the solution
-4. Edit the `GameServer.dll.config` produced by the build in `UdpHosts\GameServer\bin\Release\net8.0` to ensure that `StaticDBPath` is correct.
+4. Edit the `GameServer.dll.config` produced by the build in `UdpHosts\GameServer\bin\Release\net10.0` to ensure that `StaticDBPath` is correct.
 5. Trust self-signed development certificates by running `dotnet dev-certs https --trust`
 6. Start multiple targets at once
    - Visual Studio: Create a `Multiple Startup Projects` target that starts RIN.WebAPI, GameServer and MatrixServer
