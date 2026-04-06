@@ -201,7 +201,7 @@ public class PhysicsEngine
                     Unk4 = 0,
                     Unk5 = 0xFF,
                 },
-                    HaveRagdoll = 0,
+                HaveRagdoll = 0,
             }
         };
         if (source.IsPlayerControlled && source.Player.Preferences.DebugWeapon > 0)
