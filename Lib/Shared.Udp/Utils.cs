@@ -27,7 +27,7 @@ public static class Utils
     public static T SimpleFixEndianness<T>(T value)
         where T : struct
     {
-        var s = MemoryMarshal.Cast<T, byte>(new[] { value });
+        Span<byte> s = MemoryMarshal.Cast<T, byte>(MemoryMarshal.CreateSpan(ref value, 1));
         s.Reverse();
         return MemoryMarshal.Cast<byte, T>(s).ToArray().FirstOrDefault();
     }

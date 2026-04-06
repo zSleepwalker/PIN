@@ -5,24 +5,24 @@
     <NoWarn>$(NoWarn);SA1108;SA1117;SA1201;SA1202;SA1204;SA1214;SA1611</NoWarn>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Aero.Gen" Version="1.3.0" />
-    <PackageReference Include="Autofac" Version="8.3.0" />
+    <PackageReference Include="Aero.Gen" Version="1.3.3" />
+    <PackageReference Include="Autofac" Version="9.1.0" />
     <PackageReference Include="CommandLineParser" Version="2.9.1" />
-    <PackageReference Include="Google.Protobuf" Version="3.25.6" />
-    <PackageReference Include="Grpc.Net.Client" Version="2.60.0" />
-    <PackageReference Include="Grpc.Tools" Version="2.60.0">
+    <PackageReference Include="Google.Protobuf" Version="3.34.1" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.80.0">
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
       <PrivateAssets>all</PrivateAssets>
     </PackageReference>
     <PackageReference Include="Serilog.Enrichers.Context" Version="4.6.5" />
     <PackageReference Include="Serilog.Settings.AppSettings" Version="3.0.0" />
-    <PackageReference Include="Serilog.Sinks.Console" Version="6.0.0" />
+    <PackageReference Include="Serilog.Sinks.Console" Version="6.1.1" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
     <PackageReference Include="Serilog.Sinks.Map" Version="2.0.0" />
     <PackageReference Include="Serilog.Sinks.Seq" Version="9.0.0" />
-    <PackageReference Include="System.IO.Hashing" Version="8.0.0" />
-    <PackageReference Include="System.IO.Pipelines" Version="8.0.0" />
-    <PackageReference Include="FauFau" Version="1.3.0" />
+    <PackageReference Include="System.IO.Hashing" Version="10.0.5" />
+    <PackageReference Include="System.IO.Pipelines" Version="10.0.5" />
+    <PackageReference Include="FauFau" Version="1.5.0" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\Lib\AeroMessages\AeroMessages\AeroMessages.csproj" />

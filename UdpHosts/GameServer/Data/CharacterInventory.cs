@@ -658,14 +658,14 @@ public class CharacterInventory
         var certEntries = globalCertIds
             .Select(certId => new UnlockGroupEntry
             {
-                CertId = certId,
+                UnlockId = certId,
                 HaveUnk1 = 0,
                 HaveUnk2 = 0,
                 HaveUnk3 = 0,
             })
             .Concat(globalCertIds.Select(certId => new UnlockGroupEntry
             {
-                CertId = certId,
+                UnlockId = certId,
                 HaveUnk1 = 0,
                 HaveUnk2 = 0,
                 HaveUnk3 = 1,
@@ -673,7 +673,7 @@ public class CharacterInventory
             }))
             .Concat(frameScopedCerts.Select(scoped => new UnlockGroupEntry
             {
-                CertId = scoped.CertId,
+                UnlockId = scoped.CertId,
                 HaveUnk1 = 0,
                 HaveUnk2 = 1,
                 Unk2 = scoped.FrameId,
@@ -681,7 +681,7 @@ public class CharacterInventory
             }))
             .Concat(frameScopedCerts.Select(scoped => new UnlockGroupEntry
             {
-                CertId = scoped.CertId,
+                UnlockId = scoped.CertId,
                 HaveUnk1 = 1,
                 Unk1 = scoped.FrameId,
                 HaveUnk2 = 0,
@@ -689,7 +689,7 @@ public class CharacterInventory
             }))
             .Concat(frameScopedCerts.Select(scoped => new UnlockGroupEntry
             {
-                CertId = scoped.CertId,
+                UnlockId = scoped.CertId,
                 HaveUnk1 = 0,
                 HaveUnk2 = 0,
                 HaveUnk3 = 1,
