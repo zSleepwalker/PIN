@@ -38,7 +38,7 @@ public class GameServerSettings
     /// <summary>
     ///    Address to use to connect to RIN.InternalAPI for GRPC. If the connection fails, GRPC will not be used.
     /// </summary>
-    public string GrpcChannelAddress { get; set; } = "http://localhost:5201";
+    public string GrpcChannelAddress { get; set; } = "http://localhost:5301";
 
     /// <summary>
     ///    File path to the clientdb.sd2 located in system\db\ of the Firefall installation
