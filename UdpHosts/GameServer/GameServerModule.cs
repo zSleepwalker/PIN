@@ -1,10 +1,12 @@
 using System;
 using System.Configuration;
+using System.IO;
 using Autofac;
 using GameServer.Data.SDB;
 using GameServer.Logging;
 using Serilog;
 using Serilog.Events;
+using Serilog.Formatting.Compact;
 using Shared.Common;
 using SDB = FauFau.Formats.StaticDB;
 
@@ -152,20 +154,41 @@ public class GameServerModule : Module
                 string LogTemplate(bool withSystem)
                     => $"[{{Timestamp:HH:mm:ss.fff}}] [{{Level:u3}}] {(withSystem ? "[{System}] " : string.Empty)}{{Message:lj}}{{NewLine}}{{Exception}}";
 
+                const string logDirectory = "./logs";
+                const string serverLogPath = "./logs/GameServer.log";
+                const string serverJsonPath = "./logs/GameServer.json";
+
+                // Clear previous session logs so each start produces a clean, agent-readable file.
+                try
+                {
+                    Directory.CreateDirectory(logDirectory);
+
+                    if (File.Exists(serverLogPath))
+                    {
+                        File.Delete(serverLogPath);
+                    }
+
+                    if (File.Exists(serverJsonPath))
+                    {
+                        File.Delete(serverJsonPath);
+                    }
+                }
+                catch
+                {
+                    // Best-effort cleanup only.
+                }
+
                 loggerConfig = loggerConfig
                     .WriteTo.File(
-                        "logs/master_.log",
+                        serverLogPath,
                         outputTemplate: LogTemplate(true),
-                        rollingInterval: RollingInterval.Day,
+                        rollingInterval: RollingInterval.Infinite,
                         restrictedToMinimumLevel: minLevelFile)
-                    .WriteTo.Map(
-                        "System",
-                        "General",
-                        (system, wt) => wt.File(
-                            $"logs/systems/{system}_.log",
-                            outputTemplate: LogTemplate(false),
-                            rollingInterval: RollingInterval.Day,
-                            restrictedToMinimumLevel: minLevelFile));
+                    .WriteTo.File(
+                        new CompactJsonFormatter(),
+                        serverJsonPath,
+                        rollingInterval: RollingInterval.Infinite,
+                        restrictedToMinimumLevel: minLevelFile);
             }
 
             const string SystemLevelPrefix = "serilog:system-level:";

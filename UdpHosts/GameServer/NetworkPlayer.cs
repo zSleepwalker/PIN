@@ -2,6 +2,7 @@ using System;
 using System.Net;
 using System.Numerics;
 using System.Threading;
+using System.Threading.Tasks;
 using AeroMessages.GSS.V66;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Controller;
@@ -132,6 +133,10 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         CharacterEntity.ApplyLoadout(loadout);
 
+        // Loadout bootstrap can overwrite chassis visuals; restore authoritative battleframe visuals
+        // from DB so in-world appearance matches character/garage screens at login.
+        CharacterEntity.ReapplyRemoteBattleframeVisuals(remoteData.BattleframeVisuals);
+
         CharacterEntity.SetControllingPlayer(this);
         CharacterEntity.SetCharacterState(CharacterStateData.CharacterStatus.Spawning, AssignedShard.CurrentTime);
         Status = IPlayer.PlayerStatus.LoggedIn;
@@ -236,7 +241,6 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         // InventoryUpdate
         Inventory.SendFullInventory();
-        Inventory.SendCertificateUnlocksUpdate();
         Inventory.SendBattleframeProgressionUpdate();
         Inventory.EnablePartialUpdates = true;
 
@@ -247,8 +251,16 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
     {
         Status = IPlayer.PlayerStatus.Playing;
 
-        // Re-send cert unlocks after the client reaches ready state to avoid any init-order race.
-        Inventory.SendCertificateUnlocksUpdate();
+        // Defer the initial unlock update slightly so Lua unlock caches are initialized.
+        _ = Task.Run(async () =>
+        {
+            await Task.Delay(2000);
+            if (Status == IPlayer.PlayerStatus.Playing && NetClientStatus == ClientStatus.Connected)
+            {
+                Inventory.SendCertificateUnlocksUpdate();
+            }
+        });
+
         Inventory.SendBattleframeProgressionUpdate();
     }
 

@@ -4,6 +4,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using AeroMessages.GSS.V66.Character;
+using global::GameServer.Enums.Visuals;
 using Records.dbcharacter;
 using Records.dbitems;
 using Records.vcs;
@@ -133,7 +134,10 @@ public class SDBUtils
             }
 
             // Add palette
-            palettes.Add(new() { PaletteId = data.Id, PaletteType = (byte)data.TypeFlags });
+            if (TryMapWarpaintTypeFlagsToPaletteType(data.TypeFlags, out var paletteType))
+            {
+                palettes.Add(new() { PaletteId = data.Id, PaletteType = paletteType });
+            }
 
             // Calc colors
             var paletteColors = new uint[7]
@@ -194,6 +198,36 @@ public class SDBUtils
             Colors = colors,
             Palettes = palettes.ToArray(),
         };
+    }
+
+    public static bool TryMapWarpaintTypeFlagsToPaletteType(uint typeFlags, out byte paletteType)
+    {
+        if ((typeFlags & (uint)Math.Pow(2, 4)) != 0)
+        {
+            paletteType = (byte)PaletteType.FullBody;
+            return true;
+        }
+
+        if ((typeFlags & (uint)Math.Pow(2, 0)) != 0)
+        {
+            paletteType = (byte)PaletteType.Armor;
+            return true;
+        }
+
+        if ((typeFlags & (uint)Math.Pow(2, 1)) != 0)
+        {
+            paletteType = (byte)PaletteType.BodySuit;
+            return true;
+        }
+
+        if ((typeFlags & (uint)Math.Pow(2, 3)) != 0)
+        {
+            paletteType = (byte)PaletteType.Glow;
+            return true;
+        }
+
+        paletteType = 0;
+        return false;
     }
 
     public static VehicleInfoResult GetDetailedVehicleInfo(ushort vehicleId)

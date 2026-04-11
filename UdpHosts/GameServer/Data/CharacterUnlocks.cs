@@ -472,6 +472,19 @@ public class CharacterUnlocks
             });
         }
 
+        // These palettes are currently exposed as free visual options by the garage trade endpoint.
+        // Advertising them as unlocked prevents a zero-cost item from being treated as a pending purchase.
+        var warpaintIds = SDBInterface.GetWarpaintPaletteIds();
+        if (warpaintIds.Length > 0)
+        {
+            groups.Add(new UnlockGroup
+            {
+                Key = "warpaints",
+                AddEntries = BuildGlobalEntries(warpaintIds),
+                RemEntries = Array.Empty<UnlockGroupEntrySmall>(),
+            });
+        }
+
         foreach (var kvp in _manualUnlocksByType)
         {
             var ids = kvp.Value.OrderBy(v => v).ToArray();

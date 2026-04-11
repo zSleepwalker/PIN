@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using AeroMessages.Common;
 using AeroMessages.GSS.V66;
 using AeroMessages.GSS.V66.Character;
@@ -157,9 +158,15 @@ public class CharacterLoadout
     public uint ChassisChangeTime { get; set; } = 0;
 
     public ChassisWarpaintResult ChassisWarpaint { get; set; }
+    public LoadoutConfig_Visual[] LoadoutVisuals { get; private set; } = Array.Empty<LoadoutConfig_Visual>();
 
     public VisualsBlock GetChassisVisuals()
     {
+        if (LoadoutVisuals.Length > 0)
+        {
+            return BuildChassisVisualsFromLoadoutVisuals(LoadoutVisuals, ChassisWarpaint);
+        }
+
         return new VisualsBlock
         {
             Decals = Array.Empty<VisualsDecalsBlock>(),
@@ -172,6 +179,18 @@ public class CharacterLoadout
             MorphWeights = Array.Empty<HalfFloat>(),
             Overlays = Array.Empty<VisualsOverlayBlock>()
         };
+    }
+
+    public static VisualsBlock BuildChassisVisuals(uint chassisId, LoadoutConfig_Visual[] visuals)
+    {
+        var baseWarpaint = SDBUtils.GetChassisWarpaint(chassisId, 0, 0, 0, 0);
+        return BuildChassisVisualsFromLoadoutVisuals(visuals ?? Array.Empty<LoadoutConfig_Visual>(), baseWarpaint);
+    }
+
+    public void SetLoadoutVisuals(LoadoutConfig_Visual[] visuals)
+    {
+        LoadoutVisuals = visuals?.ToArray() ?? Array.Empty<LoadoutConfig_Visual>();
+        ChassisWarpaint = BuildChassisWarpaintFromLoadoutVisuals(LoadoutVisuals, ChassisWarpaint);
     }
 
     public uint GetAbilityModuleIdBySlotIndex(byte slotIndex)
@@ -334,6 +353,7 @@ public class CharacterLoadout
         ChassisID = refData.ChassisId;
         BackpackID = 0;
         ChassisWarpaint = SDBUtils.GetChassisWarpaint(ChassisID, 0, 0, 0, 0);
+        SetLoadoutVisuals(refData.Visuals);
 
         // Assume PvE
         foreach (var (slot, type) in refData.SlottedItemsPvE)
@@ -360,6 +380,203 @@ public class CharacterLoadout
         }
 
         CalculateItemAttributes();
+    }
+
+    private static VisualsBlock BuildChassisVisualsFromLoadoutVisuals(LoadoutConfig_Visual[] visuals, ChassisWarpaintResult baseWarpaint)
+    {
+        var warpaint = BuildChassisWarpaintFromLoadoutVisuals(visuals, baseWarpaint);
+
+        var patterns = visuals
+            .Where(visual => visual.VisualType == LoadoutConfig_Visual.LoadoutVisualType.Pattern && visual.ItemSdbId > 0)
+            .Select((visual, index) => new VisualsPatternBlock
+            {
+                PatternId = visual.ItemSdbId,
+                TransformValues = BuildPatternTransform(visual.Transform),
+                Usage = GetPatternUsage(visual, index),
+            })
+            .ToArray();
+
+        var decals = visuals
+            .Where(visual => visual.VisualType == LoadoutConfig_Visual.LoadoutVisualType.Decal && visual.ItemSdbId > 0)
+            .Select(visual => new VisualsDecalsBlock
+            {
+                DecalId = visual.ItemSdbId,
+                Color = visual.Data2,
+                Transform = BuildDecalTransforms(visual.Transform),
+                Usage = 0,
+            })
+            .ToArray();
+
+        return new VisualsBlock
+        {
+            Decals = decals,
+            Gradients = warpaint.Gradients ?? Array.Empty<uint>(),
+            Colors = warpaint.Colors ?? Array.Empty<uint>(),
+            Palettes = warpaint.Palettes ?? Array.Empty<VisualsPaletteBlock>(),
+            Patterns = patterns,
+            OrnamentGroupIds = Array.Empty<uint>(),
+            CziMapAssetIds = Array.Empty<uint>(),
+            MorphWeights = Array.Empty<HalfFloat>(),
+            Overlays = Array.Empty<VisualsOverlayBlock>(),
+        };
+    }
+
+    private static ChassisWarpaintResult BuildChassisWarpaintFromLoadoutVisuals(LoadoutConfig_Visual[] visuals, ChassisWarpaintResult baseWarpaint)
+    {
+        var fallback = baseWarpaint ?? new ChassisWarpaintResult
+        {
+            Gradients = Array.Empty<uint>(),
+            Colors = CreateDefaultColors(),
+            Palettes = Array.Empty<VisualsPaletteBlock>(),
+        };
+
+        var paletteVisuals = visuals
+            .Where(visual => visual.VisualType == LoadoutConfig_Visual.LoadoutVisualType.Palette && visual.ItemSdbId > 0)
+            .ToArray();
+
+        if (paletteVisuals.Length == 0)
+        {
+            return new ChassisWarpaintResult
+            {
+                Gradients = fallback.Gradients ?? Array.Empty<uint>(),
+                Colors = fallback.Colors ?? CreateDefaultColors(),
+                Palettes = fallback.Palettes ?? Array.Empty<VisualsPaletteBlock>(),
+            };
+        }
+
+        var gradients = new List<uint>();
+        var palettes = new List<VisualsPaletteBlock>();
+        var colors = fallback.Colors?.Length == 7 ? fallback.Colors.ToArray() : CreateDefaultColors();
+
+        foreach (var visual in paletteVisuals)
+        {
+            var palette = SDBInterface.GetWarpaintPalette(visual.ItemSdbId);
+            if (palette == null)
+            {
+                continue;
+            }
+
+            if (SDBUtils.TryMapWarpaintTypeFlagsToPaletteType(palette.TypeFlags, out var paletteType))
+            {
+                palettes.Add(new VisualsPaletteBlock
+                {
+                    PaletteId = palette.Id,
+                    PaletteType = paletteType,
+                });
+            }
+
+            var paletteColors = new uint[7]
+            {
+                FColor.CombineLightDark(palette.Color1Highlight, palette.Color1Shadow),
+                FColor.CombineLightDark(palette.Color2Highlight, palette.Color2Shadow),
+                FColor.CombineLightDark(palette.Color3Highlight, palette.Color3Shadow),
+                FColor.CombineLightDark(palette.Color4Highlight, palette.Color4Shadow),
+                FColor.CombineLightDark(palette.Color5Highlight, palette.Color5Shadow),
+                FColor.CombineLightDark(palette.Color6Highlight, palette.Color6Shadow),
+                FColor.CombineLightDark(palette.Color7Highlight, palette.Color7Shadow),
+            };
+
+            if ((palette.TypeFlags & (uint)Math.Pow(2, 4)) != 0)
+            {
+                colors[0] = paletteColors[0];
+                colors[1] = paletteColors[1];
+                colors[2] = paletteColors[2];
+                colors[3] = paletteColors[3];
+                colors[4] = paletteColors[4];
+                colors[5] = paletteColors[5];
+                colors[6] = paletteColors[6];
+            }
+
+            if ((palette.TypeFlags & (uint)Math.Pow(2, 0)) != 0)
+            {
+                colors[0] = paletteColors[0];
+                colors[1] = paletteColors[1];
+                colors[2] = paletteColors[2];
+            }
+
+            if ((palette.TypeFlags & (uint)Math.Pow(2, 1)) != 0)
+            {
+                colors[3] = paletteColors[3];
+                colors[4] = paletteColors[4];
+            }
+
+            if ((palette.TypeFlags & (uint)Math.Pow(2, 3)) != 0)
+            {
+                colors[5] = paletteColors[5];
+                colors[6] = paletteColors[6];
+            }
+
+            if (palette.TextureGradientId != 0)
+            {
+                gradients.Add(palette.TextureGradientId);
+            }
+        }
+
+        return new ChassisWarpaintResult
+        {
+            Gradients = gradients.Count > 0 ? gradients.ToArray() : fallback.Gradients ?? Array.Empty<uint>(),
+            Colors = colors,
+            Palettes = palettes.Count > 0 ? palettes.ToArray() : fallback.Palettes ?? Array.Empty<VisualsPaletteBlock>(),
+        };
+    }
+
+    private static byte GetPatternUsage(LoadoutConfig_Visual visual, int index)
+    {
+        if (visual.Data1 > 0)
+        {
+            return (byte)Math.Clamp((int)visual.Data1, 0, 3);
+        }
+
+        return (byte)Math.Clamp(index, 0, 3);
+    }
+
+    private static HalfVector4 BuildPatternTransform(float[] rawTransform)
+    {
+        if (rawTransform == null || rawTransform.Length == 0)
+        {
+            return (HalfVector4)Vector4.Zero;
+        }
+
+        return (HalfVector4)new Vector4(
+            rawTransform.Length > 0 ? rawTransform[0] : 0f,
+            rawTransform.Length > 1 ? rawTransform[1] : 0f,
+            rawTransform.Length > 2 ? rawTransform[2] : 0f,
+            rawTransform.Length > 3 ? rawTransform[3] : 0f);
+    }
+
+    private static HalfVector4[] BuildDecalTransforms(float[] rawTransform)
+    {
+        var transforms = new HalfVector4[3];
+        if (rawTransform == null || rawTransform.Length == 0)
+        {
+            return transforms;
+        }
+
+        for (int i = 0; i < transforms.Length; i++)
+        {
+            int baseIndex = i * 4;
+            transforms[i] = (HalfVector4)new Vector4(
+                baseIndex < rawTransform.Length ? rawTransform[baseIndex] : 0f,
+                baseIndex + 1 < rawTransform.Length ? rawTransform[baseIndex + 1] : 0f,
+                baseIndex + 2 < rawTransform.Length ? rawTransform[baseIndex + 2] : 0f,
+                baseIndex + 3 < rawTransform.Length ? rawTransform[baseIndex + 3] : 0f);
+        }
+
+        return transforms;
+    }
+
+    private static uint[] CreateDefaultColors()
+    {
+        return new uint[7]
+        {
+            4278190080,
+            4278190080,
+            4278190080,
+            4278190080,
+            4278190080,
+            4278190080,
+            4278190080,
+        };
     }
 
     private void ApplyItemStats(uint itemTypeId, Dictionary<ushort, float> totalAttributes, Dictionary<ushort, float> totalModuleScalars, Dictionary<ushort, float> totalCharacterScalars)

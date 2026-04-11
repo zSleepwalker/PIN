@@ -668,6 +668,7 @@ public class SDBInterface
 
     // dbvisaulrecords
     public static WarpaintPalette GetWarpaintPalette(uint id) => WarpaintPalettes.GetValueOrDefault(id);
+    public static uint[] GetWarpaintPaletteIds() => WarpaintPalettes?.Keys.Where(id => id > 0).Distinct().ToArray() ?? Array.Empty<uint>();
 
     // dbitems
     public static RootItem GetRootItem(uint id) => RootItem.GetValueOrDefault(id);

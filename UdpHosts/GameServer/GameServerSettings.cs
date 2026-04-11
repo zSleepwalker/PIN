@@ -24,9 +24,9 @@ public class GameServerSettings
     public LogEventLevel? LogLevel { get; set; } = LogEventLevel.Debug;
 
     /// <summary>
-    ///     Comma separated list of log outputs to use: Console, Files, Seq
+    ///     Comma separated list of log outputs to use: Console, File, Seq
     /// </summary>
-    public LogOutput LogOutputs { get; set; } = LogOutput.Console;
+    public LogOutput LogOutputs { get; set; } = LogOutput.Console | LogOutput.File;
 
     public LoggingLevelSwitch LevelSwitch { get; set; } = new();
 

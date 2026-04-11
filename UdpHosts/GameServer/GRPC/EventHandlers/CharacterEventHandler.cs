@@ -52,5 +52,10 @@ public static class CharacterEventHandler
             channel.SendViewScopeOut(character.Character_ObserverView, entityId);
             channel.SendViewKeyframe(character.Character_ObserverView, entityId);
         }
+
+        if (character.Character_EquipmentView != null)
+        {
+            channel.SendViewKeyframe(character.Character_EquipmentView, entityId);
+        }
     }
 }

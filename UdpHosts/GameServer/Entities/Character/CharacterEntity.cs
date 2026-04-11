@@ -523,18 +523,29 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         });
     }
 
+    public void ReapplyRemoteBattleframeVisuals(PlayerBattleframeVisuals battleframeVisuals)
+    {
+        ApplyRemoteBattleframeVisuals(battleframeVisuals);
+    }
+
     private static VisualsBlock BuildChassisVisualsFromRemoteBattleframe(VisualsBlock existing, PlayerBattleframeVisuals battleframeVisuals)
     {
         var colors = battleframeVisuals.Warpaint.Count > 0
             ? battleframeVisuals.Warpaint.ToArray()
             : existing.Colors ?? Array.Empty<uint>();
 
+        var warpaintPalette = battleframeVisuals.WarpaintId > 0
+            ? SDBInterface.GetWarpaintPalette((uint)battleframeVisuals.WarpaintId)
+            : null;
+
         var palettes = battleframeVisuals.WarpaintId > 0
+            && warpaintPalette != null
+            && SDBUtils.TryMapWarpaintTypeFlagsToPaletteType(warpaintPalette.TypeFlags, out var paletteType)
             ? new[]
             {
                 new VisualsPaletteBlock
                 {
-                    PaletteType = 0,
+                    PaletteType = paletteType,
                     PaletteId = (uint)battleframeVisuals.WarpaintId,
                 },
             }

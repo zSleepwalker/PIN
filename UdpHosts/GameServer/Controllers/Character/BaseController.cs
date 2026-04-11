@@ -534,15 +534,89 @@ public class BaseController : Base
     {
         var request = packet.Unpack<SlotVisualMultiRequest>();
 
+        _logger?.Information(
+            "PAINT_DEBUG SlotVisualMultiRequest: player={PlayerId}, loadout={LoadoutId}, config={ConfigId}, visualCount={Count}, visuals={Visuals}",
+            player.EntityId,
+            request.LoadoutId,
+            request.ConfigId,
+            request.Visuals?.Length ?? 0,
+            System.Text.Json.JsonSerializer.Serialize(request.Visuals ?? Array.Empty<AeroMessages.GSS.V66.Character.LoadoutConfig_Visual>()));
+
+        bool unlocksValid = ValidateVisualUnlocks(player, request.Visuals);
+        if (!unlocksValid)
+        {
+            _logger?.Warning(
+                "SlotVisualMultiRequest unlock mismatch for player {PlayerId}, loadout {LoadoutId}, config {ConfigId}. Proceeding with save path.",
+                player.EntityId,
+                request.LoadoutId,
+                request.ConfigId);
+        }
+
+        bool success = player.Inventory.TrySetLoadoutVisuals(request.LoadoutId, request.ConfigId, request.Visuals, out var mergedVisuals);
+        if (!success)
+        {
+            _logger?.Warning(
+                "SlotVisualMultiRequest save failed for player {PlayerId}, loadout {LoadoutId}, config {ConfigId}.",
+                player.EntityId,
+                request.LoadoutId,
+                request.ConfigId);
+        }
+        else
+        {
+            _logger?.Information(
+                "PAINT_DEBUG SlotVisualMultiRequest: save succeeded, mergedCount={Count}, merged={Merged}",
+                mergedVisuals.Length,
+                System.Text.Json.JsonSerializer.Serialize(mergedVisuals));
+        }
+
         var response = new SlotVisualMultiResponse
         {
             LoadoutId = request.LoadoutId,
             ConfigId = request.ConfigId,
             Visuals = request.Visuals,
-            Result = 1,
+            Result = (sbyte)(success ? 1 : 0),
         };
 
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
+
+        if (success && player.CharacterEntity.CurrentLoadout?.LoadoutID == request.LoadoutId)
+        {
+            player.CharacterEntity.CurrentLoadout.SetLoadoutVisuals(mergedVisuals);
+            player.CharacterEntity.ApplyLoadout(player.CharacterEntity.CurrentLoadout);
+            player.CharacterEntity.Shard.EntityMan.FlushChanges(player.CharacterEntity);
+        }
+    }
+
+    private static bool ValidateVisualUnlocks(IPlayer player, LoadoutConfig_Visual[] visuals)
+    {
+        if (visuals == null || visuals.Length == 0)
+        {
+            return true;
+        }
+
+        var unlocks = player.Inventory.Unlocks;
+        foreach (var visual in visuals)
+        {
+            if (visual.ItemSdbId == 0)
+            {
+                continue;
+            }
+
+            var unlockType = visual.VisualType switch
+            {
+                LoadoutConfig_Visual.LoadoutVisualType.Palette => "warpaints",
+                LoadoutConfig_Visual.LoadoutVisualType.Pattern => "czi_patterns",
+                LoadoutConfig_Visual.LoadoutVisualType.Decal => "decals",
+                _ => null,
+            };
+
+            if (unlockType != null && !unlocks.HasUnlock(unlockType, visual.ItemSdbId))
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     [MessageID((byte)Commands.SlotModuleRequest)]

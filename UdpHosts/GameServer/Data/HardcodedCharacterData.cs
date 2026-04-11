@@ -956,6 +956,7 @@ public class LoadoutReferenceData
 {
     public int LoadoutId;
     public uint ChassisId;
+    public LoadoutConfig_Visual[] Visuals = Array.Empty<LoadoutConfig_Visual>();
     public Dictionary<LoadoutSlotType, uint> SlottedItemsPvE = new Dictionary<LoadoutSlotType, uint>();
     public Dictionary<LoadoutSlotType, uint> SlottedItemsPvP = new Dictionary<LoadoutSlotType, uint>();
 }
