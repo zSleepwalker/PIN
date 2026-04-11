@@ -1,6 +1,8 @@
 using System;
 using System.Net;
 using System.Numerics;
+using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using AeroMessages.GSS.V66;
@@ -90,6 +92,22 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
             return;
         }
 
+        Log.Information(
+            "PAINT_DEBUG LoginBootstrap RemoteBattleframeVisuals: char={CharGuid}, currentBattleframeSdbId={ChassisSdbId}, visuals={Visuals}",
+            characterId,
+            remoteData.CharacterInfo.CurrentBattleframeSDBId,
+            SerializeBattleframeVisuals(remoteData.BattleframeVisuals));
+
+        foreach (var remoteLoadout in remoteInventory.Loadouts.OrderBy(loadout => loadout.LoadoutId))
+        {
+            Log.Information(
+                "PAINT_DEBUG LoginBootstrap RemoteLoadoutVisuals: char={CharGuid}, loadout={LoadoutId}, chassis={ChassisSdbId}, visualsJson={VisualsJson}",
+                characterId,
+                remoteLoadout.LoadoutId,
+                remoteLoadout.ChassisSdbId,
+                string.IsNullOrWhiteSpace(remoteLoadout.Visuals) ? "[]" : remoteLoadout.Visuals);
+        }
+
         // Load inventory so we get loadouts
         Inventory = new CharacterInventory(AssignedShard, this, CharacterEntity);
         Inventory.LoadDatabaseInventory(remoteInventory);
@@ -113,6 +131,13 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         }
 
         var loadoutRefData = Inventory.GetLoadoutReferenceData(loadoutId);
+        Log.Information(
+            "PAINT_DEBUG LoginBootstrap ResolvedLoadoutVisuals: char={CharGuid}, selectedLoadout={LoadoutId}, selectedChassis={ChassisSdbId}, visuals={Visuals}",
+            characterId,
+            loadoutId,
+            loadoutRefData?.ChassisId ?? 0,
+            SerializeLoadoutVisuals(loadoutRefData?.Visuals));
+
         var loadout = new CharacterLoadout(loadoutRefData);
 
         // If DB loadout slots are missing utility entries, fall back to DB character visuals
@@ -156,6 +181,41 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         Logger.Verbose("Zone {0} Outpost {1}", zoneId, outpostId);
 
         EnterZone(zone, outpostId);
+    }
+
+    private static string SerializeBattleframeVisuals(PlayerBattleframeVisuals visuals)
+    {
+        if (visuals == null)
+        {
+            return "null";
+        }
+
+        var payload = new
+        {
+            visuals.WarpaintId,
+            visuals.Warpaint,
+            visuals.WarpaintPatterns,
+            visuals.Decals,
+            visuals.Decalgradients,
+            visuals.VisualOverrides,
+        };
+
+        return JsonSerializer.Serialize(payload);
+    }
+
+    private static string SerializeLoadoutVisuals(LoadoutConfig_Visual[] visuals)
+    {
+        var payload = (visuals ?? Array.Empty<LoadoutConfig_Visual>())
+            .Select(visual => new
+            {
+                visual.ItemSdbId,
+                visual.VisualType,
+                visual.Data1,
+                visual.Data2,
+                visual.Transform,
+            });
+
+        return JsonSerializer.Serialize(payload);
     }
 
     public void EnterZoneAck()

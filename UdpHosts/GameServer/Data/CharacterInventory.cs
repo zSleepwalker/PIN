@@ -15,6 +15,11 @@ namespace GameServer.Data;
 
 public class CharacterInventory
 {
+    private static readonly System.Text.Json.JsonSerializerOptions LoadoutVisualJsonOptions = new()
+    {
+        IncludeFields = true,
+    };
+
     private sealed class FrameProgressionState
     {
         public uint ChassisId { get; init; }
@@ -191,7 +196,7 @@ public class CharacterInventory
             {
                 try
                 {
-                    var visuals = System.Text.Json.JsonSerializer.Deserialize<LoadoutConfig_Visual[]>(loadoutData.Visuals);
+                    var visuals = System.Text.Json.JsonSerializer.Deserialize<LoadoutConfig_Visual[]>(loadoutData.Visuals, LoadoutVisualJsonOptions);
                     if (visuals != null)
                     {
                         loadout.LoadoutConfigs[0].Visuals = visuals;
@@ -959,6 +964,7 @@ public class CharacterInventory
     private static LoadoutConfig_Visual[] MergeVisualChanges(LoadoutConfig_Visual[] existingVisuals, LoadoutConfig_Visual[] requestedVisuals)
     {
         var merged = (existingVisuals ?? Array.Empty<LoadoutConfig_Visual>())
+            .Where(v => !IsEmptyPlaceholderVisual(v))
             .Select(CloneVisual)
             .ToList();
 
@@ -966,6 +972,22 @@ public class CharacterInventory
         {
             var normalized = NormalizeRequestedVisual(requestVisual);
             var existingIndex = merged.FindIndex(v => v.VisualType == normalized.VisualType && v.Data1 == normalized.Data1);
+
+            // ItemSdbId=0 for a concrete visual slot is an explicit clear request.
+            if (IsClearVisualRequest(normalized))
+            {
+                if (existingIndex >= 0)
+                {
+                    merged.RemoveAt(existingIndex);
+                }
+
+                continue;
+            }
+
+            if (IsEmptyPlaceholderVisual(normalized))
+            {
+                continue;
+            }
 
             if (existingIndex >= 0)
             {
@@ -977,7 +999,9 @@ public class CharacterInventory
             }
         }
 
-        return merged.ToArray();
+        return merged
+            .Where(v => !IsEmptyPlaceholderVisual(v))
+            .ToArray();
     }
 
     private static string SerializeVisualsForPersistence(IEnumerable<LoadoutConfig_Visual> visuals)
@@ -1018,6 +1042,29 @@ public class CharacterInventory
             Data2 = visual.Data2,
             Transform = visual.Transform?.ToArray() ?? Array.Empty<float>(),
         };
+    }
+
+    private static bool IsEmptyPlaceholderVisual(LoadoutConfig_Visual visual)
+    {
+        return visual.ItemSdbId == 0
+               && (byte)visual.VisualType == 0
+               && visual.Data1 == 0
+               && visual.Data2 == 0
+               && (visual.Transform == null || visual.Transform.Length == 0);
+    }
+
+    private static bool IsClearVisualRequest(LoadoutConfig_Visual visual)
+    {
+        if (visual.ItemSdbId != 0)
+        {
+            return false;
+        }
+
+        return visual.VisualType is LoadoutConfig_Visual.LoadoutVisualType.Palette
+            or LoadoutConfig_Visual.LoadoutVisualType.Pattern
+            or LoadoutConfig_Visual.LoadoutVisualType.Decal
+            or LoadoutConfig_Visual.LoadoutVisualType.Glider
+            or LoadoutConfig_Visual.LoadoutVisualType.Vehicle;
     }
 
     private byte GetInventoryTypeByItemTypeId(uint sdbId)
@@ -1449,7 +1496,7 @@ public class CharacterInventory
 
         var slottedItemsDict = loadout.LoadoutConfigs[0].Items.ToDictionary(x => x.SlotIndex, x => x.ItemGUID);
         var slottedItemsJson = System.Text.Json.JsonSerializer.Serialize(slottedItemsDict);
-        var visualsJson = System.Text.Json.JsonSerializer.Serialize(loadout.LoadoutConfigs[0].Visuals ?? Array.Empty<LoadoutConfig_Visual>());
+        var visualsJson = System.Text.Json.JsonSerializer.Serialize(loadout.LoadoutConfigs[0].Visuals ?? Array.Empty<LoadoutConfig_Visual>(), LoadoutVisualJsonOptions);
         ulong charGuid = ((NetworkPlayer)_player).CharacterId + 0xFE;
 
         _ = Task.Run(async () =>

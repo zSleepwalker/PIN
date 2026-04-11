@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Numerics;
 using AeroMessages.Common;
 using AeroMessages.GSS.V66;
@@ -540,7 +541,7 @@ public class BaseController : Base
             request.LoadoutId,
             request.ConfigId,
             request.Visuals?.Length ?? 0,
-            System.Text.Json.JsonSerializer.Serialize(request.Visuals ?? Array.Empty<AeroMessages.GSS.V66.Character.LoadoutConfig_Visual>()));
+            SerializeVisualsForLog(request.Visuals));
 
         bool unlocksValid = ValidateVisualUnlocks(player, request.Visuals);
         if (!unlocksValid)
@@ -566,7 +567,7 @@ public class BaseController : Base
             _logger?.Information(
                 "PAINT_DEBUG SlotVisualMultiRequest: save succeeded, mergedCount={Count}, merged={Merged}",
                 mergedVisuals.Length,
-                System.Text.Json.JsonSerializer.Serialize(mergedVisuals));
+                SerializeVisualsForLog(mergedVisuals));
         }
 
         var response = new SlotVisualMultiResponse
@@ -617,6 +618,21 @@ public class BaseController : Base
         }
 
         return true;
+    }
+
+    private static string SerializeVisualsForLog(IEnumerable<LoadoutConfig_Visual> visuals)
+    {
+        var payload = (visuals ?? Array.Empty<LoadoutConfig_Visual>())
+            .Select(v => new
+            {
+                v.ItemSdbId,
+                v.VisualType,
+                v.Data1,
+                v.Data2,
+                v.Transform,
+            });
+
+        return System.Text.Json.JsonSerializer.Serialize(payload);
     }
 
     [MessageID((byte)Commands.SlotModuleRequest)]

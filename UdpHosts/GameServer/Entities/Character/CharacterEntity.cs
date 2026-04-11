@@ -530,13 +530,61 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     private static VisualsBlock BuildChassisVisualsFromRemoteBattleframe(VisualsBlock existing, PlayerBattleframeVisuals battleframeVisuals)
     {
-        var colors = battleframeVisuals.Warpaint.Count > 0
-            ? battleframeVisuals.Warpaint.ToArray()
-            : existing.Colors ?? Array.Empty<uint>();
+        var colors = existing.Colors?.Length == 7
+            ? existing.Colors.ToArray()
+            : new uint[7];
 
         var warpaintPalette = battleframeVisuals.WarpaintId > 0
             ? SDBInterface.GetWarpaintPalette((uint)battleframeVisuals.WarpaintId)
             : null;
+
+        if (warpaintPalette != null)
+        {
+            var paletteColors = new uint[7]
+            {
+                FColor.CombineLightDark(warpaintPalette.Color1Highlight, warpaintPalette.Color1Shadow),
+                FColor.CombineLightDark(warpaintPalette.Color2Highlight, warpaintPalette.Color2Shadow),
+                FColor.CombineLightDark(warpaintPalette.Color3Highlight, warpaintPalette.Color3Shadow),
+                FColor.CombineLightDark(warpaintPalette.Color4Highlight, warpaintPalette.Color4Shadow),
+                FColor.CombineLightDark(warpaintPalette.Color5Highlight, warpaintPalette.Color5Shadow),
+                FColor.CombineLightDark(warpaintPalette.Color6Highlight, warpaintPalette.Color6Shadow),
+                FColor.CombineLightDark(warpaintPalette.Color7Highlight, warpaintPalette.Color7Shadow),
+            };
+
+            if ((warpaintPalette.TypeFlags & (uint)Math.Pow(2, 4)) != 0)
+            {
+                colors[0] = paletteColors[0];
+                colors[1] = paletteColors[1];
+                colors[2] = paletteColors[2];
+                colors[3] = paletteColors[3];
+                colors[4] = paletteColors[4];
+                colors[5] = paletteColors[5];
+                colors[6] = paletteColors[6];
+            }
+
+            if ((warpaintPalette.TypeFlags & (uint)Math.Pow(2, 0)) != 0)
+            {
+                colors[0] = paletteColors[0];
+                colors[1] = paletteColors[1];
+                colors[2] = paletteColors[2];
+            }
+
+            if ((warpaintPalette.TypeFlags & (uint)Math.Pow(2, 1)) != 0)
+            {
+                colors[3] = paletteColors[3];
+                colors[4] = paletteColors[4];
+            }
+
+            if ((warpaintPalette.TypeFlags & (uint)Math.Pow(2, 3)) != 0)
+            {
+                colors[5] = paletteColors[5];
+                colors[6] = paletteColors[6];
+            }
+        }
+        else if (battleframeVisuals.Warpaint.Count == 7)
+        {
+            colors = battleframeVisuals.Warpaint.ToArray();
+        }
 
         var palettes = battleframeVisuals.WarpaintId > 0
             && warpaintPalette != null
@@ -576,6 +624,16 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             .Where(gradient => gradient > 0)
             .Select(gradient => (uint)gradient)
             .ToArray();
+
+        if (gradients.Length == 0 && warpaintPalette?.TextureGradientId > 0)
+        {
+            gradients = [warpaintPalette.TextureGradientId];
+        }
+
+        if (gradients.Length == 0)
+        {
+            gradients = existing.Gradients ?? Array.Empty<uint>();
+        }
 
         return new VisualsBlock
         {
