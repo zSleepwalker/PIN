@@ -16,7 +16,7 @@ https://user-images.githubusercontent.com/920861/134824107-03e9f99c-b420-47c7-b7
 4. Download the [latest PIN release](https://github.com/themeldingwars/PIN/releases/latest)
 5. Make a backup copy of the original `FirefallClient.exe` in `Firefall\system\bin`
 6. Replace the `FirefallClient.exe` with the patched `FirefallClient.exe` from the PIN release
-7. Make sure the [.NET 8 Runtime](https://dotnet.microsoft.com/download/dotnet/8.0) is installed
+7. Make sure the [.NET 10 Runtime](https://dotnet.microsoft.com/download/dotnet/10.0) is installed
 8. Trust self-signed development certificates by running `dotnet dev-certs https --trust`
 9. Start all three applications:
    - GameServer
