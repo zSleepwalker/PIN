@@ -39,21 +39,21 @@ public class CharacterUnlocks
         _autoFrameCertificates.Clear();
         _autoBlueprints.Clear();
 
-        _shard?.Logger?.Warning("[REBUILD-DEBUG] RebuildAutoUnlocks: Starting rebuild");
+        _shard?.Logger?.Debug("RebuildAutoUnlocks: starting rebuild");
 
         foreach (var loadout in loadouts)
         {
             if (loadout.ChassisID == 0)
             {
-                _shard?.Logger?.Debug("[REBUILD-DEBUG] Skipping loadout with chassis ID 0");
+                _shard?.Logger?.Debug("RebuildAutoUnlocks: skipping loadout with chassis ID 0");
                 continue;
             }
 
-            _shard?.Logger?.Warning("[REBUILD-DEBUG] Adding certs for frame {frameId}", loadout.ChassisID);
+            _shard?.Logger?.Debug("RebuildAutoUnlocks: adding certs for frame {frameId}", loadout.ChassisID);
             AddAutoCertificatesForFrame(loadout.ChassisID);
         }
 
-        _shard?.Logger?.Warning("[REBUILD-DEBUG] After frame certs: {frameCertCount} frame-scoped certs added", _autoFrameCertificates.Count);
+        _shard?.Logger?.Debug("RebuildAutoUnlocks: after frame certs {frameCertCount} frame-scoped certs added", _autoFrameCertificates.Count);
 
         foreach (uint itemSdbId in ownedItemSdbIds.Distinct())
         {
@@ -551,17 +551,17 @@ public class CharacterUnlocks
     {
         if (!FrameCertsByChassis.TryGetValue(chassisId, out var certs))
         {
-            _shard?.Logger?.Warning("[REBUILD-DEBUG] NO FRAME CERTS FOUND for chassis {frameId}!", chassisId);
+            _shard?.Logger?.Debug("AddAutoCertificatesForFrame: no frame certs found for chassis {frameId}", chassisId);
             return;
         }
 
-        _shard?.Logger?.Warning("[REBUILD-DEBUG] AddAutoCertificatesForFrame: chassis {frameId} grants {certCount} certs: {certs}",
+        _shard?.Logger?.Debug("AddAutoCertificatesForFrame: chassis {frameId} grants {certCount} certs: {certs}",
             chassisId, certs.Length, string.Join(", ", certs));
 
         foreach (uint certId in certs)
         {
             _autoFrameCertificates.Add((certId, chassisId));
-            _shard?.Logger?.Debug("[REBUILD-DEBUG] Added frame cert: ({certId}, {frameId})", certId, chassisId);
+            _shard?.Logger?.Debug("AddAutoCertificatesForFrame: added frame cert ({certId}, {frameId})", certId, chassisId);
         }
     }
 

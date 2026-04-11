@@ -1,7 +1,7 @@
 using System;
+using System.Linq;
 using System.Net;
 using System.Numerics;
-using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
@@ -92,16 +92,16 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
             return;
         }
 
-        Log.Information(
-            "PAINT_DEBUG LoginBootstrap RemoteBattleframeVisuals: char={CharGuid}, currentBattleframeSdbId={ChassisSdbId}, visuals={Visuals}",
+        Log.Debug(
+            "LoginBootstrap remote battleframe visuals: char={CharGuid}, currentBattleframeSdbId={ChassisSdbId}, visuals={Visuals}",
             characterId,
             remoteData.CharacterInfo.CurrentBattleframeSDBId,
             SerializeBattleframeVisuals(remoteData.BattleframeVisuals));
 
         foreach (var remoteLoadout in remoteInventory.Loadouts.OrderBy(loadout => loadout.LoadoutId))
         {
-            Log.Information(
-                "PAINT_DEBUG LoginBootstrap RemoteLoadoutVisuals: char={CharGuid}, loadout={LoadoutId}, chassis={ChassisSdbId}, visualsJson={VisualsJson}",
+            Log.Debug(
+                "LoginBootstrap remote loadout visuals: char={CharGuid}, loadout={LoadoutId}, chassis={ChassisSdbId}, visualsJson={VisualsJson}",
                 characterId,
                 remoteLoadout.LoadoutId,
                 remoteLoadout.ChassisSdbId,
@@ -131,8 +131,8 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         }
 
         var loadoutRefData = Inventory.GetLoadoutReferenceData(loadoutId);
-        Log.Information(
-            "PAINT_DEBUG LoginBootstrap ResolvedLoadoutVisuals: char={CharGuid}, selectedLoadout={LoadoutId}, selectedChassis={ChassisSdbId}, visuals={Visuals}",
+        Log.Debug(
+            "LoginBootstrap resolved loadout visuals: char={CharGuid}, selectedLoadout={LoadoutId}, selectedChassis={ChassisSdbId}, visuals={Visuals}",
             characterId,
             loadoutId,
             loadoutRefData?.ChassisId ?? 0,
@@ -195,6 +195,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
             visuals.WarpaintId,
             visuals.Warpaint,
             visuals.WarpaintPatterns,
+            visuals.WarpaintPatternData,
             visuals.Decals,
             visuals.Decalgradients,
             visuals.VisualOverrides,

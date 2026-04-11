@@ -599,14 +599,24 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             }
             : Array.Empty<VisualsPaletteBlock>();
 
-        var patterns = battleframeVisuals.WarpaintPatterns
-            .Where(patternId => patternId > 0)
-            .Select((patternId, index) => new VisualsPatternBlock
-            {
-                PatternId = (uint)patternId,
-                TransformValues = (HalfVector4)Vector4.Zero,
-                Usage = (byte)Math.Clamp(index, 0, 3),
-            })
+        var patternData = battleframeVisuals.WarpaintPatternData;
+        var patterns = (patternData != null && patternData.Count > 0
+                ? patternData
+                    .Where(pattern => pattern != null && pattern.SdbId > 0)
+                    .Select(pattern => new VisualsPatternBlock
+                    {
+                        PatternId = (uint)pattern.SdbId,
+                        TransformValues = BuildPatternTransform(pattern.Transform),
+                        Usage = (byte)Math.Clamp(pattern.Usage, 0, 3),
+                    })
+                : battleframeVisuals.WarpaintPatterns
+                    .Where(patternId => patternId > 0)
+                    .Select((patternId, index) => new VisualsPatternBlock
+                    {
+                        PatternId = (uint)patternId,
+                        TransformValues = (HalfVector4)Vector4.Zero,
+                        Usage = (byte)Math.Clamp(index, 0, 3),
+                    }))
             .ToArray();
 
         var decals = battleframeVisuals.Decals
@@ -671,6 +681,20 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         return transforms;
+    }
+
+    private static HalfVector4 BuildPatternTransform(global::Google.Protobuf.Collections.RepeatedField<float> rawTransform)
+    {
+        if (rawTransform == null || rawTransform.Count == 0)
+        {
+            return (HalfVector4)Vector4.Zero;
+        }
+
+        return (HalfVector4)new Vector4(
+            rawTransform.Count > 0 ? rawTransform[0] : 0f,
+            rawTransform.Count > 1 ? rawTransform[1] : 0f,
+            rawTransform.Count > 2 ? rawTransform[2] : 0f,
+            rawTransform.Count > 3 ? rawTransform[3] : 0f);
     }
 
     private static VisualOverridesData[] BuildVisualOverridesFromRemoteBattleframe(PlayerBattleframeVisuals battleframeVisuals)

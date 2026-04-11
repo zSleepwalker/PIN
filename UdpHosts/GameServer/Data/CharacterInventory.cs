@@ -920,22 +920,22 @@ public class CharacterInventory
         mergedVisuals = Array.Empty<LoadoutConfig_Visual>();
 
         ulong charGuid = ((NetworkPlayer)_player).CharacterId + 0xFE;
-        Serilog.Log.Information(
-            "PAINT_DEBUG TrySetLoadoutVisuals START: char={CharGuid}, loadout={LoadoutId}, config={ConfigId}, incomingCount={Count}, incoming={Visuals}",
+        Serilog.Log.Debug(
+            "TrySetLoadoutVisuals start: char={CharGuid}, loadout={LoadoutId}, config={ConfigId}, incomingCount={Count}, incoming={Visuals}",
             charGuid, loadoutId, configId,
             visuals?.Length ?? 0,
             SerializeVisualsForPersistence(visuals ?? Array.Empty<LoadoutConfig_Visual>()));
 
         if (!_loadouts.TryGetValue(loadoutId, out var loadout))
         {
-            Serilog.Log.Warning("PAINT_DEBUG TrySetLoadoutVisuals: loadout {LoadoutId} not found for char={CharGuid}", loadoutId, charGuid);
+            Serilog.Log.Debug("TrySetLoadoutVisuals: loadout {LoadoutId} not found for char={CharGuid}", loadoutId, charGuid);
             return false;
         }
 
         NormalizeLoadoutForSerialization(ref loadout);
         if (loadout.LoadoutConfigs == null || loadout.LoadoutConfigs.Length == 0)
         {
-            Serilog.Log.Warning("PAINT_DEBUG TrySetLoadoutVisuals: no LoadoutConfigs for char={CharGuid}, loadout={LoadoutId}", charGuid, loadoutId);
+            Serilog.Log.Debug("TrySetLoadoutVisuals: no LoadoutConfigs for char={CharGuid}, loadout={LoadoutId}", charGuid, loadoutId);
             return false;
         }
 
@@ -950,8 +950,8 @@ public class CharacterInventory
         var slottedItemsJson = System.Text.Json.JsonSerializer.Serialize(slottedItemsDict);
         var visualsJson = SerializeVisualsForPersistence(mergedVisuals);
 
-        Serilog.Log.Information(
-            "PAINT_DEBUG TrySetLoadoutVisuals AFTER MERGE: char={CharGuid}, loadout={LoadoutId}, mergedCount={Count}, merged={Merged}, visualsJson={VisualsJson}",
+        Serilog.Log.Debug(
+            "TrySetLoadoutVisuals after merge: char={CharGuid}, loadout={LoadoutId}, mergedCount={Count}, merged={Merged}, visualsJson={VisualsJson}",
             charGuid, loadoutId,
             mergedVisuals.Length,
             SerializeVisualsForPersistence(mergedVisuals),

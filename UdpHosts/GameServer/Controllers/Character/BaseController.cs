@@ -535,8 +535,8 @@ public class BaseController : Base
     {
         var request = packet.Unpack<SlotVisualMultiRequest>();
 
-        _logger?.Information(
-            "PAINT_DEBUG SlotVisualMultiRequest: player={PlayerId}, loadout={LoadoutId}, config={ConfigId}, visualCount={Count}, visuals={Visuals}",
+        _logger?.Debug(
+            "SlotVisualMultiRequest: player={PlayerId}, loadout={LoadoutId}, config={ConfigId}, visualCount={Count}, visuals={Visuals}",
             player.EntityId,
             request.LoadoutId,
             request.ConfigId,
@@ -564,8 +564,8 @@ public class BaseController : Base
         }
         else
         {
-            _logger?.Information(
-                "PAINT_DEBUG SlotVisualMultiRequest: save succeeded, mergedCount={Count}, merged={Merged}",
+            _logger?.Debug(
+                "SlotVisualMultiRequest: save succeeded, mergedCount={Count}, merged={Merged}",
                 mergedVisuals.Length,
                 SerializeVisualsForLog(mergedVisuals));
         }
