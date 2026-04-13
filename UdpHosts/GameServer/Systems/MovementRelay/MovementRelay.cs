@@ -33,6 +33,28 @@ public class MovementRelay
         var movementStateValue = posRotState.MovementState;
         character.MovementStateContainer.MovementStateValue = (ushort)movementStateValue;
 
+        if (character.HasRegisteredMovementEffects())
+        {
+            Serilog.Log.Information(
+                "[MovementRelay] Entity {Entity}, shortTime={ShortTime}, rawState=0x{PreviousMovementState:X4}->0x{CurrentMovementState:X4}, movestate={PreviousMovestate}->{CurrentMovestate}, airborne={PreviousAirborne}->{CurrentAirborne}, groundAirTimer={GroundAirTimer}, velocity={Velocity}, movement={MovementDebug}",
+                character,
+                input.ShortTime,
+                previousMovementStateValue,
+                character.MovementStateContainer.MovementStateValue,
+                previousMovestate,
+                character.MovementStateContainer.Movestate,
+                previousAirborne,
+                character.IsAirborne,
+                poseData.GroundTimePositiveAirTimeNegative,
+                poseData.Velocity,
+                character.DescribeMovementTransitionDebugState());
+        }
+
+        if (previousMovestate != character.MovementStateContainer.Movestate)
+        {
+            character.SyncMovementEffectStatusEffects($"movement state changed 0x{previousMovementStateValue:X4} ({previousMovestate}) -> 0x{character.MovementStateContainer.MovementStateValue:X4} ({character.MovementStateContainer.Movestate})");
+        }
+
         if (previousMovementStateValue != character.MovementStateContainer.MovementStateValue && character.IsRecoveryTraceActive())
         {
             character.TraceRecoveryState($"movement state changed 0x{previousMovementStateValue:X4} ({previousMovestate}) -> 0x{character.MovementStateContainer.MovementStateValue:X4} ({character.MovementStateContainer.Movestate})");

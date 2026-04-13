@@ -16,9 +16,18 @@ public class ImpactToggleEffectCommand : Command, ICommand
     {
         Context effectContext = new Context(context.Shard, context.Initiator)
         {
+            ChainId = context.ChainId,
+            AbilityId = context.AbilityId,
+            Success = context.Success,
             ExecutionId = context.ExecutionId,
             InitTime = context.InitTime,
+            InitPosition = context.InitPosition,
+            ItemId = context.ItemId,
+            ActivationAcknowledged = context.ActivationAcknowledged,
         };
+
+        effectContext.FormerRegister = context.FormerRegister;
+        effectContext.FormerTargets = context.FormerTargets;
 
         if (Params.PassRegister == 1)
         {

@@ -17,9 +17,15 @@ public class ImpactApplyEffectCommand : Command, ICommand
     {
         Context effectContext = new Context(context.Shard, context.Initiator)
         {
+            ChainId = context.ChainId,
+            AbilityId = context.AbilityId,
+            Success = context.Success,
             ExecutionId = context.ExecutionId,
             InitTime = context.InitTime,
-            ExecutionHint = ExecutionHint.ApplyEffect
+            InitPosition = context.InitPosition,
+            ExecutionHint = ExecutionHint.ApplyEffect,
+            ItemId = context.ItemId,
+            ActivationAcknowledged = context.ActivationAcknowledged,
         };
 
         if (Params.InheritInitPos == 1)
@@ -45,10 +51,14 @@ public class ImpactApplyEffectCommand : Command, ICommand
             effectContext.Register = context.Register;
         }
 
+        effectContext.FormerRegister = context.FormerRegister;
+
         if (Params.PassBonus == 1)
         {
             effectContext.Bonus = context.Bonus;
         }
+
+        effectContext.FormerTargets = context.FormerTargets;
 
         if (Params.OverrideInitiator == 1)
         {

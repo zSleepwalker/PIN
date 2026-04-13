@@ -119,7 +119,31 @@ public class Factory
             // case CommandType.ImpactAura:
             //     Zero instances in BaseCommandDef
             case CommandType.ImpactRemoveEffect:
-                return new ImpactRemoveEffectCommand(CustomDBInterface.GetImpactRemoveEffectCommandDef(commandId));
+                {
+                    var sdbDef = SDBInterface.GetImpactRemoveEffectCommandDef(commandId);
+                    if (sdbDef != null)
+                    {
+                        var normalizedDef = new Data.SDB.Records.customdata.ImpactRemoveEffectCommandDef
+                        {
+                            Id = sdbDef.Id,
+                            EffectId = sdbDef.EffectId,
+                            RemoveFromSelf = sdbDef.RemoveFromSelf != 0,
+                        };
+
+                        return new ImpactRemoveEffectCommand(normalizedDef);
+                    }
+
+                    var customDef = CustomDBInterface.GetImpactRemoveEffectCommandDef(commandId);
+                    if (customDef != null)
+                    {
+                        Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in SDB apt::ImpactRemoveEffectCommandDef, falling back to CustomData JSON.", commandId);
+                        return new ImpactRemoveEffectCommand(customDef);
+                    }
+
+                    Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in both SDB and CustomData, using no-op placeholder.", commandId);
+                    return new CustomNOOPCommand("ImpactRemoveEffect (missing def)", commandId);
+                }
+
             case CommandType.TimedActivation:
                 return new TimedActivationCommand(SDBInterface.GetTimedActivationCommandDef(commandId));
             case CommandType.TargetByEffect:

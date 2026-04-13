@@ -32,6 +32,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     private const uint RecoveryTraceFollowupEffectId = 1375;
     private const uint RecoveryTraceWindowMs = 2000;
     private MapMarkerState[] MapMarkers = new MapMarkerState[MaxMapMarkerCount];
+    private readonly List<RegisterMovementEffectCommandActiveContext> RegisteredMovementEffects = new();
+    private readonly HashSet<uint> AppliedMovementEffectStatusIds = new();
 
     public CharacterEntity(IShard shard, ulong eid, CharacterEntity owner = null)
         : base(shard, eid, owner)
@@ -1404,6 +1406,25 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
     }
 
+    public bool HasRegisteredMovementEffects()
+    {
+        return RegisteredMovementEffects.Count > 0;
+    }
+
+    public string DescribeMovementTransitionDebugState()
+    {
+        return string.Join(", ",
+            $"rawState=0x{MovementStateContainer.MovementStateValue:X4}",
+            $"movestate={MovementStateContainer.Movestate}",
+            $"airborne={IsAirborne}",
+            $"forcedMoveEnd={ForcedMovementEndTime}",
+            $"perm.glider={CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.glider)}",
+            $"perm.gliderHud={CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.glider_hud)}",
+            $"perm.jetpack={CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.jetpack)}",
+            $"registered={FormatRegisteredMovementEffects()}",
+            $"applied={FormatStatusEffectIds(AppliedMovementEffectStatusIds)}");
+    }
+
     public void SetAuthorizedTerminal(AuthorizedTerminalData value)
     {
         AuthorizedTerminal = value;
@@ -1458,6 +1479,77 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         TraceRecoveryEffect("clear", index, time, debugEffectId);
     }
 
+    public void RegisterMovementEffect(RegisterMovementEffectCommandActiveContext registration)
+    {
+        RegisteredMovementEffects.RemoveAll(existing => ReferenceEquals(existing, registration));
+        RegisteredMovementEffects.Add(registration);
+        SyncMovementEffectStatusEffects($"register command={registration.CommandId} statusfx={registration.StatusEffectId} movestate={registration.Movestate}");
+    }
+
+    public void UnregisterMovementEffect(RegisterMovementEffectCommandActiveContext registration)
+    {
+        RegisteredMovementEffects.RemoveAll(existing => ReferenceEquals(existing, registration));
+        SyncMovementEffectStatusEffects($"unregister command={registration.CommandId} statusfx={registration.StatusEffectId} movestate={registration.Movestate}");
+    }
+
+    public void SyncMovementEffectStatusEffects(string reason = null)
+    {
+        var currentMovestate = MovementStateContainer.Movestate;
+        var desiredStatusIds = RegisteredMovementEffects
+            .Where(registration => registration.Movestate == currentMovestate)
+            .Select(registration => registration.StatusEffectId)
+            .Distinct()
+            .ToHashSet();
+
+        Serilog.Log.Information(
+            "[MovementEffectSync] Entity {Entity}, reason={Reason}, currentMovestate={CurrentMovestate}, registered={Registered}, desired={Desired}, applied={Applied}",
+            this,
+            reason ?? "unspecified",
+            currentMovestate,
+            FormatRegisteredMovementEffects(),
+            FormatStatusEffectIds(desiredStatusIds),
+            FormatStatusEffectIds(AppliedMovementEffectStatusIds));
+
+        foreach (var effectId in AppliedMovementEffectStatusIds.ToList())
+        {
+            if (!desiredStatusIds.Contains(effectId))
+            {
+                Serilog.Log.Information("[MovementEffectSync] Entity {Entity} removing statusfx {StatusEffectId} because movestate {CurrentMovestate} no longer requires it", this, effectId, currentMovestate);
+                Shard.Abilities.DoRemoveEffect(this, effectId);
+                AppliedMovementEffectStatusIds.Remove(effectId);
+            }
+        }
+
+        foreach (var effectId in desiredStatusIds)
+        {
+            if (HasActiveEffect(effectId))
+            {
+                Serilog.Log.Information("[MovementEffectSync] Entity {Entity} keeping statusfx {StatusEffectId} active for movestate {CurrentMovestate}", this, effectId, currentMovestate);
+                continue;
+            }
+
+            var registration = RegisteredMovementEffects.FirstOrDefault(active => active.Movestate == currentMovestate && active.StatusEffectId == effectId);
+            if (registration == null)
+            {
+                Serilog.Log.Warning("[MovementEffectSync] Entity {Entity} missing registration context for desired statusfx {StatusEffectId} at movestate {CurrentMovestate}", this, effectId, currentMovestate);
+                continue;
+            }
+
+            Serilog.Log.Information("[MovementEffectSync] Entity {Entity} applying statusfx {StatusEffectId} for movestate {CurrentMovestate} via command {CommandId}", this, effectId, currentMovestate, registration.CommandId);
+            Shard.Abilities.DoApplyEffect(effectId, this, registration.TemplateContext);
+            AppliedMovementEffectStatusIds.Add(effectId);
+        }
+
+        foreach (var effectId in AppliedMovementEffectStatusIds.ToList())
+        {
+            if (!HasActiveEffect(effectId))
+            {
+                Serilog.Log.Information("[MovementEffectSync] Entity {Entity} observed statusfx {StatusEffectId} is no longer active after sync", this, effectId);
+                AppliedMovementEffectStatusIds.Remove(effectId);
+            }
+        }
+    }
+
     public bool IsRecoveryTraceActive()
     {
         return Shard.CurrentTime <= RecoveryTraceEndTime;
@@ -1496,6 +1588,28 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         ExtendRecoveryTraceWindow(effectId == RecoveryTracePrimaryEffectId ? 12000u : RecoveryTraceWindowMs);
         TraceRecoveryState($"{action} status effect {effectId} at index {index}, shortTime {time}");
+    }
+
+    private bool HasActiveEffect(uint effectId)
+    {
+        return GetActiveEffects().Any(activeEffect => activeEffect?.Effect?.Id == effectId);
+    }
+
+    private string FormatRegisteredMovementEffects()
+    {
+        if (RegisteredMovementEffects.Count == 0)
+        {
+            return "none";
+        }
+
+        return string.Join(", ",
+            RegisteredMovementEffects.Select(registration => $"cmd={registration.CommandId}:statusfx={registration.StatusEffectId}@{registration.Movestate}"));
+    }
+
+    private static string FormatStatusEffectIds(IEnumerable<uint> effectIds)
+    {
+        var ids = effectIds.Distinct().OrderBy(id => id).ToArray();
+        return ids.Length == 0 ? "none" : string.Join(",", ids);
     }
 
     public void SetAttachedTo(AttachedToData newValue, IEntity entity)

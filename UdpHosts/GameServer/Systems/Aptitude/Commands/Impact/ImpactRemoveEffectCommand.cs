@@ -32,9 +32,22 @@ public class ImpactRemoveEffectCommand : Command, ICommand
         }
         else
         {
-            var activefx = context.Self.GetActiveEffects();
-            string effectIds = string.Join(", ", activefx.Where(ae => ae?.Effect != null).Select(ae => ae.Effect.Id));
-            Logger.Warning("Active Effects (Self): {Message}", effectIds);
+            var selfEffectIds = string.Join(", ", context.Self.GetActiveEffects().Where(activeEffect => activeEffect?.Effect != null).Select(activeEffect => activeEffect.Effect.Id));
+            Logger.Warning("Active Effects (Self): {Message}", selfEffectIds);
+
+            if (context.Targets.Count == 0)
+            {
+                Logger.Warning("Active Effects (Targets): none (target count is 0)");
+            }
+            else
+            {
+                foreach (var target in context.Targets)
+                {
+                    var targetEffectIds = string.Join(", ", target.GetActiveEffects().Where(activeEffect => activeEffect?.Effect != null).Select(activeEffect => activeEffect.Effect.Id));
+                    Logger.Warning("Active Effects (Target {Target}): {Message}", target, targetEffectIds);
+                }
+            }
+
             Logger.Warning("Don't know which effect to remove for {Command} {CommandId}", nameof(ImpactRemoveEffectCommand), Params.Id);
         }
 

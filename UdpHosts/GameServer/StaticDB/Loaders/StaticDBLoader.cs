@@ -191,6 +191,13 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => group.First());
     }
 
+    public Dictionary<uint, GliderParameters> LoadGliderParameters()
+    {
+        return LoadStaticDB<GliderParameters>("dbcharacter::GliderParameters")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
     public Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo()
     {
         return LoadStaticDB<MapMarkerInfo>("dbencounterdata::MapMarkerInfo")
@@ -303,6 +310,12 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, ImpactApplyEffectCommandDef> LoadImpactApplyEffectCommandDef()
     {
         return LoadStaticDB<ImpactApplyEffectCommandDef>("apt::ImpactApplyEffectCommandDef")
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, ImpactRemoveEffectCommandDef> LoadImpactRemoveEffectCommandDef()
+    {
+        return LoadStaticDB<ImpactRemoveEffectCommandDef>("apt::ImpactRemoveEffectCommandDef")
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
@@ -1531,7 +1544,17 @@ public class StaticDBLoader : ISDBLoader
     {
         HashSet<string> warningsSet = new HashSet<string>();
 
-        Table table = sdb.GetTableByName(tableName);
+        Table table;
+        try
+        {
+            table = sdb.GetTableByName(tableName);
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
+            return Array.Empty<T>();
+        }
+
         if (table == null)
         {
             Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");

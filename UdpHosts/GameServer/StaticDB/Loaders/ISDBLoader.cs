@@ -21,6 +21,7 @@ public interface ISDBLoader
     Dictionary<uint, Faction> LoadFaction();
     Dictionary<uint, Monster> LoadMonster();
     Dictionary<uint, Turret> LoadTurret();
+    Dictionary<uint, GliderParameters> LoadGliderParameters();
 
     // dbencounterdata
     Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo();
@@ -55,6 +56,7 @@ public interface ISDBLoader
     Dictionary<uint, AbilityData> LoadAbilityData();
     Dictionary<uint, ActiveInitiationCommandDef> LoadActiveInitiationTypeCommandDef();
     Dictionary<uint, ImpactApplyEffectCommandDef> LoadImpactApplyEffectCommandDef();
+    Dictionary<uint, ImpactRemoveEffectCommandDef> LoadImpactRemoveEffectCommandDef();
     Dictionary<uint, ConditionalBranchCommandDef> LoadConditionalBranchCommandDef();
     Dictionary<uint, WhileLoopCommandDef> LoadWhileLoopCommandDef();
     Dictionary<uint, LogicNegateCommandDef> LoadLogicNegateCommandDef();

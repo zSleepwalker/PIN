@@ -318,7 +318,7 @@ public class CustomDBLoader
 
     public Dictionary<uint, TargetByNPCTypeCommandDef> LoadTargetByNPCTypeCommandDef()
     {
-        return LoadJSON<TargetByNPCTypeCommandDef>("./StaticDB/CustomData/Todo/aptgss_agsTargetByNPCTypeCommandDef.json")
+        return LoadJSON<TargetByNPCTypeCommandDef>("./StaticDB/CustomData/aptgss_agsTargetByNPCTypeCommandDef.json")
             .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
@@ -408,7 +408,7 @@ public class CustomDBLoader
 
     public Dictionary<uint, ConsumeItemCommandDef> LoadConsumeItemCommandDef()
     {
-        return LoadJSON<ConsumeItemCommandDef>("./StaticDB/CustomData/Todo/aptgss_ConsumeItemCommandDef.json")
+        return LoadJSON<ConsumeItemCommandDef>("./StaticDB/CustomData/aptgss_ConsumeItemCommandDef.json")
             .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
@@ -780,7 +780,7 @@ public class CustomDBLoader
 
     public Dictionary<uint, TargetOwnedDeployablesCommandDef> LoadTargetOwnedDeployablesCommandDef()
     {
-        return LoadJSON<TargetOwnedDeployablesCommandDef>("./StaticDB/CustomData/Todo/aptgss_TargetOwnedDeployablesCommandDef.json")
+        return LoadJSON<TargetOwnedDeployablesCommandDef>("./StaticDB/CustomData/aptgss_TargetOwnedDeployablesCommandDef.json")
             .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 

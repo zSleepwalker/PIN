@@ -10037,14 +10037,20 @@
 	},
 	{
 		"id": 1146943,
+		"effect_id": 3418,
+		"remove_from_self": true,
 		"comment": "Triggered by Ability 38053 - Chosen Glider Wings\u0000 "
 	},
 	{
 		"id": 1146944,
+		"effect_id": 3758,
+		"remove_from_self": true,
 		"comment": "Triggered by Ability 38053 - Chosen Glider Wings\u0000 "
 	},
 	{
 		"id": 1146945,
+		"effect_id": 11686,
+		"remove_from_self": true,
 		"comment": "Triggered by Ability 38053 - Chosen Glider Wings\u0000 "
 	},
 	{
@@ -13541,14 +13547,20 @@
 	},
 	{
 		"id": 1508700,
+		"effect_id": 8097,
+		"remove_from_self": true,
 		"comment": "Triggered by Effect 3419  "
 	},
 	{
 		"id": 1509151,
+		"effect_id": 2458,
+		"remove_from_self": true,
 		"comment": "Triggered by Effect 8097  "
 	},
 	{
 		"id": 1509152,
+		"effect_id": 3418,
+		"remove_from_self": true,
 		"comment": "Triggered by Effect 8097  "
 	},
 	{

@@ -14,46 +14,20 @@ public class RequireHasEffectCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        // Logger.Debug("EffectID: {EffectId}", Params.EffectId);
         bool result = false;
 
-        // TODO: Handle Params.SameInitiator
-        // NOTE: Investigate target handling
         if (context.Targets.Count > 0)
         {
             uint matchCounter = 0;
             foreach (IAptitudeTarget target in context.Targets)
             {
-                bool targetResult = false;
-                foreach (EffectState active in target.GetActiveEffects())
-                {
-                    if (active == null)
-                    {
-                        continue;
-                    }
-
-                    if (active.Effect.Id == Params.EffectId && active.Stacks >= Params.StackCount)
-                    {
-                        targetResult = true;
-
-                        if (Params.SameInitiator == 1 && context.Initiator != active.Context.Initiator)
-                        {
-                            targetResult = false;
-                        }
-
-                        break;
-                    }
-                }
-
-                if (!targetResult)
+                if (!TargetHasMatchingEffect(target, context))
                 {
                     result = false;
                     break;
                 }
-                else
-                {
-                    matchCounter++;
-                }
+
+                matchCounter++;
             }
 
             if (matchCounter == context.Targets.Count)
@@ -61,32 +35,10 @@ public class RequireHasEffectCommand : Command, ICommand
                 result = true;
             }
         }
-
-        /*
         else
         {
-            var target = context.Self;
-            foreach (EffectState active in target.GetActiveEffects())
-            {
-                if (active == null)
-                {
-                    continue;
-                }
-
-                if (active.Effect.Id == Params.EffectId && active.Stacks >= Params.StackCount)
-                {
-                    result = true;
-
-                    if (Params.SameInitiator == 1 && context.Initiator != active.Context.Initiator)
-                    {
-                        result = false;
-                    }
-
-                    break;
-                }
-            }
+            result = TargetHasMatchingEffect(context.Self, context);
         }
-        */
 
         if (Params.Negate == 1)
         {
@@ -94,5 +46,30 @@ public class RequireHasEffectCommand : Command, ICommand
         }
 
         return result;
+    }
+
+    private bool TargetHasMatchingEffect(IAptitudeTarget target, Context context)
+    {
+        foreach (EffectState active in target.GetActiveEffects())
+        {
+            if (active?.Effect == null)
+            {
+                continue;
+            }
+
+            if (active.Effect.Id != Params.EffectId || active.Stacks < Params.StackCount)
+            {
+                continue;
+            }
+
+            if (Params.SameInitiator == 1 && context.Initiator != active.Context.Initiator)
+            {
+                continue;
+            }
+
+            return true;
+        }
+
+        return false;
     }
 }

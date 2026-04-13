@@ -23,6 +23,7 @@ public class SDBInterface
     private static Dictionary<uint, Faction> Faction;
     private static Dictionary<uint, Monster> Monster;
     private static Dictionary<uint, Turret> Turret;
+    private static Dictionary<uint, GliderParameters> GliderParameters;
 
     // dbencounterdata
     private static Dictionary<uint, MapMarkerInfo> MapMarkerInfo;
@@ -72,6 +73,7 @@ public class SDBInterface
     };
     private static Dictionary<uint, AbilityData> AbilityData;
     private static Dictionary<uint, ImpactApplyEffectCommandDef> ImpactApplyEffectCommandDef;
+    private static Dictionary<uint, ImpactRemoveEffectCommandDef> ImpactRemoveEffectCommandDef;
     private static Dictionary<uint, ImpactToggleEffectCommandDef> ImpactToggleEffectCommandDef;
     private static Dictionary<uint, ConditionalBranchCommandDef> ConditionalBranchCommandDef;
     private static Dictionary<uint, WhileLoopCommandDef> WhileLoopCommandDef;
@@ -275,6 +277,7 @@ public class SDBInterface
         Faction = loader.LoadFaction();
         Monster = loader.LoadMonster();
         Turret = loader.LoadTurret();
+        GliderParameters = loader.LoadGliderParameters();
 
         // dbencounterdata
         MapMarkerInfo = loader.LoadMapMarkerInfo();
@@ -354,6 +357,7 @@ public class SDBInterface
         CommandType = loader.LoadCommandType();
         AbilityData = loader.LoadAbilityData();
         ImpactApplyEffectCommandDef = loader.LoadImpactApplyEffectCommandDef();
+        ImpactRemoveEffectCommandDef = loader.LoadImpactRemoveEffectCommandDef();
         ImpactToggleEffectCommandDef = loader.LoadImpactToggleEffectCommandDef();
         WhileLoopCommandDef = loader.LoadWhileLoopCommandDef();
         LogicNegateCommandDef = loader.LoadLogicNegateCommandDef();
@@ -661,6 +665,7 @@ public class SDBInterface
     public static Faction GetFaction(uint id) => Faction.GetValueOrDefault(id);
     public static Monster GetMonster(uint id) => Monster.GetValueOrDefault(id);
     public static Turret GetTurret(uint id) => Turret.GetValueOrDefault(id);
+    public static GliderParameters GetGliderParameters(uint id) => GliderParameters.GetValueOrDefault(id);
 
     // dbencounterdata
     public static MapMarkerInfo GetMapMarkerInfo(uint id) => MapMarkerInfo.GetValueOrDefault(id);
@@ -699,6 +704,7 @@ public class SDBInterface
     public static bool StatusEffectHasTag(uint effectId, uint tagId) =>
         StatusEffectTag.TryGetValue(effectId, out var tags) && tags.Contains(tagId);
     public static ImpactApplyEffectCommandDef GetImpactApplyEffectCommandDef(uint id) => ImpactApplyEffectCommandDef.GetValueOrDefault(id);
+    public static ImpactRemoveEffectCommandDef GetImpactRemoveEffectCommandDef(uint id) => ImpactRemoveEffectCommandDef.GetValueOrDefault(id);
     public static ImpactToggleEffectCommandDef GetImpactToggleEffectCommandDef(uint id) => ImpactToggleEffectCommandDef.GetValueOrDefault(id);
     public static ConditionalBranchCommandDef GetConditionalBranchCommandDef(uint id) => ConditionalBranchCommandDef.GetValueOrDefault(id);
     public static WhileLoopCommandDef GetWhileLoopCommandDef(uint id) => WhileLoopCommandDef.GetValueOrDefault(id);
