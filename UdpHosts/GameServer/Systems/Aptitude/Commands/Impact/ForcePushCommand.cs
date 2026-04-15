@@ -84,7 +84,13 @@ public class ForcePushCommand : Command, ICommand
             return ClientStartLeadMs;
         }
 
-        return stagingDurationMs + ClientStartLeadMs;
+        var pushDurationMs = ResolveDurationMs(context);
+        if (pushDurationMs == 0 || pushDurationMs >= stagingDurationMs)
+        {
+            return ClientStartLeadMs;
+        }
+
+        return (stagingDurationMs - pushDurationMs) + ClientStartLeadMs;
     }
 
     public bool Execute(Context context)
