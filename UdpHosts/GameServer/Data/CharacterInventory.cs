@@ -806,6 +806,7 @@ public class CharacterInventory
     public void EquipItemByGUID(int loadoutId, LoadoutSlotType slot, ulong guid)
     {
         slot = NormalizeRequestedSlotForItem(slot, guid);
+        bool isAppliedLoadout = ShouldProjectLoadoutToCharacter(loadoutId);
 
         ulong changedOldItemGUID = 0;
         ulong changedNewItemGUID = guid;
@@ -822,8 +823,10 @@ public class CharacterInventory
             oldItem.DynamicFlags = (byte)(oldItem.DynamicFlags ^ (byte)ItemDynamicFlags.IsEquipped);
             _items[oldItemGUID] = oldItem;
 
-            // Update CurrentLoadout
-            _character.CurrentLoadout.SlottedItems[slot] = 0;
+            if (isAppliedLoadout && _character.CurrentLoadout != null)
+            {
+                _character.CurrentLoadout.SlottedItems[slot] = 0;
+            }
 
             // Update LoadoutConfigs
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items
@@ -856,8 +859,10 @@ public class CharacterInventory
             item.DynamicFlags = (byte)(item.DynamicFlags | (byte)ItemDynamicFlags.IsEquipped);
             _items[guid] = item;
 
-            // Update CurrentLoadout
-            _character.CurrentLoadout.SlottedItems[slot] = item.SdbId;
+            if (isAppliedLoadout && _character.CurrentLoadout != null)
+            {
+                _character.CurrentLoadout.SlottedItems[slot] = item.SdbId;
+            }
 
             // Update LoadoutConfig
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items.Append(new LoadoutConfig_Item() { ItemGUID = guid, SlotIndex = (byte)slot }).ToArray();
@@ -865,14 +870,17 @@ public class CharacterInventory
 
         // Update StaticInfo when visuals are changed
         var equippedSdbId = (guid != 0) ? _items[guid].SdbId : 0;
-        switch (slot)
+        if (isAppliedLoadout)
         {
-            case LoadoutSlotType.Glider:
-                _character.SetStaticInfo(_character.StaticInfo with { LoadoutGlider = equippedSdbId });
-                break;
-            case LoadoutSlotType.Vehicle:
-                _character.SetStaticInfo(_character.StaticInfo with { LoadoutVehicle = equippedSdbId });
-                break;
+            switch (slot)
+            {
+                case LoadoutSlotType.Glider:
+                    _character.SetStaticInfo(_character.StaticInfo with { LoadoutGlider = equippedSdbId });
+                    break;
+                case LoadoutSlotType.Vehicle:
+                    _character.SetStaticInfo(_character.StaticInfo with { LoadoutVehicle = equippedSdbId });
+                    break;
+            }
         }
 
         SendEquipmentChanges(changedOldItemGUID, changedNewItemGUID);
@@ -913,6 +921,11 @@ public class CharacterInventory
 
         var equippedGUID = (sdb_id != 0) ? _items.First(e => e.Value.SdbId == sdb_id).Value.GUID : 0;
         EquipItemByGUID(loadoutId, slot, equippedGUID);
+    }
+
+    private bool ShouldProjectLoadoutToCharacter(int loadoutId)
+    {
+        return (_character.CurrentLoadout?.LoadoutID ?? 0) == loadoutId || _character.SelectedLoadout == loadoutId;
     }
 
     public bool TrySetLoadoutVisuals(int loadoutId, uint configId, LoadoutConfig_Visual[] visuals, out LoadoutConfig_Visual[] mergedVisuals)

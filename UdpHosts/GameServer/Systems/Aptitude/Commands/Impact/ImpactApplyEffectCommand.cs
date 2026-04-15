@@ -26,6 +26,7 @@ public class ImpactApplyEffectCommand : Command, ICommand
             ExecutionHint = ExecutionHint.ApplyEffect,
             ItemId = context.ItemId,
             ActivationAcknowledged = context.ActivationAcknowledged,
+            NamedVariables = new(context.NamedVariables),
         };
 
         if (Params.InheritInitPos == 1)

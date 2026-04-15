@@ -24,6 +24,7 @@ public class ImpactToggleEffectCommand : Command, ICommand
             InitPosition = context.InitPosition,
             ItemId = context.ItemId,
             ActivationAcknowledged = context.ActivationAcknowledged,
+            NamedVariables = new(context.NamedVariables),
         };
 
         effectContext.FormerRegister = context.FormerRegister;

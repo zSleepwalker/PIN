@@ -28,6 +28,7 @@ public class Context
     public float Register { get; set; }
     public float FormerRegister { get; set; }
     public int Bonus { get; set; }
+    public Dictionary<string, float> NamedVariables { get; set; } = new Dictionary<string, float>();
     public uint InitTime { get; set; }
     public Vector3 InitPosition { get; set; }
     public uint ExecutionId { get; set; }
@@ -36,6 +37,11 @@ public class Context
     public bool ActivationAcknowledged { get; set; }
 
     public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = new Dictionary<ICommand, ICommandActiveContext>();
+
+    public static string CreateNamedVariableKey(byte varSrcType, ushort nameId, string memberName)
+    {
+        return $"{varSrcType}:{nameId}:{memberName ?? string.Empty}";
+    }
 
     public static Context CopyContext(Context original)
     {
@@ -52,6 +58,7 @@ public class Context
             FormerTargets = original.FormerTargets,
             Register = original.Register,
             Bonus = original.Bonus,
+            NamedVariables = new Dictionary<string, float>(original.NamedVariables),
             InitTime = original.InitTime,
             InitPosition = original.InitPosition,
             ExecutionId = original.ExecutionId,

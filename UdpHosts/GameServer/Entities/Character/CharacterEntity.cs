@@ -1716,14 +1716,29 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public void EquipItemByGUID(int loadoutId, LoadoutSlotType slot, ulong guid)
     {
         Player.Inventory.EquipItemByGUID(loadoutId, slot, guid);
-        ApplyLoadout(CurrentLoadout);
+        RefreshAppliedLoadoutFromInventory(loadoutId);
     }
 
     public void EquipVisualBySdbId(int loadoutId, LoadoutVisualType visualSlot, LoadoutSlotType slot, uint sdb_id)
     {
         Player.Inventory.EquipVisualBySdbId(loadoutId, visualSlot, slot, sdb_id);
-        Player.CharacterEntity.CurrentLoadout.GliderID = sdb_id;
-        ApplyLoadout(CurrentLoadout);
+        RefreshAppliedLoadoutFromInventory(loadoutId);
+    }
+
+    private void RefreshAppliedLoadoutFromInventory(int loadoutId)
+    {
+        if ((CurrentLoadout?.LoadoutID ?? 0) != loadoutId && SelectedLoadout != loadoutId)
+        {
+            return;
+        }
+
+        var refData = Player?.Inventory?.GetLoadoutReferenceData(loadoutId);
+        if (refData == null)
+        {
+            return;
+        }
+
+        ApplyLoadout(new CharacterLoadout(refData));
     }
 
 #nullable enable

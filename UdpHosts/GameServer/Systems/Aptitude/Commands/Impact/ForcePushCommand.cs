@@ -10,8 +10,8 @@ namespace GameServer.Aptitude;
 public class ForcePushCommand : Command, ICommand
 {
     private const uint ClientStartLeadMs = 19;
-    private const uint DirectGliderAbilityId = 38053;
-    private const uint DirectGliderStagingEffectId = 3419;
+    private const uint GliderLaunchForcePushCommandId = 1509142;
+    private const uint GliderStagingEffectId = 3419;
     private ForcePushCommandDef Params;
 
     public ForcePushCommand(ForcePushCommandDef par)
@@ -66,9 +66,9 @@ public class ForcePushCommand : Command, ICommand
         return durationMs > 0 ? (uint)durationMs : 0;
     }
 
-    private static uint ResolveClientStartLeadMs(Context context, CharacterEntity character)
+    private uint ResolveClientStartLeadMs(Context context, CharacterEntity character)
     {
-        if (context.AbilityId != DirectGliderAbilityId || character.IsAirborne)
+        if (Params.Id != GliderLaunchForcePushCommandId || character.IsAirborne)
         {
             return ClientStartLeadMs;
         }
@@ -78,7 +78,7 @@ public class ForcePushCommand : Command, ICommand
             return ClientStartLeadMs;
         }
 
-        var stagingDurationMs = ResolveStatusEffectDurationMs(context, DirectGliderStagingEffectId);
+        var stagingDurationMs = ResolveStatusEffectDurationMs(context, GliderStagingEffectId);
         if (stagingDurationMs == 0)
         {
             return ClientStartLeadMs;
@@ -90,6 +90,9 @@ public class ForcePushCommand : Command, ICommand
             return ClientStartLeadMs;
         }
 
+        // Glider launches share a client-only upward push. If it fully expires before the
+        // 3419 staging effect hands off into the actual glider setup, grounded launches can
+        // stay stuck in Running/Standing and never select the airborne movement effects.
         return (stagingDurationMs - pushDurationMs) + ClientStartLeadMs;
     }
 
