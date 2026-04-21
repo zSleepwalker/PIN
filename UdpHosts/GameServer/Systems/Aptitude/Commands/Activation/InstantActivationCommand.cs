@@ -1,4 +1,5 @@
 using GameServer.Data.SDB.Records.apt;
+using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
@@ -14,27 +15,11 @@ public class InstantActivationCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        /*
-        if (context.Self is CharacterEntity { IsPlayerControlled: true } character)
+        if (context.Self is CharacterEntity character)
         {
-            var player = character.Player;
-            var message = new AbilityActivated
-            {
-                ActivatedAbilityId = context.AbilityId,
-                ActivatedTime = context.InitTime,
-                AbilityCooldownsData = new AbilityCooldownsData
-                {
-                    ActiveCooldowns_Group1 = Array.Empty<ActiveCooldown>(),
-                    ActiveCooldowns_Group2 = Array.Empty<ActiveCooldown>(),
-                    Unk = 0,
-                    GlobalCooldown_Activated_Time = context.InitTime,
-                    GlobalCooldown_ReadyAgain_Time = context.InitTime + Params.GlobalCooldown,
-                }
-            };
-            Logger.Information("ActivateAbility {ActivatedAbilityId} at {ActivatedTime}", message.ActivatedAbilityId, message.ActivatedTime);
-            player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
+            context.PendingActivationCharacter = character;
+            context.PendingActivationAcknowledgement = true;
         }
-        */
 
         return true;
     }

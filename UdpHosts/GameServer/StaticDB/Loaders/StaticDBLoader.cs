@@ -2,10 +2,12 @@ namespace GameServer.Data.SDB;
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using FauFau.Formats;
 using Records.apt;
 using Records.aptfs;
+using Records.apttf;
 using Records.dbcharacter;
 using Records.dbencounterdata;
 using Records.dbitems;
@@ -196,6 +198,13 @@ public class StaticDBLoader : ISDBLoader
         return LoadStaticDB<GliderParameters>("dbcharacter::GliderParameters")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<ushort, EmoteRecord> LoadEmoteRecord()
+    {
+        return LoadStaticDB<EmoteRecord>("dbcharacter::EmoteRecord")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<ushort, EmoteRecord>("dbcharacter::EmoteRecord", group));
     }
 
     public Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo()
@@ -1083,6 +1092,12 @@ public class StaticDBLoader : ISDBLoader
             .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
+    public Dictionary<uint, ActivationDurationCommandDef> LoadActivationDurationCommandDef()
+    {
+        return LoadStaticDB<ActivationDurationCommandDef>("aptfs::ActivationDurationCommandDef")
+            .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
+    }
+
     public Dictionary<uint, UpdateYieldCommandDef> LoadUpdateYieldCommandDef()
     {
         return LoadStaticDB<UpdateYieldCommandDef>("apt::UpdateYieldCommandDef")
@@ -1447,6 +1462,70 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => group.First());
     }
 
+    public Dictionary<uint, tfAbilityAnimationCommandDef> LoadAbilityAnimationCommandDef()
+    {
+        return LoadRawTable("apttf::tfAbilityAnimationCommandDef", row => new tfAbilityAnimationCommandDef
+        {
+            SubStateIndex = ToUInt(row[0]),
+            QueueTimeOffset = ToUInt(row[1]),
+            AbilityAnimIndex = ToUInt(row[2]),
+            BackpackState = ToUInt(row[3]),
+            Id = ToUInt(row[4]),
+            Cancel = ToUInt(row[5]),
+            AllowReloads = ToUInt(row[6]),
+            Outro = ToUInt(row[7]),
+            Combo = ToUInt(row[8]),
+            AllowAiming = ToUInt(row[9]),
+            MovementTime = ToUInt(row[10]),
+            FullBody = ToUInt(row[11]),
+        })
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, tfAbilityAnimationCommandDef>("apttf::tfAbilityAnimationCommandDef", group));
+    }
+
+    public Dictionary<uint, tfPlayAnimationCommandDef> LoadPlayAnimationCommandDef()
+    {
+        return LoadRawTable("apttf::tfPlayAnimationCommandDef", row => new tfPlayAnimationCommandDef
+        {
+            AnimationName = Convert.ToString(row[0], CultureInfo.InvariantCulture) ?? string.Empty,
+            Id = ToUInt(row[1]),
+            Param2 = ToByte(row[2]),
+            Param3 = ToByte(row[3]),
+        })
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, tfPlayAnimationCommandDef>("apttf::tfPlayAnimationCommandDef", group));
+    }
+
+    public Dictionary<uint, tfPerformEmoteCommandDef> LoadPerformEmoteCommandDef()
+    {
+        return LoadRawTable("apttf::tfPerformEmoteCommandDef", row => new tfPerformEmoteCommandDef
+        {
+            EmoteName = Convert.ToString(row[0], CultureInfo.InvariantCulture) ?? string.Empty,
+            Id = ToUInt(row[1]),
+        })
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, tfPerformEmoteCommandDef>("apttf::tfPerformEmoteCommandDef", group));
+    }
+
+    public Dictionary<uint, tfCustomPlayerCameraCommandDef> LoadCustomPlayerCameraCommandDef()
+    {
+        return LoadRawTable("apttf::tfCustomPlayerCameraCommandDef", row => new tfCustomPlayerCameraCommandDef
+        {
+            LookOffset = (FauFau.Util.CommmonDataTypes.Vector3)row[0],
+            RelativeOffset = (FauFau.Util.CommmonDataTypes.Vector3)row[1],
+            FieldOfView = ToFloat(row[2]),
+            LookChangeTime = ToFloat(row[3]),
+            DownAimClampDegrees = Convert.ToInt32(row[4], CultureInfo.InvariantCulture),
+            UpAimClampDegrees = Convert.ToInt32(row[5], CultureInfo.InvariantCulture),
+            PositionChangeTime = ToFloat(row[6]),
+            ExitChangeTime = ToFloat(row[7]),
+            Id = ToUInt(row[8]),
+            UseAimOrientation = ToByte(row[9]),
+        })
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => ResolveDuplicate<uint, tfCustomPlayerCameraCommandDef>("apttf::tfCustomPlayerCameraCommandDef", group));
+    }
+
     public Dictionary<uint, Weapons> LoadWeapons()
     {
         return LoadStaticDB<Weapons>("dbitems::Weapons")
@@ -1503,6 +1582,20 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => group.First());
     }
 
+    public Dictionary<uint, ResourceNodeType> LoadResourceNodeType()
+    {
+        return LoadStaticDB<ResourceNodeType>("dbzonemetadata::ResourceNodeType")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, List<ResourceNodeTypeResource>> LoadResourceNodeTypeResource()
+    {
+        return LoadStaticDB<ResourceNodeTypeResource>("dbzonemetadata::ResourceNodeTypeResource")
+            .GroupBy(row => row.NodeTypeId)
+            .ToDictionary(group => group.Key, group => group.ToList());
+    }
+
     public Dictionary<uint, ResourceNodeBeacon> LoadResourceNodeBeacon()
     {
         return LoadStaticDB<ResourceNodeBeacon>("dbitems::ResourceNodeBeacon")
@@ -1539,25 +1632,68 @@ public class StaticDBLoader : ISDBLoader
         .ToDictionary(group => group.Key, group => group.ToList());
     }
 
+    private static T[] LoadRawTable<T>(string tableName, Func<Row, T> rowMapper)
+        where T : class
+    {
+        var table = TryGetTable(tableName);
+        if (table == null)
+        {
+            return Array.Empty<T>();
+        }
+
+        Serilog.Log.Information($"Loading table {tableName} ({table.Rows.Count} rows)");
+
+        var list = new List<T>(table.Rows.Count);
+        for (int i = 0; i < table.Rows.Count; i++)
+        {
+            list.Add(rowMapper(table.Rows[i]));
+        }
+
+        return list.ToArray();
+    }
+
+    private static Table TryGetTable(string tableName)
+    {
+        try
+        {
+            var table = sdb.GetTableByName(tableName);
+            if (table == null)
+            {
+                Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
+            }
+
+            return table;
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
+            return null;
+        }
+    }
+
+    private static uint ToUInt(object value)
+    {
+        return Convert.ToUInt32(value, CultureInfo.InvariantCulture);
+    }
+
+    private static byte ToByte(object value)
+    {
+        return Convert.ToByte(value, CultureInfo.InvariantCulture);
+    }
+
+    private static float ToFloat(object value)
+    {
+        return Convert.ToSingle(value, CultureInfo.InvariantCulture);
+    }
+
     private static T[] LoadStaticDB<T>(string tableName)
     where T : class, new()
     {
         HashSet<string> warningsSet = new HashSet<string>();
 
-        Table table;
-        try
-        {
-            table = sdb.GetTableByName(tableName);
-        }
-        catch (ArgumentOutOfRangeException)
-        {
-            Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
-            return Array.Empty<T>();
-        }
-
+        Table table = TryGetTable(tableName);
         if (table == null)
         {
-            Serilog.Log.Information($"Warning: Table {tableName} not found in SDB. Skipping load.");
             return Array.Empty<T>();
         }
 

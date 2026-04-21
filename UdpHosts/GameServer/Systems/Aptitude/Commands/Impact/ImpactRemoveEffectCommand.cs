@@ -18,39 +18,67 @@ public class ImpactRemoveEffectCommand : Command, ICommand
         if (Params.EffectId != null)
         {
             uint effectId = (uint)Params.EffectId;
-            if (Params.RemoveFromSelf != null && Params.RemoveFromSelf == true)
+            foreach (var target in ResolveTargets(context, fallbackToSelfWhenNoTargets: false))
             {
-                context.Abilities.DoRemoveEffect(context.Self, effectId);
+                context.Abilities.DoRemoveEffect(target, effectId);
             }
-            else
+
+            return true;
+        }
+
+        if (context.SourceEffect != 0)
+        {
+            foreach (var target in ResolveTargets(context, fallbackToSelfWhenNoTargets: true))
             {
-                foreach (IAptitudeTarget target in context.Targets)
+                var candidates = target.GetActiveEffects()
+                    .Where(activeEffect => activeEffect != null)
+                    .Where(activeEffect => activeEffect.Effect.Id != context.SourceEffect)
+                    .Where(activeEffect => activeEffect.Context.SourceContext == context.SourceEffect
+                        || activeEffect.Context.SourceEffect == context.SourceEffect)
+                    .ToList();
+
+                foreach (var candidate in candidates)
                 {
-                    context.Abilities.DoRemoveEffect(target, effectId);
+                    context.Abilities.DoRemoveEffect(candidate);
                 }
             }
+
+            return true;
+        }
+
+        var selfEffectIds = string.Join(", ", context.Self.GetActiveEffects().Where(activeEffect => activeEffect?.Effect != null).Select(activeEffect => activeEffect.Effect.Id));
+        Logger.Warning("Active Effects (Self): {Message}", selfEffectIds);
+
+        if (context.Targets.Count == 0)
+        {
+            Logger.Warning("Active Effects (Targets): none (target count is 0)");
         }
         else
         {
-            var selfEffectIds = string.Join(", ", context.Self.GetActiveEffects().Where(activeEffect => activeEffect?.Effect != null).Select(activeEffect => activeEffect.Effect.Id));
-            Logger.Warning("Active Effects (Self): {Message}", selfEffectIds);
-
-            if (context.Targets.Count == 0)
+            foreach (var target in context.Targets)
             {
-                Logger.Warning("Active Effects (Targets): none (target count is 0)");
+                var targetEffectIds = string.Join(", ", target.GetActiveEffects().Where(activeEffect => activeEffect?.Effect != null).Select(activeEffect => activeEffect.Effect.Id));
+                Logger.Warning("Active Effects (Target {Target}): {Message}", target, targetEffectIds);
             }
-            else
-            {
-                foreach (var target in context.Targets)
-                {
-                    var targetEffectIds = string.Join(", ", target.GetActiveEffects().Where(activeEffect => activeEffect?.Effect != null).Select(activeEffect => activeEffect.Effect.Id));
-                    Logger.Warning("Active Effects (Target {Target}): {Message}", target, targetEffectIds);
-                }
-            }
-
-            Logger.Warning("Don't know which effect to remove for {Command} {CommandId}", nameof(ImpactRemoveEffectCommand), Params.Id);
         }
 
+        Logger.Warning("Don't know which effect to remove for {Command} {CommandId}", nameof(ImpactRemoveEffectCommand), Params.Id);
+
         return true;
+    }
+
+    private IAptitudeTarget[] ResolveTargets(Context context, bool fallbackToSelfWhenNoTargets)
+    {
+        if (Params.RemoveFromSelf == true)
+        {
+            return new IAptitudeTarget[] { context.Self };
+        }
+
+        if (context.Targets.Count == 0)
+        {
+            return fallbackToSelfWhenNoTargets ? new IAptitudeTarget[] { context.Self } : System.Array.Empty<IAptitudeTarget>();
+        }
+
+        return context.Targets.ToArray();
     }
 }

@@ -116,7 +116,7 @@ public class CharacterLoadout
         // We fill these in if we somehow don't have them to ensure a playable experience (0 run speed = zzz)
         { 5, 75 }, // Jet Energy Recharge
         { 6, 100 }, // Health
-        { 7, 3.75f }, // Health Regen
+        { 7, 0f }, // Max Shields (0 = no shields by default)
         { 12, 10 }, // Run Speed
         { 35, 500 }, // Jet Energy
         { 37, 1.75f }, // Jump Height
@@ -669,6 +669,16 @@ public class CharacterLoadout
                 {
                     attributes[6] *= scalar.Scalar;
                 }
+            }
+
+            // Attribute 7 is Max Shields
+            if (attributes.ContainsKey(7))
+            {
+                attributes[7] += chassis.BaseShields;
+            }
+            else
+            {
+                attributes.Add(7, chassis.BaseShields);
             }
         }
 

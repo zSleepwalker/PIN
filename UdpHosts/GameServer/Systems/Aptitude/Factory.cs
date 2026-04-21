@@ -80,6 +80,30 @@ public class Factory
         {
             switch (commandType)
             {
+                case CommandType.PlayAnimation:
+                    {
+                        var def = SDBInterface.GetPlayAnimationCommandDef(commandId);
+                        return def != null ? new PlayAnimationCommand(def) : new CustomNOOPCommand(commandType.ToString(), commandId);
+                    }
+
+                case CommandType.PerformEmote:
+                    {
+                        var def = SDBInterface.GetPerformEmoteCommandDef(commandId);
+                        return def != null ? new PerformEmoteCommand(def) : new CustomNOOPCommand(commandType.ToString(), commandId);
+                    }
+
+                case CommandType.AbilityAnimation:
+                    {
+                        var def = SDBInterface.GetAbilityAnimationCommandDef(commandId);
+                        return def != null ? new AbilityAnimationCommand(def) : new CustomNOOPCommand(commandType.ToString(), commandId);
+                    }
+
+                case CommandType.CustomPlayerCamera:
+                    {
+                        var def = SDBInterface.GetCustomPlayerCameraCommandDef(commandId);
+                        return def != null ? new CustomPlayerCameraCommand(def) : new CustomNOOPCommand(commandType.ToString(), commandId);
+                    }
+
                 case CommandType.Notification:
                     return new NotificationCommand(commandId);
                 case CommandType.ParticleEffectAsset:
@@ -136,12 +160,23 @@ public class Factory
                     var customDef = CustomDBInterface.GetImpactRemoveEffectCommandDef(commandId);
                     if (customDef != null)
                     {
+                        if (customDef.EffectId == null && customDef.RemoveFromSelf == null)
+                        {
+                            return new ImpactRemoveEffectCommand(new Data.SDB.Records.customdata.ImpactRemoveEffectCommandDef
+                            {
+                                Id = commandId,
+                            });
+                        }
+
                         Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in SDB apt::ImpactRemoveEffectCommandDef, falling back to CustomData JSON.", commandId);
                         return new ImpactRemoveEffectCommand(customDef);
                     }
 
-                    Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in both SDB and CustomData, using no-op placeholder.", commandId);
-                    return new CustomNOOPCommand("ImpactRemoveEffect (missing def)", commandId);
+                    Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in both SDB and CustomData, using SDB placeholder semantics.", commandId);
+                    return new ImpactRemoveEffectCommand(new Data.SDB.Records.customdata.ImpactRemoveEffectCommandDef
+                    {
+                        Id = commandId,
+                    });
                 }
 
             case CommandType.TimedActivation:
@@ -160,6 +195,8 @@ public class Factory
                 return new PassiveInitiationCommand(SDBInterface.GetPassiveInitiationCommandDef(commandId));
             case CommandType.StagedActivation:
                 return new StagedActivationCommand(SDBInterface.GetStagedActivationCommandDef(commandId));
+            case CommandType.ActivationDuration:
+                return new ActivationDurationCommand(SDBInterface.GetActivationDurationCommandDef(commandId));
             // case CommandType.TeleportInstance:
             //     return new TeleportInstanceCommand(CustomDBInterface.GetTeleportInstanceCommandDef(commandId));
             case CommandType.ResetTrauma:
@@ -202,8 +239,8 @@ public class Factory
                 return new LifespanDurationCommand(CustomDBInterface.GetLifespanDurationCommandDef(commandId));
             case CommandType.ForcePush:
                 return new ForcePushCommand(SDBInterface.GetForcePushCommandDef(commandId));
-            // case CommandType.CombatFlags:
-            //     return new CombatFlagsCommand(SDBInterface.GetCombatFlagsCommandDef(commandId));
+            case CommandType.CombatFlags:
+                return new CombatFlagsCommand(SDBInterface.GetCombatFlagsCommandDef(commandId));
             // case CommandType.RequestEffect:
             //     Zero instances in BaseCommandDef
             case CommandType.RequireCState:

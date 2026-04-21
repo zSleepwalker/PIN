@@ -138,30 +138,10 @@ public class CombatController : Base
         {
             var character = player.CharacterEntity;
             var activationTime = query.Time;
-            if (character.IsPlayerControlled)
-            {
-                var message = new AbilityActivated
-                {
-                    ActivatedAbilityId = abilityId,
-                    ActivatedTime = activationTime,
-                    AbilityCooldownsData = new AbilityCooldownsData
-                    {
-                        ActiveCooldowns_Group1 = Array.Empty<ActiveCooldown>(),
-                        ActiveCooldowns_Group2 = Array.Empty<ActiveCooldown>(),
-                        Unk = 0,
-                        GlobalCooldown_Activated_Time = activationTime,
-                        GlobalCooldown_ReadyAgain_Time = activationTime + 300,
-                    }
-                };
-                _logger.ForContext<AbilitySystem>()
-                       .Information("ActivateAbility {ActivatedAbilityId} at {ActivatedTime}", message.ActivatedAbilityId, message.ActivatedTime);
-                character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
-            }
-
             var initiator = character as IAptitudeTarget;
             var shard = player.CharacterEntity.Shard;
             var targets = new AptitudeTargets();
-            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, targets, query.ItemSdbId, activationAcknowledged: character.IsPlayerControlled);
+            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, targets, query.ItemSdbId);
         }
     }
 
@@ -178,99 +158,23 @@ public class CombatController : Base
         // Get the ability id based on the slotted ability
         var abilitySlot = activateAbility.AbilitySlotIndex;
         var character = player.CharacterEntity;
-        uint abilityId = 0;
-
-        // Using the local data until we can get the loadout remotely
-        if (character.CurrentLoadout != null)
-        {
-            var moduleId = character.CurrentLoadout.GetAbilityModuleIdBySlotIndex(abilitySlot);
-            if (moduleId != 0)
-            {
-                var abilityModule = SDBInterface.GetAbilityModule(moduleId);
-                if (abilityModule != null)
-                {
-                    abilityId = abilityModule.AbilityChainId;
-                }
-            }
-        }
-
-        // Defaults if we failed
-        if (abilityId == 0)
-        {
-            // Ability1 - Default button 1
-            if (abilitySlot == 0)
-            {
-            }
-
-            // Ability2 - Default button 2
-            if (abilitySlot == 1)
-            {
-            }
-
-            // Ability3 - Default button 3
-            if (abilitySlot == 2)
-            {
-            }
-
-            // AbilityHKM - Default button 4
-            if (abilitySlot == 3)
-            {
-            }
-
-            // AbilityInteract - Default button E
-            if (abilitySlot == 4)
-            {
-                abilityId = 187; // Interact
-            }
-
-            // Auxiliary - Default button G
-            if (abilitySlot == 5)
-            {
-            }
-
-            // AbilityMedical - Default button Q
-            if (abilitySlot == 6)
-            {
-            }
-
-            // AbilitySIN - Default button F
-            if (abilitySlot == 13)
-            {
-                abilityId = 43; // 40? SIN Targetting
-            }
-
-            // Vehicle - Default button V
-            if (abilitySlot == 16)
-            {
-            }
-
-            // Auxiliary - Default button T
-            if (abilitySlot == 17)
-            {
-            }
-        }
+        uint abilityId = character.ResolveAbilityIdBySlotIndex(abilitySlot);
 
         if (abilityId != 0)
         {
             var activationTime = activateAbility.Time;
-            if (character.IsPlayerControlled)
+
+            if (character.IsAbilityActivationActive(abilityId, activationTime)
+                || character.HasTrackedAbilityToggleEffects(abilityId)
+                || character.HasAbilityScopedEffects(abilityId))
             {
-                var message = new AbilityActivated
+                _logger.Information("ActivateAbility toggling off {AbilityId} from slot {AbilitySlotIndex}", abilityId, abilitySlot);
+                if (!character.EndAbilityActivation(abilityId, activationTime, notifyClient: true, sendFailureFallback: false, suppressCooldownOnManualDeactivation: true))
                 {
-                    ActivatedAbilityId = abilityId,
-                    ActivatedTime = activationTime,
-                    AbilityCooldownsData = new AbilityCooldownsData
-                    {
-                        ActiveCooldowns_Group1 = Array.Empty<ActiveCooldown>(),
-                        ActiveCooldowns_Group2 = Array.Empty<ActiveCooldown>(),
-                        Unk = 0,
-                        GlobalCooldown_Activated_Time = activationTime,
-                        GlobalCooldown_ReadyAgain_Time = activationTime + 300,
-                    }
-                };
-                _logger.ForContext<AbilitySystem>()
-                       .Information("ActivateAbility {ActivatedAbilityId} at {ActivatedTime}", message.ActivatedAbilityId, message.ActivatedTime);
-                character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
+                    SendAbilityCooldowns(character);
+                }
+
+                return;
             }
 
             var initiator = character as IAptitudeTarget;
@@ -290,7 +194,7 @@ public class CombatController : Base
             .Select(entityId => (IAptitudeTarget)shard.Entities[entityId.Backing & 0xffffffffffffff00])
             .ToArray();
 
-            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, new AptitudeTargets(targets), activationAcknowledged: character.IsPlayerControlled);
+            shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, new AptitudeTargets(targets));
         }
     }
 
@@ -306,19 +210,21 @@ public class CombatController : Base
         var character = player.CharacterEntity;
         var deactivationTime = deactivateAbility.Time;
 
-        // Send cooldown acknowledgement back so the client knows the ability deactivated
-        var message = new AbilityCooldowns
+        _logger.Information("DeactivateAbility Slot {AbilitySlotIndex}", deactivateAbility.AbilitySlotIndex);
+
+        if (!character.EndAbilityActivationBySlot(deactivateAbility.AbilitySlotIndex, deactivationTime, notifyClient: true, sendFailureFallback: false, suppressCooldownOnManualDeactivation: true))
         {
-            Data = new AbilityCooldownsData
-            {
-                ActiveCooldowns_Group1 = Array.Empty<ActiveCooldown>(),
-                ActiveCooldowns_Group2 = Array.Empty<ActiveCooldown>(),
-                Unk = 0,
-                GlobalCooldown_Activated_Time = deactivationTime,
-                GlobalCooldown_ReadyAgain_Time = deactivationTime,
-            }
-        };
-        character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
+            SendAbilityCooldowns(character);
+        }
+    }
+
+    private static void SendAbilityCooldowns(CharacterEntity character)
+    {
+        uint currentTime = (uint)character.Shard.CurrentTime;
+        character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(new AbilityCooldowns
+        {
+            Data = character.GetAbilityCooldownsData(currentTime)
+        }, character.EntityId);
     }
 
     [MessageID((byte)Commands.ReportProjectileHit)]
@@ -330,8 +236,34 @@ public class CombatController : Base
             return;
         }
 
-        // TODO: feed into hit-detection / damage pipeline
-        _logger.Verbose("ReportProjectileHit from entity {0:x8} at time {1}", entityId, report.ShortTime);
+        var pendingHit = player.CharacterEntity.Shard.ProjectileSim.ResolveHit(report.TraceRef);
+        if (pendingHit == null || pendingHit.HitEntityId == 0)
+        {
+            _logger.Verbose("ReportProjectileHit TraceRef={TraceRef} — no server-side hit, rejected", report.TraceRef);
+            return;
+        }
+
+        var shard = player.CharacterEntity.Shard;
+        var shooter = player.CharacterEntity;
+        var weaponDetails = shooter.GetActiveWeaponDetails();
+        uint attackAbilityId = weaponDetails?.Weapon?.AttackAbility ?? 0;
+
+        if (attackAbilityId != 0 && shard.Entities.TryGetValue(pendingHit.HitEntityId, out var hitEntity))
+        {
+            var targets = new AptitudeTargets(new[] { (IAptitudeTarget)hitEntity });
+            shard.Abilities.HandleActivateAbility(shard, shooter, attackAbilityId, report.ShortTime, targets);
+        }
+
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(new ProjectileHitReported
+        {
+            TraceRef = report.TraceRef,
+            ShortTime = report.ShortTime,
+            Unk2 = 0,
+            Unk3 = 0,
+        }, entityId);
+
+        _logger.Verbose("ReportProjectileHit TraceRef={TraceRef} hit entity {HitEntityId:x16} ability={AbilityId}",
+            report.TraceRef, pendingHit.HitEntityId, weaponDetails?.Weapon?.AttackAbility ?? 0);
     }
 
     [MessageID((byte)Commands.AcquireWeaponTarget)]

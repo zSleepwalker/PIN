@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using AeroMessages.GSS.V66.Character.Controller;
 using GameServer.Data.SDB.Records.customdata;
 using GameServer.Entities.Character;
@@ -17,27 +18,26 @@ public class ModifyPermissionCommand : Command, ICommand
     public bool Execute(Context context)
     {
         var target = context.Self; // NOTE: Based on glider, it seems like it should use self, maybe that is reasonable for all 'active' style commands?
-        if (target is CharacterEntity)
+        if (target is CharacterEntity character)
         {
-            if (Params.Glider != null)
+            var updates = BuildPermissionUpdates();
+            if (updates.Count == 0)
             {
-                context.Actives.Add(this, null);
+                return true;
             }
 
-            if (Params.GliderHud != null)
+            var previousValues = new Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool>(updates.Count);
+            foreach (var update in updates)
             {
-                context.Actives.Add(this, null);
+                previousValues[update.Key] = character.CurrentPermissions.GetValueOrDefault(update.Key);
             }
 
-            /*if (Params.Hover != null)
+            context.Actives[this] = new ModifyPermissionActiveContext
             {
-                context.Actives.Add(this, null);
-            }*/
-
-            if (Params.Jetpack != null)
-            {
-                context.Actives.Add(this, null);
-            }
+                Character = character,
+                PreviousValues = previousValues,
+                NewValues = updates,
+            };
         }
 
         return true;
@@ -45,55 +45,52 @@ public class ModifyPermissionCommand : Command, ICommand
 
     public void OnApply(Context context, ICommandActiveContext activeCommandContext)
     {
-        var target = context.Self;
-        if (target is CharacterEntity character)
+        if (activeCommandContext is ModifyPermissionActiveContext permissionContext)
         {
-            if (Params.Glider != null)
+            foreach (var update in permissionContext.NewValues)
             {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.glider, (bool)Params.Glider);
-            }
-
-            if (Params.GliderHud != null)
-            {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.glider_hud, (bool)Params.GliderHud);
-            }
-
-            /*if (Params.Hover != null)
-            {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.unk, (bool)Params.Hover);
-            }*/
-
-            if (Params.Jetpack != null)
-            {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.jetpack, (bool)Params.Jetpack);
+                permissionContext.Character.SetPermissionFlag(update.Key, update.Value);
             }
         }
     }
 
     public void OnRemove(Context context, ICommandActiveContext activeCommandContext)
     {
-        var target = context.Self;
-        if (target is CharacterEntity character)
+        if (activeCommandContext is ModifyPermissionActiveContext permissionContext)
         {
-            if (Params.Glider != null)
+            foreach (var previousValue in permissionContext.PreviousValues)
             {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.glider, (bool)!Params.Glider);
-            }
-
-            if (Params.GliderHud != null)
-            {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.glider_hud, (bool)!Params.GliderHud);
-            }
-
-            /*if (Params.Hover != null)
-            {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.unk, (bool)!Params.Hover);
-            }*/
-
-            if (Params.Jetpack != null)
-            {
-                character.SetPermissionFlag(PermissionFlagsData.CharacterPermissionFlags.jetpack, (bool)!Params.Jetpack);
+                permissionContext.Character.SetPermissionFlag(previousValue.Key, previousValue.Value);
             }
         }
     }
+
+    private Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool> BuildPermissionUpdates()
+    {
+        var updates = new Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool>();
+
+        if (Params.Glider != null)
+        {
+            updates[PermissionFlagsData.CharacterPermissionFlags.glider] = (bool)Params.Glider;
+        }
+
+        if (Params.GliderHud != null)
+        {
+            updates[PermissionFlagsData.CharacterPermissionFlags.glider_hud] = (bool)Params.GliderHud;
+        }
+
+        if (Params.Jetpack != null)
+        {
+            updates[PermissionFlagsData.CharacterPermissionFlags.jetpack] = (bool)Params.Jetpack;
+        }
+
+        return updates;
+    }
+}
+
+public sealed class ModifyPermissionActiveContext : ICommandActiveContext
+{
+    public CharacterEntity Character { get; set; }
+    public Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool> PreviousValues { get; set; } = new();
+    public Dictionary<PermissionFlagsData.CharacterPermissionFlags, bool> NewValues { get; set; } = new();
 }

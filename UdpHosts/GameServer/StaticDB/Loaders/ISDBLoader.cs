@@ -49,6 +49,8 @@ public interface ISDBLoader
 
     // dbzonemetadata
     Dictionary<uint, ZoneRecord> LoadZoneRecord();
+    Dictionary<uint, ResourceNodeType> LoadResourceNodeType();
+    Dictionary<uint, List<ResourceNodeTypeResource>> LoadResourceNodeTypeResource();
 
     // apt
     Dictionary<uint, BaseCommandDef> LoadBaseCommandDef();
@@ -98,6 +100,7 @@ public interface ISDBLoader
     Dictionary<uint, TimedActivationCommandDef> LoadTimedActivationCommandDef();
     Dictionary<uint, PassiveInitiationCommandDef> LoadPassiveInitiationCommandDef();
     Dictionary<uint, TargetPreviousCommandDef> LoadTargetPreviousCommandDef();
+    Dictionary<uint, ActivationDurationCommandDef> LoadActivationDurationCommandDef();
     Dictionary<uint, UpdateYieldCommandDef> LoadUpdateYieldCommandDef();
     Dictionary<uint, TargetDifferenceCommandDef> LoadTargetDifferenceCommandDef();
     Dictionary<uint, AimRangeDurationCommandDef> LoadAimRangeDurationCommandDef();

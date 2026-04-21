@@ -98,6 +98,15 @@ public abstract class BaseAptitudeEntity : BaseEntity, IAptitudeTarget
 
     public void ClearEffect(EffectState state)
     {
+        // Decrement stacks; only remove the slot when the last stack is gone.
+        // Each DoApplyEffect call re-runs ApplyChain for stacked effects, so
+        // each DoRemoveEffect call should only undo one stack at a time.
+        if (state.Stacks > 1)
+        {
+            state.Stacks -= 1;
+            return;
+        }
+
         ActiveEffects[state.Index] = null;
 
         if (state.Effect.Data.Hidden == 0)

@@ -1,4 +1,5 @@
 ﻿using GameServer.Data.SDB.Records.apt;
+using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
@@ -25,6 +26,8 @@ public class ImpactToggleEffectCommand : Command, ICommand
             ItemId = context.ItemId,
             ActivationAcknowledged = context.ActivationAcknowledged,
             NamedVariables = new(context.NamedVariables),
+            SourceContext = context.SourceContext,
+            SourceEffect = context.SourceEffect,
         };
 
         effectContext.FormerRegister = context.FormerRegister;
@@ -55,6 +58,12 @@ public class ImpactToggleEffectCommand : Command, ICommand
                     targetHasEffect = true;
                     effectContext.ExecutionHint = ExecutionHint.RemoveEffect;
                     effectContext.Abilities.DoRemoveEffect(active);
+
+                    if (target is CharacterEntity targetCharacter)
+                    {
+                        targetCharacter.UntrackAbilityToggleEffect(context.AbilityId, Params.EffectId);
+                    }
+
                     break;
                 }
             }
@@ -72,6 +81,11 @@ public class ImpactToggleEffectCommand : Command, ICommand
 
             effectContext.ExecutionHint = ExecutionHint.ApplyEffect;
             effectContext.Abilities.DoApplyEffect(Params.EffectId, target, effectContext);
+
+            if (target is CharacterEntity targetCharacterApplied)
+            {
+                targetCharacterApplied.TrackAbilityToggleEffect(context.AbilityId, Params.EffectId);
+            }
         }
 
         return true;

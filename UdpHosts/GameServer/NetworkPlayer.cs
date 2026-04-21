@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Numerics;
@@ -23,6 +24,9 @@ namespace GameServer;
 
 public class NetworkPlayer : NetworkClient, INetworkPlayer
 {
+    private readonly List<ResourceScanReport> _resourceScans = new();
+    private uint _nextResourceScanId = 1;
+
     public NetworkPlayer(IPEndPoint endPoint, uint socketId, ILogger logger)
         : base(endPoint, socketId, logger)
     {
@@ -45,6 +49,38 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
     public CharacterInventory Inventory { get; set; }
     public uint ConnectedAt { get; }
     public bool CanReceiveGSS => (Status.Equals(IPlayer.PlayerStatus.Playing) || Status.Equals(IPlayer.PlayerStatus.Loading)) && NetClientStatus.Equals(ClientStatus.Connected);
+    public IReadOnlyList<ResourceScanReport> ResourceScans => _resourceScans;
+
+    public ResourceScanReport AddResourceScan(Vector3 position, uint radiusMeters, ResourceCompositionData[] composition, ulong ownerEntityId)
+    {
+        var report = new ResourceScanReport
+        {
+            ScanId = _nextResourceScanId++,
+            Position = position,
+            RadiusMeters = radiusMeters,
+            Composition = composition ?? [],
+            OwnerEntityId = ownerEntityId,
+        };
+
+        _resourceScans.Insert(0, report);
+        if (_resourceScans.Count > 32)
+        {
+            _resourceScans.RemoveAt(_resourceScans.Count - 1);
+        }
+
+        return report;
+    }
+
+    public ResourceScanReport GetLatestResourceScan()
+    {
+        return _resourceScans.FirstOrDefault();
+    }
+
+    public void ClearResourceScans()
+    {
+        _resourceScans.Clear();
+        _nextResourceScanId = 1;
+    }
 
     public void Init(IShard shard)
     {
@@ -396,6 +432,8 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
     public void EnterZone(Zone z, uint outpostId = 0)
     {
+        ClearResourceScans();
+
         var spawnPoint = outpostId == 0
                              ? new SpawnPoint { Position = z.POIs["spawn"] }
                              : AssignedShard.Outposts[z.ID][outpostId].RandomSpawnPoint;

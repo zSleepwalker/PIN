@@ -27,6 +27,8 @@ public class ImpactApplyEffectCommand : Command, ICommand
             ItemId = context.ItemId,
             ActivationAcknowledged = context.ActivationAcknowledged,
             NamedVariables = new(context.NamedVariables),
+            SourceContext = context.SourceContext,
+            SourceEffect = context.SourceEffect,
         };
 
         if (Params.InheritInitPos == 1)

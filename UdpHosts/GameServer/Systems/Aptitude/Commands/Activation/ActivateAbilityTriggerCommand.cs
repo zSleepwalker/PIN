@@ -18,12 +18,6 @@ public class ActivateAbilityTriggerCommand : Command, ICommand
         var abilityId = Params.AbilityId;
         var chainId = Params.Chain;
 
-        // Fallback for incomplete custom data: infer chain from base command linkage.
-        if (abilityId == 0 && chainId == 0)
-        {
-            chainId = SDBInterface.GetBaseCommandDef(Params.Id)?.Next ?? 0;
-        }
-
         if (abilityId != 0)
         {
             context.Abilities.HandleActivateAbility(context.Shard, context.Self, abilityId, context.InitTime, context.Targets);

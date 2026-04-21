@@ -77,7 +77,7 @@ public class PhysicsEngine
         currentPose.Orientation = entity.Rotation;
     }
 
-    public void ProjectileRayCast(Vector3 origin, Vector3 direction, CharacterEntity source, uint trace)
+    public ulong ProjectileRayCast(Vector3 origin, Vector3 direction, CharacterEntity source, uint trace)
     {
         var speed = 500f;
         var maxRange = 500f;
@@ -102,12 +102,19 @@ public class PhysicsEngine
                 var bodyPosition = Simulation.Bodies[hitHandler.HitCollidable.BodyHandle].Pose.Position;
                 bodyPosition.Z -= 0.9f;
                 SendDebugProjectilePoseHit(source, trace, hitPosition, bodyPosition);
+
+                if (_bodyToEntityId.TryGetValue(hitHandler.HitCollidable.BodyHandle, out ulong hitEntityId))
+                {
+                    return hitEntityId;
+                }
             }
         }
         else
         {
             // Serilog.Log.Information($"Nothing hit");
         }
+
+        return 0;
     }
 
     public (bool, Vector3, ulong) TargetRayCast(Vector3 origin, Vector3 direction, CharacterEntity source, float maxRange = 500f)

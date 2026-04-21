@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Numerics;
+using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
@@ -35,6 +36,14 @@ public class Context
     public ExecutionHint ExecutionHint { get; set; }
     public uint ItemId { get; set; }
     public bool ActivationAcknowledged { get; set; }
+    public bool PendingActivationAcknowledgement { get; set; }
+    public bool PendingActivationStateRequested { get; set; }
+    public bool PendingTimedActivation { get; set; }
+    public uint PendingActivationDurationMs { get; set; }
+    public bool PendingActivationCancelOnMove { get; set; }
+    public CharacterEntity PendingActivationCharacter { get; set; }
+    public uint SourceContext { get; set; }
+    public uint SourceEffect { get; set; }
 
     public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = new Dictionary<ICommand, ICommandActiveContext>();
 
@@ -65,13 +74,19 @@ public class Context
             ExecutionHint = original.ExecutionHint,
             ItemId = original.ItemId,
             ActivationAcknowledged = original.ActivationAcknowledged,
+            PendingActivationAcknowledgement = original.PendingActivationAcknowledgement,
+            PendingActivationStateRequested = original.PendingActivationStateRequested,
+            PendingTimedActivation = original.PendingTimedActivation,
+            PendingActivationDurationMs = original.PendingActivationDurationMs,
+            PendingActivationCancelOnMove = original.PendingActivationCancelOnMove,
+            PendingActivationCharacter = original.PendingActivationCharacter,
+            SourceContext = original.SourceContext,
+            SourceEffect = original.SourceEffect,
         };
     }
 
     /*
     public uint NamedVar;
     public uint Interaction;
-    public uint SourceContext;
-    public uint SourceEffect;
     */
 }

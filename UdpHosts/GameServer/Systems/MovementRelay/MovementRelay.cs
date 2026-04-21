@@ -1,6 +1,7 @@
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Entities;
+using GameServer.Entities.Character;
 
 namespace GameServer.Systems.MovementRelay;
 
@@ -17,6 +18,7 @@ public class MovementRelay
     {
         var character = entity as Entities.Character.CharacterEntity;
         var previousAirborne = character.IsAirborne;
+        var previousPosition = character.Position;
         var previousMovementStateValue = character.MovementStateContainer.MovementStateValue;
         var previousMovestate = character.MovementStateContainer.Movestate;
 
@@ -32,6 +34,13 @@ public class MovementRelay
 
         var movementStateValue = posRotState.MovementState;
         character.MovementStateContainer.MovementStateValue = (ushort)movementStateValue;
+        var rawMovementFlags = (MovementFlags)(movementStateValue & 0x00FF);
+        bool moveInputRequested = input.HorizontalInput != 0
+            || input.VerticalInput != 0
+            || input.InputFlags.HasFlag(MovementInputFlags.Sprinting)
+            || input.InputFlags.HasFlag(MovementInputFlags.SprintPressed)
+            || rawMovementFlags.HasFlag(MovementFlags.Movement)
+            || rawMovementFlags.HasFlag(MovementFlags.Sprint);
 
         if (character.HasRegisteredMovementEffects())
         {
@@ -63,6 +72,14 @@ public class MovementRelay
         if (previousAirborne != character.IsAirborne && character.IsRecoveryTraceActive())
         {
             character.TraceRecoveryState($"airborne changed {previousAirborne} -> {character.IsAirborne}");
+        }
+
+        if (moveInputRequested || (character.IsMoving && (previousMovementStateValue != character.MovementStateContainer.MovementStateValue || previousPosition != character.Position)))
+        {
+            if (character.CancelTimedActivationsOnMove(Shard.CurrentTime))
+            {
+                Serilog.Log.Information("[MovementRelay] Cancelled active ability state on move input for {Entity}", character);
+            }
         }
 
         // Confirm the pose with the client

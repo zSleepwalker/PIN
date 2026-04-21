@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Records.apt;
 using Records.aptfs;
+using Records.apttf;
 using Records.dbcharacter;
 using Records.dbencounterdata;
 using Records.dbitems;
@@ -24,6 +25,9 @@ public class SDBInterface
     private static Dictionary<uint, Monster> Monster;
     private static Dictionary<uint, Turret> Turret;
     private static Dictionary<uint, GliderParameters> GliderParameters;
+    private static Dictionary<ushort, EmoteRecord> EmoteRecord;
+    private static Dictionary<string, EmoteRecord> EmoteRecordByName;
+    private static Dictionary<string, EmoteRecord> EmoteRecordByAnimationName;
 
     // dbencounterdata
     private static Dictionary<uint, MapMarkerInfo> MapMarkerInfo;
@@ -57,6 +61,8 @@ public class SDBInterface
 
     // dbzonemetadata
     private static Dictionary<uint, ZoneRecord> ZoneRecord;
+    private static Dictionary<uint, ResourceNodeType> ResourceNodeType;
+    private static Dictionary<uint, List<ResourceNodeTypeResource>> ResourceNodeTypeResource;
 
     // apt
     private static Dictionary<uint, BaseCommandDef> BaseCommandDef;
@@ -179,6 +185,7 @@ public class SDBInterface
     private static Dictionary<uint, RequireLevelCommandDef> RequireLevelCommandDef;
     private static Dictionary<uint, RequireLineOfSightCommandDef> RequireLineOfSightCommandDef;
     private static Dictionary<uint, RequirementServerCommandDef> RequirementServerCommandDef;
+    private static Dictionary<uint, ActivationDurationCommandDef> ActivationDurationCommandDef;
     private static Dictionary<uint, RequireMovementFlagsCommandDef> RequireMovementFlagsCommandDef;
     private static Dictionary<uint, RequireMovestateCommandDef> RequireMovestateCommandDef;
     private static Dictionary<uint, RequireMovingCommandDef> RequireMovingCommandDef;
@@ -250,6 +257,12 @@ public class SDBInterface
     private static Dictionary<uint, DisableChatBubbleCommandDef> DisableChatBubbleCommandDef;
     private static Dictionary<uint, DisableHealthAndIconCommandDef> DisableHealthAndIconCommandDef;
 
+    // apttf
+    private static Dictionary<uint, tfAbilityAnimationCommandDef> AbilityAnimationCommandDef;
+    private static Dictionary<uint, tfPlayAnimationCommandDef> PlayAnimationCommandDef;
+    private static Dictionary<uint, tfPerformEmoteCommandDef> PerformEmoteCommandDef;
+    private static Dictionary<uint, tfCustomPlayerCameraCommandDef> CustomPlayerCameraCommandDef;
+
     // vcs
     private static Dictionary<byte, VehicleClass> VehicleClass;
     private static Dictionary<ushort, VehicleInfo> VehicleInfo;
@@ -278,6 +291,15 @@ public class SDBInterface
         Monster = loader.LoadMonster();
         Turret = loader.LoadTurret();
         GliderParameters = loader.LoadGliderParameters();
+        EmoteRecord = loader.LoadEmoteRecord();
+        EmoteRecordByName = EmoteRecord.Values
+            .Where(row => !string.IsNullOrWhiteSpace(row.Name))
+            .GroupBy(row => NormalizeLookupKey(row.Name))
+            .ToDictionary(group => group.Key, group => group.First());
+        EmoteRecordByAnimationName = EmoteRecord.Values
+            .Where(row => !string.IsNullOrWhiteSpace(row.AnimationName))
+            .GroupBy(row => NormalizeLookupKey(row.AnimationName))
+            .ToDictionary(group => group.Key, group => group.First());
 
         // dbencounterdata
         MapMarkerInfo = loader.LoadMapMarkerInfo();
@@ -311,6 +333,8 @@ public class SDBInterface
 
         // dbzonemetadata
         ZoneRecord = loader.LoadZoneRecord();
+        ResourceNodeType = loader.LoadResourceNodeType();
+        ResourceNodeTypeResource = loader.LoadResourceNodeTypeResource();
 
         // apt
         StatusEffectData = loader.LoadStatusEffectData();
@@ -463,6 +487,7 @@ public class SDBInterface
         RequireLevelCommandDef = loader.LoadRequireLevelCommandDef();
         RequireLineOfSightCommandDef = loader.LoadRequireLineOfSightCommandDef();
         RequirementServerCommandDef = loader.LoadRequirementServerCommandDef();
+        ActivationDurationCommandDef = loader.LoadActivationDurationCommandDef();
         RequireMovementFlagsCommandDef = loader.LoadRequireMovementFlagsCommandDef();
         RequireMovestateCommandDef = loader.LoadRequireMovestateCommandDef();
         RequireMovingCommandDef = loader.LoadRequireMovingCommandDef();
@@ -533,6 +558,12 @@ public class SDBInterface
         RemoveClientStatusEffectCommandDef = loader.LoadRemoveClientStatusEffectCommandDef();
         DisableChatBubbleCommandDef = loader.LoadDisableChatBubbleCommandDef();
         DisableHealthAndIconCommandDef = loader.LoadDisableHealthAndIconCommandDef();
+
+        // apttf
+        AbilityAnimationCommandDef = loader.LoadAbilityAnimationCommandDef();
+        PlayAnimationCommandDef = loader.LoadPlayAnimationCommandDef();
+        PerformEmoteCommandDef = loader.LoadPerformEmoteCommandDef();
+        CustomPlayerCameraCommandDef = loader.LoadCustomPlayerCameraCommandDef();
 
         // vcs
         VehicleClass = loader.LoadVehicleClass();
@@ -666,6 +697,37 @@ public class SDBInterface
     public static Monster GetMonster(uint id) => Monster.GetValueOrDefault(id);
     public static Turret GetTurret(uint id) => Turret.GetValueOrDefault(id);
     public static GliderParameters GetGliderParameters(uint id) => GliderParameters.GetValueOrDefault(id);
+    public static EmoteRecord GetEmoteRecord(ushort id) => EmoteRecord.GetValueOrDefault(id);
+    public static EmoteRecord ResolveEmoteRecord(string token)
+    {
+        if (string.IsNullOrWhiteSpace(token))
+        {
+            return null;
+        }
+
+        var normalizedToken = NormalizeLookupKey(token);
+        if (EmoteRecordByName.TryGetValue(normalizedToken, out var exactNameMatch))
+        {
+            return exactNameMatch;
+        }
+
+        if (EmoteRecordByAnimationName.TryGetValue(normalizedToken, out var exactAnimationMatch))
+        {
+            return exactAnimationMatch;
+        }
+
+        var fuzzyMatches = EmoteRecord.Values
+            .Where(row => !string.IsNullOrWhiteSpace(row.Name))
+            .Where(row =>
+            {
+                var normalizedName = NormalizeLookupKey(row.Name);
+                return normalizedName.EndsWith(normalizedToken, StringComparison.Ordinal)
+                    || normalizedToken.EndsWith(normalizedName, StringComparison.Ordinal);
+            })
+            .ToList();
+
+        return fuzzyMatches.Count == 1 ? fuzzyMatches[0] : null;
+    }
 
     // dbencounterdata
     public static MapMarkerInfo GetMapMarkerInfo(uint id) => MapMarkerInfo.GetValueOrDefault(id);
@@ -693,6 +755,8 @@ public class SDBInterface
 
     // dbzonemetadata
     public static ZoneRecord GetZoneRecord(uint id) => ZoneRecord.GetValueOrDefault(id);
+    public static ResourceNodeType GetResourceNodeType(uint id) => ResourceNodeType.GetValueOrDefault(id);
+    public static List<ResourceNodeTypeResource> GetResourceNodeTypeResources(uint nodeTypeId) => ResourceNodeTypeResource.GetValueOrDefault(nodeTypeId) ?? new List<ResourceNodeTypeResource>();
 
     // apt
     public static BaseCommandDef GetBaseCommandDef(uint id) => BaseCommandDef.GetValueOrDefault(id);
@@ -1004,6 +1068,7 @@ public class SDBInterface
     public static RequireLevelCommandDef GetRequireLevelCommandDef(uint id) => RequireLevelCommandDef.GetValueOrDefault(id);
     public static RequireLineOfSightCommandDef GetRequireLineOfSightCommandDef(uint id) => RequireLineOfSightCommandDef.GetValueOrDefault(id);
     public static RequirementServerCommandDef GetRequirementServerCommandDef(uint id) => RequirementServerCommandDef.GetValueOrDefault(id);
+    public static ActivationDurationCommandDef GetActivationDurationCommandDef(uint id) => ActivationDurationCommandDef.GetValueOrDefault(id);
     public static RequireMovementFlagsCommandDef GetRequireMovementFlagsCommandDef(uint id) => RequireMovementFlagsCommandDef.GetValueOrDefault(id);
     public static RequireMovestateCommandDef GetRequireMovestateCommandDef(uint id) => RequireMovestateCommandDef.GetValueOrDefault(id);
     public static RequireMovingCommandDef GetRequireMovingCommandDef(uint id) => RequireMovingCommandDef.GetValueOrDefault(id);
@@ -1075,6 +1140,12 @@ public class SDBInterface
     public static DisableChatBubbleCommandDef GetDisableChatBubbleCommandDef(uint id) => DisableChatBubbleCommandDef.GetValueOrDefault(id);
     public static DisableHealthAndIconCommandDef GetDisableHealthAndIconCommandDef(uint id) => DisableHealthAndIconCommandDef.GetValueOrDefault(id);
 
+    // apttf
+    public static tfAbilityAnimationCommandDef GetAbilityAnimationCommandDef(uint id) => AbilityAnimationCommandDef.GetValueOrDefault(id);
+    public static tfPlayAnimationCommandDef GetPlayAnimationCommandDef(uint id) => PlayAnimationCommandDef.GetValueOrDefault(id);
+    public static tfPerformEmoteCommandDef GetPerformEmoteCommandDef(uint id) => PerformEmoteCommandDef.GetValueOrDefault(id);
+    public static tfCustomPlayerCameraCommandDef GetCustomPlayerCameraCommandDef(uint id) => CustomPlayerCameraCommandDef.GetValueOrDefault(id);
+
     // vcs
     public static VehicleClass GetVehicleClass(byte id) => VehicleClass.GetValueOrDefault(id);
     public static VehicleInfo GetVehicleInfo(ushort id) => VehicleInfo.GetValueOrDefault(id);
@@ -1104,4 +1175,6 @@ public class SDBInterface
     public static Dictionary<uint, UpdateWaitAndFireOnceCommandDef> GetUpdateWaitAndFireOnceCommandDefDictionary() => UpdateWaitAndFireOnceCommandDef;
     public static Dictionary<uint, RegisterClientProximityCommandDef> GetRegisterClientProximityCommandDefDictionary() => RegisterClientProximityCommandDef;
     public static Dictionary<uint, AbilityModule> GetAbilityModuleDictionary() => AbilityModule;
+
+    private static string NormalizeLookupKey(string value) => value.Trim().ToLowerInvariant();
 }

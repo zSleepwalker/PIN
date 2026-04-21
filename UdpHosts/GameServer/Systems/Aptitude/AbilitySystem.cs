@@ -1,8 +1,11 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Command;
+using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Data.SDB;
+using GameServer.Entities.Character;
 using GameServer.Enums;
 
 namespace GameServer.Aptitude;
@@ -77,6 +80,11 @@ public class AbilitySystem
 
     public void ProcessTarget(IAptitudeTarget entity, ulong currentTime)
     {
+        if (entity is Entities.Character.CharacterEntity character)
+        {
+            character.PruneAbilityActivations((uint)currentTime);
+        }
+
         var activeEffects = entity.GetActiveEffects();
         foreach (var activeEffect in activeEffects)
         {
@@ -120,6 +128,8 @@ public class AbilitySystem
         var applyContext = Context.CopyContext(context);
         applyContext.Self = target;
         applyContext.ExecutionHint = ExecutionHint.ApplyEffect;
+        applyContext.SourceContext = context.SourceEffect != 0 ? context.SourceEffect : context.SourceContext;
+        applyContext.SourceEffect = effectId;
 
         // InitTime must reflect when THIS EFFECT was applied (server time), not the original
         // client activation time. TimeDurationCommand compares Shard.CurrentTime against
@@ -155,6 +165,7 @@ public class AbilitySystem
     public void DoRemoveEffect(EffectState activeEffect)
     {
         activeEffect.Context.ExecutionHint = ExecutionHint.RemoveEffect;
+        activeEffect.Context.SourceEffect = activeEffect.Effect.Id;
         activeEffect.Context.Self.ClearEffect(activeEffect);
         activeEffect.Effect.RemoveChain?.Execute(activeEffect.Context);
 
@@ -162,6 +173,14 @@ public class AbilitySystem
         {
             ICommand activeCommand = pair.Key;
             activeCommand.OnRemove(activeEffect.Context, pair.Value);
+        }
+
+        if (activeEffect.Context.Self is CharacterEntity character)
+        {
+            character.HandleTrackedAbilityEffectRemoved(
+                activeEffect.Context.AbilityId,
+                activeEffect.Effect.Id,
+                (uint)activeEffect.Context.Shard.CurrentTime);
         }
     }
 
@@ -269,7 +288,7 @@ public class AbilitySystem
         }
 
         var chain = Factory.LoadChain(chainId);
-        chain.Execute(new Context(shard, initiator)
+        var context = new Context(shard, initiator)
         {
             ChainId = chainId,
             AbilityId = abilityId,
@@ -278,7 +297,76 @@ public class AbilitySystem
             ExecutionHint = ExecutionHint.Ability,
             ItemId = itemId,
             ActivationAcknowledged = activationAcknowledged,
-        });
+        };
+
+        bool success = chain.Execute(context);
+        CharacterEntity activationCharacter = context.PendingActivationCharacter;
+        CharacterEntity feedbackCharacter = activationCharacter
+            ?? initiator as CharacterEntity
+            ?? context.Self as CharacterEntity;
+
+        if (activationCharacter == null)
+        {
+            if (!success)
+            {
+                PublishAbilityFailed(feedbackCharacter, abilityId, activationTime);
+            }
+
+            return;
+        }
+
+        if (!success)
+        {
+            activationCharacter.EndAbilityActivation(abilityId, activationTime, notifyClient: false);
+            PublishAbilityFailed(feedbackCharacter, abilityId, activationTime);
+            return;
+        }
+
+        if (context.PendingActivationStateRequested)
+        {
+            if (context.PendingTimedActivation)
+            {
+                activationCharacter.StartTimedActivation(abilityId, activationTime, context.PendingActivationDurationMs, context.PendingActivationCancelOnMove);
+            }
+            else
+            {
+                activationCharacter.StartAbilityActivation(abilityId, activationTime);
+            }
+        }
+
+        if (!context.PendingActivationAcknowledgement || context.ActivationAcknowledged || !activationCharacter.IsPlayerControlled)
+        {
+            return;
+        }
+
+        uint currentTime = (uint)activationCharacter.Shard.CurrentTime;
+
+        var message = new AbilityActivated
+        {
+            ActivatedAbilityId = abilityId,
+            ActivatedTime = activationTime,
+            AbilityCooldownsData = activationCharacter.GetAbilityCooldownsData(currentTime),
+        };
+
+        Serilog.Log.Information("ActivateAbility {ActivatedAbilityId} at {ActivatedTime}", message.ActivatedAbilityId, message.ActivatedTime);
+        activationCharacter.Player.NetChannels[ChannelType.ReliableGss].SendMessage(message, activationCharacter.EntityId);
+    }
+
+    private static void PublishAbilityFailed(CharacterEntity character, uint abilityId, uint activationTime)
+    {
+        if (character is not { IsPlayerControlled: true })
+        {
+            return;
+        }
+
+        uint currentTime = (uint)character.Shard.CurrentTime;
+
+        character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(new AbilityFailed
+        {
+            FailedAbilityId = abilityId,
+            Unk2 = 0,
+            AbilityCooldownsData = character.GetAbilityCooldownsData(currentTime),
+        }, character.EntityId);
     }
 
     public void HandleActivateAbility(IShard shard, IAptitudeTarget initiator, uint abilityId)

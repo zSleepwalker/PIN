@@ -144,6 +144,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public ProcessDelayData ProcessDelay { get; set; }
     public EmoteData Emote { get; set; }
     public DockedParamsData DockedParams { get; set; }
+    public CinematicCameraData? CinematicCamera { get; set; } = null;
     public AssetOverridesField AssetOverrides { get; set; }
     public VisualOverridesField VisualOverrides { get; set; }
     public EquipmentData CurrentEquipment { get; set; }
@@ -1238,6 +1239,15 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
     }
 
+    public void SetCinematicCamera(CinematicCameraData? value)
+    {
+        CinematicCamera = value;
+        if (Character_BaseController != null)
+        {
+            Character_BaseController.CinematicCameraProp = value;
+        }
+    }
+
     public void SetFireBurst(uint time)
     {
         Character_CombatView.WeaponBurstFiredProp = time;
@@ -1501,7 +1511,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             .Distinct()
             .ToHashSet();
 
-        Serilog.Log.Information(
+        Serilog.Log.Debug(
             "[MovementEffectSync] Entity {Entity}, reason={Reason}, currentMovestate={CurrentMovestate}, registered={Registered}, desired={Desired}, applied={Applied}",
             this,
             reason ?? "unspecified",
@@ -1514,7 +1524,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             if (!desiredStatusIds.Contains(effectId))
             {
-                Serilog.Log.Information("[MovementEffectSync] Entity {Entity} removing statusfx {StatusEffectId} because movestate {CurrentMovestate} no longer requires it", this, effectId, currentMovestate);
+                Serilog.Log.Debug("[MovementEffectSync] Entity {Entity} removing statusfx {StatusEffectId} because movestate {CurrentMovestate} no longer requires it", this, effectId, currentMovestate);
                 Shard.Abilities.DoRemoveEffect(this, effectId);
                 AppliedMovementEffectStatusIds.Remove(effectId);
             }
@@ -1524,7 +1534,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             if (HasActiveEffect(effectId))
             {
-                Serilog.Log.Information("[MovementEffectSync] Entity {Entity} keeping statusfx {StatusEffectId} active for movestate {CurrentMovestate}", this, effectId, currentMovestate);
+                Serilog.Log.Debug("[MovementEffectSync] Entity {Entity} keeping statusfx {StatusEffectId} active for movestate {CurrentMovestate}", this, effectId, currentMovestate);
                 continue;
             }
 
@@ -1535,7 +1545,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 continue;
             }
 
-            Serilog.Log.Information("[MovementEffectSync] Entity {Entity} applying statusfx {StatusEffectId} for movestate {CurrentMovestate} via command {CommandId}", this, effectId, currentMovestate, registration.CommandId);
+            Serilog.Log.Debug("[MovementEffectSync] Entity {Entity} applying statusfx {StatusEffectId} for movestate {CurrentMovestate} via command {CommandId}", this, effectId, currentMovestate, registration.CommandId);
             Shard.Abilities.DoApplyEffect(effectId, this, registration.TemplateContext);
             AppliedMovementEffectStatusIds.Add(effectId);
         }
@@ -1544,7 +1554,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             if (!HasActiveEffect(effectId))
             {
-                Serilog.Log.Information("[MovementEffectSync] Entity {Entity} observed statusfx {StatusEffectId} is no longer active after sync", this, effectId);
+                Serilog.Log.Debug("[MovementEffectSync] Entity {Entity} observed statusfx {StatusEffectId} is no longer active after sync", this, effectId);
                 AppliedMovementEffectStatusIds.Remove(effectId);
             }
         }
@@ -1562,7 +1572,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             return;
         }
 
-        Serilog.Log.Information($"[RECOVERY] Time {Shard.CurrentTime}, Entity {this}, Move {MovementStateContainer.Movestate}, CState {CharacterState.State}, Airborne {IsAirborne}, ForcedMoveEnd {ForcedMovementEndTime}, Perms movement={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.movement]}, abilities={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.abilities]}, jump={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.jump]}, sprint={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.sprint]} :: {reason}");
+        Serilog.Log.Debug($"[RECOVERY] Time {Shard.CurrentTime}, Entity {this}, Move {MovementStateContainer.Movestate}, CState {CharacterState.State}, Airborne {IsAirborne}, ForcedMoveEnd {ForcedMovementEndTime}, Perms movement={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.movement]}, abilities={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.abilities]}, jump={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.jump]}, sprint={CurrentPermissions[PermissionFlagsData.CharacterPermissionFlags.sprint]} :: {reason}");
     }
 
     private static bool IsRecoveryTraceEffect(uint effectId)
@@ -1641,7 +1651,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         var time = Shard.CurrentShortTime;
         for (int index = 0; index < 32; index++)
         {
-            Serilog.Log.Information($"Character.ClearStatusEffect Index {index}, Time {time}");
+            Serilog.Log.Debug($"Character.ClearStatusEffect Index {index}, Time {time}");
 
             // Member
             GetType().GetProperty($"StatusEffectsChangeTime_{index}").SetValue(this, time, null);
@@ -1709,6 +1719,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void SetCombatFlags(CombatFlagsData value)
     {
+        Serilog.Log.Debug("Character {Character} SetCombatFlags value={Flags} time={Time}", this, value.Value, value.Time);
         Character_CombatController.CombatFlagsProp = value;
         Character_CombatView.CombatFlagsProp = value;
     }
@@ -1922,7 +1933,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             SpawnPoseProp = SpawnPose,
             ProcessDelayProp = ProcessDelay,
             SpectatorModeProp = 0,
-            CinematicCameraProp = null,
+            CinematicCameraProp = CinematicCamera,
             CharacterStateProp = CharacterState,
             HostilityInfoProp = HostilityInfo,
             PersonalFactionStanceProp = null,
@@ -2256,13 +2267,30 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             }
         }
 
-        // Shields (Attribute 7 is usually Shields or Regen, I'll check if available)
+        // Attribute 7 is Max Shields
         if (CurrentLoadout.ItemAttributes.TryGetValue(7, out var maxShields))
         {
             MaxShields = new MaxVital { Value = (int)maxShields, Time = Shard.CurrentTime };
             if (Character_BaseController != null)
             {
                 Character_BaseController.MaxShieldsProp = MaxShields;
+            }
+        }
+
+        // Load jetpack energy params from battleframe SDB
+        var battleframe = SDBInterface.GetBattleframe(CurrentLoadout.ChassisID);
+        if (battleframe != null && battleframe.BaseEnergy > 0)
+        {
+            EnergyParams = new EnergyParamsData
+            {
+                Max = battleframe.BaseEnergy,
+                Delay = battleframe.EnergyRechargeDelayMs,
+                Recharge = battleframe.EnergyRechargePerSec,
+                Time = Shard.CurrentTime,
+            };
+            if (Character_BaseController != null)
+            {
+                Character_BaseController.EnergyParamsProp = EnergyParams;
             }
         }
     }

@@ -64,16 +64,36 @@ switch (command.ToLowerInvariant())
         ListTables(sdb, knownTableNames, tablePattern);
         break;
 
+    case "tables-raw":
+        options.TryGetString("pattern", out var rawTablePattern);
+        ListRawTables(sdb, rawTablePattern);
+        break;
+
     case "table":
-        if (!options.TryGetString("name", out var tableName) && !options.TryGetString("table", out tableName))
+        var hasTableId = options.TryGetUInt("table-id", out var tableId);
+        string? tableName = null;
+        if (!hasTableId && !options.TryGetString("name", out tableName) && !options.TryGetString("table", out tableName))
         {
-            Console.WriteLine("Missing required --name <tableName> argument.");
+            Console.WriteLine("Missing required --name <tableName> or --table-id <tableId> argument.");
             return;
         }
 
         var hasRowId = options.TryGetUInt("id", out var rowId);
         var rowLimit = options.TryGetInt("limit", out var parsedLimit) ? parsedLimit : 5;
-        DumpTable(sdb, tableName, hasRowId ? rowId : null, rowLimit);
+        options.TryGetString("field", out var filterField);
+        options.TryGetString("equals", out var filterEquals);
+        DumpTable(sdb, tableName, hasTableId ? tableId : null, hasRowId ? rowId : null, rowLimit, filterField, filterEquals);
+        break;
+
+    case "scan-id":
+        if (!options.TryGetUInt("value", out var scanValue) && !options.TryGetUInt("id", out scanValue))
+        {
+            Console.WriteLine("Missing required --value <rowId> argument.");
+            return;
+        }
+
+        options.TryGetString("field", out var scanField);
+        ScanTablesForValue(sdb, scanValue, scanField);
         break;
 
     case "table-members":
@@ -227,30 +247,80 @@ void ListTables(SDB sdbInstance, IReadOnlyCollection<string> knownTableNames, st
     }
 }
 
-void DumpTable(SDB sdbInstance, string tableName, uint? rowId, int limit)
+void ListRawTables(SDB sdbInstance, string? pattern)
 {
-    var table = TryGetTable(sdbInstance, tableName);
+    var tablesValue = TryGetMemberValueByName(sdbInstance, "Tables") ?? TryGetMemberValueByName(sdbInstance, "tables");
+    if (tablesValue is not IEnumerable tables)
+    {
+        Console.WriteLine("Could not enumerate raw SDB tables.");
+        return;
+    }
+
+    var matches = new List<(uint TableId, int RowCount, int ColumnCount)>();
+    foreach (var table in tables)
+    {
+        if (table == null || !TryConvertToUInt(TryGetMemberValueByName(table, "Id"), out var rawTableId))
+        {
+            continue;
+        }
+
+        var rawTableIdText = rawTableId.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        if (!string.IsNullOrWhiteSpace(pattern) &&
+            !rawTableIdText.Contains(pattern, StringComparison.OrdinalIgnoreCase))
+        {
+            continue;
+        }
+
+        var rowCount = (TryGetMemberValueByName(table, "Rows") as IEnumerable)?.Cast<object?>().Count() ?? 0;
+        var columnCount = (TryGetMemberValueByName(table, "Columns") as IEnumerable)?.Cast<object?>().Count() ?? 0;
+        matches.Add((rawTableId, rowCount, columnCount));
+    }
+
+    Console.WriteLine($"RAW TABLES ({matches.Count} matches)");
+    foreach (var match in matches.OrderBy(entry => entry.TableId))
+    {
+        Console.WriteLine($"  TableId={match.TableId} RowCount={match.RowCount} ColumnCount={match.ColumnCount}");
+    }
+}
+
+void DumpTable(SDB sdbInstance, string? tableName, uint? tableId, uint? rowId, int limit, string? filterField = null, string? filterEquals = null)
+{
+    var table = tableId.HasValue ? TryGetTableById(sdbInstance, tableId.Value) : TryGetTable(sdbInstance, tableName!);
     if (table == null)
     {
-        Console.WriteLine($"Table '{tableName}' not found.");
+        Console.WriteLine(tableId.HasValue
+            ? $"Table with id '{tableId.Value}' not found."
+            : $"Table '{tableName}' not found.");
         return;
     }
 
     var safeLimit = Math.Max(limit, 1);
     var columnNames = TryGetColumnNames(table);
     var idColumnIndex = FindIdColumnIndex(columnNames);
+    var hasFieldFilter = !string.IsNullOrWhiteSpace(filterField) && filterEquals != null;
+    var fieldFilterIndex = hasFieldFilter ? ResolveColumnIndex(columnNames, filterField!) : -1;
 
-    Console.WriteLine($"TABLE {tableName}");
+    Console.WriteLine(tableId.HasValue ? $"TABLE_ID {tableId.Value}" : $"TABLE {tableName}");
     Console.WriteLine($"  RowCount={table.Rows.Count}");
     Console.WriteLine($"  ColumnCount={(columnNames.Count == 0 ? table.Rows.Cast<SDB.Row>().Select(row => row.Fields.Count).DefaultIfEmpty(0).Max() : columnNames.Count)}");
     if (columnNames.Count > 0)
     {
         Console.WriteLine($"  Columns={string.Join(", ", columnNames)}");
     }
+    if (hasFieldFilter)
+    {
+        Console.WriteLine($"  Filter={filterField} == {filterEquals}");
+    }
 
     if (rowId.HasValue && idColumnIndex == -1)
     {
         Console.WriteLine("  Could not identify an 'Id' column for row filtering.");
+        return;
+    }
+
+    if (hasFieldFilter && fieldFilterIndex < 0)
+    {
+        Console.WriteLine($"  Could not resolve filter column '{filterField}'.");
         return;
     }
 
@@ -261,6 +331,14 @@ void DumpTable(SDB sdbInstance, string tableName, uint? rowId, int limit)
         if (rowId.HasValue)
         {
             if (idColumnIndex >= row.Fields.Count || !TryConvertToUInt(row[idColumnIndex], out var currentRowId) || currentRowId != rowId.Value)
+            {
+                continue;
+            }
+        }
+
+        if (hasFieldFilter)
+        {
+            if (fieldFilterIndex >= row.Fields.Count || !MatchesFilter(row[fieldFilterIndex], filterEquals!))
             {
                 continue;
             }
@@ -287,6 +365,71 @@ void DumpTable(SDB sdbInstance, string tableName, uint? rowId, int limit)
             var columnName = fieldIndex < columnNames.Count ? columnNames[fieldIndex] : $"column_{fieldIndex}";
             Console.WriteLine($"    {columnName}={FormatValue(match.Row[fieldIndex])}");
         }
+    }
+}
+
+void ScanTablesForValue(SDB sdbInstance, uint value, string? filterField)
+{
+    var tablesValue = TryGetMemberValueByName(sdbInstance, "Tables") ?? TryGetMemberValueByName(sdbInstance, "tables");
+    if (tablesValue is not IEnumerable tables)
+    {
+        Console.WriteLine("Could not enumerate raw SDB tables.");
+        return;
+    }
+
+    var matches = new List<string>();
+    foreach (var table in tables)
+    {
+        if (table == null || !TryConvertToUInt(TryGetMemberValueByName(table, "Id"), out var rawTableId))
+        {
+            continue;
+        }
+
+        var rowsValue = TryGetMemberValueByName(table, "Rows") ?? TryGetMemberValueByName(table, "rows");
+        if (rowsValue is not IEnumerable rows)
+        {
+            continue;
+        }
+
+        var columns = table is SDB.Table typedTable ? TryGetColumnNames(typedTable) : Array.Empty<string>();
+        var fieldIndexes = !string.IsNullOrWhiteSpace(filterField)
+            ? new[] { Math.Max(ResolveColumnIndex(columns, filterField!), 0) }
+            : Array.Empty<int>();
+
+        var rowIndex = 0;
+        foreach (var row in rows)
+        {
+            var fieldsValue = TryGetMemberValueByName(row!, "Fields") ?? TryGetMemberValueByName(row!, "fields");
+            if (fieldsValue is not IEnumerable fieldEnumerable)
+            {
+                rowIndex++;
+                continue;
+            }
+
+            var fieldArray = fieldEnumerable.Cast<object?>().ToArray();
+            var indexesToCheck = fieldIndexes.Length > 0 ? fieldIndexes : Enumerable.Range(0, fieldArray.Length);
+            foreach (var fieldIndex in indexesToCheck)
+            {
+                if (fieldIndex >= fieldArray.Length)
+                {
+                    continue;
+                }
+
+                if (TryConvertToUInt(fieldArray[fieldIndex], out var fieldValue) && fieldValue == value)
+                {
+                    matches.Add($"  TableId={rawTableId} RowIndex={rowIndex} ColumnIndex={fieldIndex} FieldCount={fieldArray.Length}");
+                }
+            }
+
+            rowIndex++;
+        }
+    }
+
+    Console.WriteLine($"SCAN_ID {value}");
+    Console.WriteLine($"  Matches={matches.Count}");
+    foreach (var match in matches)
+    {
+        Console.WriteLine(match);
     }
 }
 
@@ -548,8 +691,10 @@ static void PrintUsage()
     Console.WriteLine("  SdbInspect sdb-members [--sdb <path>] [--custom-root <path>]");
     Console.WriteLine("  SdbInspect sdb-methods [--sdb <path>] [--custom-root <path>]");
     Console.WriteLine("  SdbInspect tables [--pattern <text>] [--sdb <path>] [--custom-root <path>]");
-    Console.WriteLine("  SdbInspect table --name <tableName> [--id <rowId>] [--limit <count>] [--sdb <path>] [--custom-root <path>]");
+    Console.WriteLine("  SdbInspect tables-raw [--pattern <text>] [--sdb <path>] [--custom-root <path>]");
+    Console.WriteLine("  SdbInspect table --name <tableName> | --table-id <tableId> [--id <rowId>] [--limit <count>] [--sdb <path>] [--custom-root <path>]");
     Console.WriteLine("  SdbInspect table-members --name <tableName> [--sdb <path>] [--custom-root <path>]");
+    Console.WriteLine("  SdbInspect scan-id --value <rowId> [--field <column>] [--sdb <path>] [--custom-root <path>]");
     Console.WriteLine("  SdbInspect search-strings --pattern <text> [--sdb <path>] [--custom-root <path>]");
 }
 
@@ -558,6 +703,18 @@ static SDB.Table? TryGetTable(SDB sdbInstance, string tableName)
     try
     {
         return sdbInstance.GetTableByName(tableName);
+    }
+    catch (ArgumentOutOfRangeException)
+    {
+        return null;
+    }
+}
+
+static SDB.Table? TryGetTableById(SDB sdbInstance, uint tableId)
+{
+    try
+    {
+        return sdbInstance.GetTableById(tableId);
     }
     catch (ArgumentOutOfRangeException)
     {
@@ -713,6 +870,11 @@ static string FormatValue(object? value)
         return text;
     }
 
+    if (TryFormatVector3Like(value, out var vectorText))
+    {
+        return vectorText;
+    }
+
     if (value is IEnumerable enumerable and not string)
     {
         var parts = new List<string>();
@@ -731,7 +893,114 @@ static string FormatValue(object? value)
         return $"[{string.Join(", ", parts)}]";
     }
 
+    if (TryFormatObjectMembers(value, out var memberText))
+    {
+        return memberText;
+    }
+
     return value.ToString() ?? string.Empty;
+}
+
+static bool TryFormatVector3Like(object value, out string formatted)
+{
+    formatted = string.Empty;
+
+    var type = value.GetType();
+    if (!TryReadFloatLikeMember(type, value, "X", out var x) ||
+        !TryReadFloatLikeMember(type, value, "Y", out var y) ||
+        !TryReadFloatLikeMember(type, value, "Z", out var z))
+    {
+        return false;
+    }
+
+    formatted = $"({x}, {y}, {z})";
+    return true;
+}
+
+static bool TryReadFloatLikeMember(Type type, object instance, string memberName, out float value)
+{
+    value = 0;
+
+    var field = type.GetField(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+    if (field != null)
+    {
+        return TryConvertToFloat(field.GetValue(instance), out value);
+    }
+
+    var property = type.GetProperty(memberName, BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic);
+    if (property == null || property.GetIndexParameters().Length != 0)
+    {
+        return false;
+    }
+
+    return TryConvertToFloat(property.GetValue(instance), out value);
+}
+
+static bool TryConvertToFloat(object? value, out float result)
+{
+    switch (value)
+    {
+        case float floatValue:
+            result = floatValue;
+            return true;
+        case double doubleValue:
+            result = (float)doubleValue;
+            return true;
+        case decimal decimalValue:
+            result = (float)decimalValue;
+            return true;
+        case int intValue:
+            result = intValue;
+            return true;
+        case long longValue:
+            result = longValue;
+            return true;
+        case string text when float.TryParse(text, out var parsed):
+            result = parsed;
+            return true;
+        default:
+            result = 0;
+            return false;
+    }
+}
+
+static bool TryFormatObjectMembers(object value, out string formatted)
+{
+    formatted = string.Empty;
+
+    var type = value.GetType();
+    var rawText = value.ToString();
+    if (!string.Equals(rawText, type.FullName, StringComparison.Ordinal) &&
+        !string.Equals(rawText, type.Name, StringComparison.Ordinal))
+    {
+        return false;
+    }
+
+    var members = type
+        .GetMembers(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+        .Where(member => member is FieldInfo || member is PropertyInfo property && property.GetIndexParameters().Length == 0)
+        .Where(member => !string.Equals(member.Name, "EqualityContract", StringComparison.Ordinal))
+        .Select(member => new { member.Name, Value = TryGetMemberValue(value, member) })
+        .Where(entry => entry.Value == null || IsSimpleValue(entry.Value.GetType()))
+        .Take(8)
+        .ToArray();
+
+    if (members.Length == 0)
+    {
+        return false;
+    }
+
+    formatted = $"{{{string.Join(", ", members.Select(member => $"{member.Name}={member.Value ?? "<null>"}"))}}}";
+    return true;
+}
+
+static bool IsSimpleValue(Type type)
+{
+    var underlyingType = Nullable.GetUnderlyingType(type) ?? type;
+    return underlyingType.IsPrimitive ||
+        underlyingType.IsEnum ||
+        underlyingType == typeof(decimal) ||
+        underlyingType == typeof(string);
 }
 
 static string SummarizeValue(object? value)
@@ -834,6 +1103,55 @@ static ParsedArgs ParseArgs(string[] rawArgs)
     }
 
     return new ParsedArgs(command, options);
+}
+
+static int ResolveColumnIndex(IReadOnlyList<string> columnNames, string filterField)
+{
+    if (int.TryParse(filterField, out var numericIndex) && numericIndex >= 0)
+    {
+        return numericIndex;
+    }
+
+    for (var index = 0; index < columnNames.Count; index++)
+    {
+        if (string.Equals(columnNames[index], filterField, StringComparison.OrdinalIgnoreCase))
+        {
+            return index;
+        }
+    }
+
+    if (filterField.StartsWith("column_", StringComparison.OrdinalIgnoreCase) &&
+        int.TryParse(filterField[7..], out var parsedIndex) &&
+        parsedIndex >= 0)
+    {
+        return parsedIndex;
+    }
+
+    return -1;
+}
+
+static bool MatchesFilter(object? value, string expected)
+{
+    if (value == null)
+    {
+        return string.Equals(expected, "<null>", StringComparison.OrdinalIgnoreCase);
+    }
+
+    if (value is string text)
+    {
+        return string.Equals(text, expected, StringComparison.OrdinalIgnoreCase);
+    }
+
+    if (value is IFormattable formattable)
+    {
+        var invariant = formattable.ToString(null, System.Globalization.CultureInfo.InvariantCulture);
+        if (string.Equals(invariant, expected, StringComparison.OrdinalIgnoreCase))
+        {
+            return true;
+        }
+    }
+
+    return string.Equals(value.ToString(), expected, StringComparison.OrdinalIgnoreCase);
 }
 
 readonly record struct ParsedArgs(string? Command, Dictionary<string, string> Options)

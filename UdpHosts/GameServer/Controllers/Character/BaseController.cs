@@ -13,6 +13,7 @@ using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.customdata;
 using GameServer.Entities;
 using GameServer.Entities.Character;
+using GameServer.Entities.Thumper;
 using GameServer.Entities.Turret;
 using GameServer.Entities.Vehicle;
 using GameServer.Enums.GSS.Character;
@@ -29,6 +30,8 @@ namespace GameServer.Controllers.Character;
 [ControllerID(Enums.GSS.Controllers.Character_BaseController)]
 public class BaseController : Base
 {
+    private const uint DefaultResourceScanNodeType = 20;
+    private const uint DefaultResourceScanRadiusMeters = 600;
     private ILogger _logger;
 
     public override void Init(INetworkClient client, IPlayer player, IShard shard, ILogger logger)
@@ -273,9 +276,10 @@ public class BaseController : Base
     [MessageID((byte)Commands.ResourceLocationInfosRequest)]
     public void ResourceLocationInfosRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
+        var scans = (player as NetworkPlayer)?.ResourceScans ?? Array.Empty<ResourceScanReport>();
         var resourceLocationInfosResponse = new ResourceLocationInfosResponse
         {
-            Data = new ResourceLocationInfo[] { },
+            Data = scans.Select(CreateResourceLocationInfo).ToArray(),
             Unk = 0x01
         };
 
@@ -317,15 +321,41 @@ public class BaseController : Base
     [MessageID((byte)Commands.MapOpened)]
     public void MapOpened(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        var mapOpened = new GeographicalReportResponse
-        {
-            ScanId = 0,
-            Position = new Vector3 { X = 0, Y = 0, Z = 0 },
-            Valid = 0x00,
-            Composition = new ResourceCompositionData[] { }
-        };
+        var latestScan = (player as NetworkPlayer)?.GetLatestResourceScan();
+        var mapOpened = latestScan != null
+            ? CreateGeographicalReportResponse(latestScan)
+            : CreateEmptyGeographicalReportResponse(player.CharacterEntity.Position);
 
         client.NetChannels[ChannelType.ReliableGss].SendMessage(mapOpened, player.CharacterEntity.EntityId);
+    }
+
+    [MessageID((byte)Commands.GeographicalReportRequest)]
+    public void GeographicalReportRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var request = packet.Unpack<GeographicalReportRequest>();
+        if (request == null)
+        {
+            return;
+        }
+
+        var character = player.CharacterEntity;
+        if (player is not NetworkPlayer networkPlayer)
+        {
+            client.NetChannels[ChannelType.ReliableGss].SendMessage(CreateEmptyGeographicalReportResponse(character.Position), character.EntityId);
+            return;
+        }
+
+        if (request.Feedback != AeroMessages.GSS.V66.Character.Command.GeographicalReportRequest.ClientGeographicalReportRequestFeedback.OK)
+        {
+            client.NetChannels[ChannelType.ReliableGss].SendMessage(CreateEmptyGeographicalReportResponse(character.Position), character.EntityId);
+            return;
+        }
+
+        uint nodeTypeId = ResolveNearbyResourceNodeType(character);
+        var composition = BuildResourceComposition(nodeTypeId);
+        var report = networkPlayer.AddResourceScan(character.Position, DefaultResourceScanRadiusMeters, composition, character.EntityId);
+
+        client.NetChannels[ChannelType.ReliableGss].SendMessage(CreateGeographicalReportResponse(report), character.EntityId);
     }
 
     [MessageID((byte)Commands.RequestTeleport)]
@@ -362,6 +392,106 @@ public class BaseController : Base
             ShortTime = character.Shard.CurrentShortTime
         };
         client.NetChannels[ChannelType.ReliableGss].SendMessage(forcedMove, character.EntityId);
+    }
+
+    private static GeographicalReportResponse CreateEmptyGeographicalReportResponse(Vector3 position)
+    {
+        return new GeographicalReportResponse
+        {
+            ScanId = 0,
+            Position = position,
+            Valid = 0,
+            Composition = [],
+        };
+    }
+
+    private static GeographicalReportResponse CreateGeographicalReportResponse(ResourceScanReport report)
+    {
+        return new GeographicalReportResponse
+        {
+            ScanId = report.ScanId,
+            Position = report.Position,
+            Valid = (byte)(report.Composition.Length == 0 ? 0 : 1),
+            Composition = report.Composition,
+        };
+    }
+
+    private static ResourceLocationInfo CreateResourceLocationInfo(ResourceScanReport report)
+    {
+        return new ResourceLocationInfo
+        {
+            Unk1 = report.Position.X,
+            Unk2 = report.Position.Y,
+            Unk3 = report.Position.Z,
+            Unk4 = report.RadiusMeters,
+            Unk5 = report.Composition.Select(static composition => new ResourceLocationInfoInner
+            {
+                Unk1 = composition.ItemTypeId,
+                Unk2 = (byte)Math.Clamp((int)Math.Round(composition.Percent * 100f), 0, 100),
+            }).ToArray(),
+        };
+    }
+
+    private static uint ResolveNearbyResourceNodeType(CharacterEntity character)
+    {
+        const float maxDistanceMeters = DefaultResourceScanRadiusMeters;
+        float maxDistanceSquared = maxDistanceMeters * maxDistanceMeters;
+
+        return character.Shard.Entities.Values
+            .OfType<ThumperEntity>()
+            .Select(thumper => new
+            {
+                thumper.NodeType,
+                DistanceSquared = Vector3.DistanceSquared(character.Position, thumper.Position),
+            })
+            .Where(candidate => candidate.DistanceSquared <= maxDistanceSquared)
+            .OrderBy(candidate => candidate.DistanceSquared)
+            .Select(candidate => candidate.NodeType)
+            .FirstOrDefault(DefaultResourceScanNodeType);
+    }
+
+    private static ResourceCompositionData[] BuildResourceComposition(uint nodeTypeId)
+    {
+        var nodeResources = SDBInterface.GetResourceNodeTypeResources(nodeTypeId);
+        if (nodeResources.Count == 0)
+        {
+            return [];
+        }
+
+        var weightedResources = nodeResources
+            .GroupBy(resource => resource.ItemId)
+            .Select(group => new
+            {
+                ItemId = group.Key,
+                Weight = group.Sum(resource => (resource.CenterLow + resource.CenterHigh + resource.EdgeLow + resource.EdgeHigh) / 4f),
+                Quality = (ushort)Math.Clamp(
+                    (int)Math.Round(group.Average(resource => (resource.ItemQualityLow + resource.ItemQualityHigh) / 2.0)),
+                    ushort.MinValue,
+                    ushort.MaxValue),
+            })
+            .Where(resource => resource.Weight > 0)
+            .OrderByDescending(resource => resource.Weight)
+            .ToArray();
+
+        if (weightedResources.Length == 0)
+        {
+            return [];
+        }
+
+        float totalWeight = weightedResources.Sum(resource => resource.Weight);
+        if (totalWeight <= 0)
+        {
+            totalWeight = weightedResources.Length;
+        }
+
+        return weightedResources
+            .Select(resource => new ResourceCompositionData
+            {
+                ItemTypeId = resource.ItemId,
+                ResourceQuality = resource.Quality,
+                Percent = resource.Weight / totalWeight,
+            })
+            .ToArray();
     }
 
     [MessageID((byte)Commands.ExitAttachmentRequest)]
@@ -734,7 +864,19 @@ public class BaseController : Base
     [MessageID((byte)Commands.AnimationUpdate)]
     public void AnimationUpdate(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client reporting its current animation state
+        var update = packet.Unpack<AnimationUpdate>();
+        if (update == null)
+        {
+            return;
+        }
+
+        _logger.Information(
+            "AnimationUpdate Entity {EntityId} Character {CharacterName} Unk1={Unk1} Unk2={Unk2} Unk3={Unk3}",
+            entityId,
+            player.CharacterEntity.StaticInfo.DisplayName,
+            update.Unk1,
+            update.Unk2,
+            update.Unk3);
     }
 
     [MessageID((byte)Commands.CollectLoot)]
