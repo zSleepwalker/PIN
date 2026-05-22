@@ -24,6 +24,8 @@ public class SDBInterface
     private static Dictionary<uint, DeployableCategory> DeployableCategory;
     private static Dictionary<uint, Faction> Faction;
     private static Dictionary<uint, Monster> Monster;
+    private static Dictionary<uint, MonsterVisualOptions> MonsterVisualOptions;
+    private static Dictionary<int, List<MonsterVisualOption>> MonsterVisualOptionsByParent;
     private static Dictionary<uint, Turret> Turret;
     private static Dictionary<uint, GliderParameters> GliderParameters;
     private static Dictionary<ushort, EmoteRecord> EmoteRecord;
@@ -298,6 +300,8 @@ public class SDBInterface
         DeployableCategory = loader.LoadDeployableCategory();
         Faction = loader.LoadFaction();
         Monster = loader.LoadMonster();
+        MonsterVisualOptions = loader.LoadMonsterVisualOptions();
+        MonsterVisualOptionsByParent = loader.LoadMonsterVisualOption();
         Turret = loader.LoadTurret();
         GliderParameters = loader.LoadGliderParameters();
         EmoteRecord = loader.LoadEmoteRecord();
@@ -712,6 +716,8 @@ public class SDBInterface
     public static DeployableCategory GetDeployableCategory(uint id) => DeployableCategory.GetValueOrDefault(id);
     public static Faction GetFaction(uint id) => Faction.GetValueOrDefault(id);
     public static Monster GetMonster(uint id) => Monster.GetValueOrDefault(id);
+    public static MonsterVisualOptions GetMonsterVisualOptions(uint id) => MonsterVisualOptions.GetValueOrDefault(id);
+    public static IReadOnlyList<MonsterVisualOption> GetMonsterVisualOptionsByParent(int parentId) => MonsterVisualOptionsByParent.GetValueOrDefault(parentId) ?? (IReadOnlyList<MonsterVisualOption>)Array.Empty<MonsterVisualOption>();
     public static Turret GetTurret(uint id) => Turret.GetValueOrDefault(id);
     public static GliderParameters GetGliderParameters(uint id) => GliderParameters.GetValueOrDefault(id);
     public static EmoteRecord GetEmoteRecord(ushort id) => EmoteRecord.GetValueOrDefault(id);

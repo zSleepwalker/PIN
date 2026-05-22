@@ -264,14 +264,33 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
 
         foreach (var ability in vehicleInfo.Abilities)
         {
-            byte idx = ability.AbilityType switch
+            byte? idx = ability.AbilityType switch
             {
                 1 => (byte)AbilitySlotIndex.Honk,
                 2 => (byte)AbilitySlotIndex.Boost,
-                _ => 0,
+                3 => (byte)AbilitySlotIndex.Utility,
+                4 => (byte)AbilitySlotIndex.SIN,
+                _ => null,
             };
 
-            Abilities[idx] = ability.AbilityId;
+            if (idx.HasValue)
+            {
+                Abilities[idx.Value] = ability.AbilityId;
+            }
+        }
+
+        byte deployableSlot = 0;
+        foreach (var deployable in vehicleInfo.Deployables)
+        {
+            if (deployableSlot >= DeployableData.Count)
+            {
+                break;
+            }
+
+            var data = DeployableData[deployableSlot];
+            data.Unk1 = deployable.DeployableType;
+            DeployableData[deployableSlot] = data;
+            deployableSlot++;
         }
 
         // Faction
@@ -284,8 +303,6 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
             HitboxCollisionId = vehicleInfo.HullSegment.RemotePoseFile,
             Scale = 1f,
         };
-
-        // TODO: Handle SIN, utility abilities, Deployables
 
         // Hack to just refresh everything by recreating views.
         InitViews();

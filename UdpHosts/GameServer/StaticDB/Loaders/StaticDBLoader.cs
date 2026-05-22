@@ -187,6 +187,20 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => group.First());
     }
 
+    public Dictionary<uint, MonsterVisualOptions> LoadMonsterVisualOptions()
+    {
+        return LoadStaticDB<MonsterVisualOptions>("dbcharacter::MonsterVisualOptions")
+            .GroupBy(row => (uint)row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<int, List<MonsterVisualOption>> LoadMonsterVisualOption()
+    {
+        return LoadStaticDB<MonsterVisualOption>("dbcharacter::MonsterVisualOption")
+            .GroupBy(row => row.Parent)
+            .ToDictionary(group => group.Key, group => group.ToList());
+    }
+
     public Dictionary<uint, Turret> LoadTurret()
     {
         return LoadStaticDB<Turret>("dbcharacter::Turret")

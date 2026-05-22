@@ -17,6 +17,7 @@ using GameServer.Data.SDB.Records.dbitems;
 using GameServer.Data.SDB.Records.dbvisualrecords;
 using GameServer.Entities.Deployable;
 using GameServer.Enums;
+using GameServer.Enums.Visuals;
 using GameServer.Systems.Encounters;
 using GameServer.Test;
 using GrpcGameServerAPIClient;
@@ -268,7 +269,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void LoadMonster(uint typeId)
     {
-        // TODO: GetMonsterVisualOptions
         var monsterInfo = SDBInterface.GetMonster(typeId);
         var chassisWarpaint = SDBUtils.GetChassisWarpaint(monsterInfo.ChassisId, monsterInfo.FullbodyWarpaintPaletteId, monsterInfo.ArmorWarpaintPaletteId, monsterInfo.BodysuitWarpaintPaletteId, monsterInfo.GlowWarpaintPaletteId);
 
@@ -301,6 +301,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             ornaments.Add(monsterInfo.OrnamentsMapGroupId_4);
         }
 
+        var (gradients, cziMaps, morphWeights) = ResolveMonsterVisualOptions(monsterInfo);
+
         SetStaticInfo(new StaticInfoData()
         {
             DisplayName = "_noname",
@@ -323,7 +325,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             Visuals = new VisualsBlock
             {
                 Decals = Array.Empty<VisualsDecalsBlock>(),
-                Gradients = Array.Empty<uint>(),
+                Gradients = gradients,
                 Colors = new uint[5]
                 {
                     monsterInfo.SkinColor,
@@ -335,8 +337,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 Palettes = Array.Empty<VisualsPaletteBlock>(),
                 Patterns = Array.Empty<VisualsPatternBlock>(),
                 OrnamentGroupIds = ornaments.ToArray(),
-                CziMapAssetIds = Array.Empty<uint>(),
-                MorphWeights = Array.Empty<HalfFloat>(),
+                CziMapAssetIds = cziMaps,
+                MorphWeights = morphWeights,
                 Overlays = Array.Empty<VisualsOverlayBlock>()
             },
             ArmyTag = string.Empty
@@ -371,6 +373,58 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 Time = Shard.CurrentTime
             });
         }
+    }
+
+    private static (uint[] Gradients, uint[] CziMaps, HalfFloat[] MorphWeights) ResolveMonsterVisualOptions(Monster monsterInfo)
+    {
+        if (monsterInfo.VisualOptionsId == 0)
+        {
+            return (Array.Empty<uint>(), Array.Empty<uint>(), Array.Empty<HalfFloat>());
+        }
+
+        var visualOptions = SDBInterface.GetMonsterVisualOptions(monsterInfo.VisualOptionsId);
+        if (visualOptions == null)
+        {
+            return (Array.Empty<uint>(), Array.Empty<uint>(), Array.Empty<HalfFloat>());
+        }
+
+        // Pick the gender-appropriate sub-group parent ID.
+        int parentId = monsterInfo.Gender == 'F' ? visualOptions.Female : visualOptions.Male;
+        if (parentId == 0)
+        {
+            return (Array.Empty<uint>(), Array.Empty<uint>(), Array.Empty<HalfFloat>());
+        }
+
+        var options = SDBInterface.GetMonsterVisualOptionsByParent(parentId);
+        if (options.Count == 0)
+        {
+            return (Array.Empty<uint>(), Array.Empty<uint>(), Array.Empty<HalfFloat>());
+        }
+
+        var gradients = new List<uint>();
+        var cziMaps = new List<uint>();
+        var morphWeights = new List<HalfFloat>();
+
+        foreach (var opt in options)
+        {
+            switch (opt.Type)
+            {
+                case (int)MonsterVisualOptionType.Gradient:
+                    gradients.Add((uint)opt.Value);
+                    break;
+                case (int)MonsterVisualOptionType.CziMap:
+                    cziMaps.Add((uint)opt.Value);
+                    break;
+                case (int)MonsterVisualOptionType.MorphWeight:
+                    morphWeights.Add((HalfFloat)BitConverter.Int32BitsToSingle((int)opt.Value));
+                    break;
+                default:
+                    Log.Debug("Monster {TypeId} VisualOptions {VisualOptionsId}: unrecognised MonsterVisualOption type {OptionType}, value {Value}", monsterInfo.Id, monsterInfo.VisualOptionsId, opt.Type, opt.Value);
+                    break;
+            }
+        }
+
+        return (gradients.ToArray(), cziMaps.ToArray(), morphWeights.ToArray());
     }
 
     public void LoadRemote(CharacterAndBattleframeVisuals remoteData)

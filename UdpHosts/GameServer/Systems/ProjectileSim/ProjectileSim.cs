@@ -44,6 +44,33 @@ public class ProjectileSim
         return null;
     }
 
+    /// <summary>
+    /// Force-resolves and removes all pending hits for the given ammo type.
+    /// Used by <c>DetonateProjectilesCommand</c> to cancel in-flight projectiles and
+    /// prevent stale entries from being claimed later by a ReportProjectileHit.
+    /// </summary>
+    public List<PendingProjectileHit> DetonateByAmmoType(uint ammoTypeId)
+    {
+        var toRemove = new List<ushort>();
+        var result = new List<PendingProjectileHit>();
+
+        foreach (var kvp in _pendingHits)
+        {
+            if (kvp.Value.AmmoId == ammoTypeId)
+            {
+                toRemove.Add(kvp.Key);
+                result.Add(kvp.Value);
+            }
+        }
+
+        foreach (var key in toRemove)
+        {
+            _pendingHits.Remove(key);
+        }
+
+        return result;
+    }
+
     /*
     public void Tick(double deltaTime, ulong currentTime, CancellationToken ct)
     {

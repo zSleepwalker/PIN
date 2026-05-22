@@ -45,6 +45,12 @@ public class Context
     public uint SourceContext { get; set; }
     public uint SourceEffect { get; set; }
 
+    /// <summary>
+    /// Homing target stored by <see cref="SetProjectileTargetCommand"/> and consumed by
+    /// <see cref="FireProjectileCommand"/> when <c>UseHomingTarget == 1</c>.
+    /// </summary>
+    public IAptitudeTarget HomingTarget { get; set; }
+
     public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = [];
 
     public static string CreateNamedVariableKey(byte varSrcType, ushort nameId, string memberName)
@@ -82,6 +88,7 @@ public class Context
             PendingActivationCharacter = original.PendingActivationCharacter,
             SourceContext = original.SourceContext,
             SourceEffect = original.SourceEffect,
+            HomingTarget = original.HomingTarget,
         };
     }
 
