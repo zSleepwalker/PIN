@@ -50,12 +50,15 @@ public class ZoneLoader
         _serializerOptions.Converters.Add(new Vector4Converter());
         _serializerOptions.Converters.Add(new Vector3Converter());
         _serializerOptions.Converters.Add(new StringBooleanConverter());
+
+        PlaceholderBox = Simulation.Shapes.Add(new Box(0.5f * 2, 0.5f * 2, 0.5f * 2));
     }
 
     public Simulation Simulation { get; protected set; }
     public BufferPool BufferPool { get; private set; }
     public ThreadDispatcher ThreadDispatcher { get; private set; }
     public TagfileLoader.TagfileLoader TagfileLoader { get; private set; }
+    public TypedIndex PlaceholderBox { get; private set; }
 
     public bool LoadCollision(string mapsPath, uint zoneId)
     {
@@ -116,20 +119,9 @@ public class ZoneLoader
 
             foreach (PinChunkSubChunk subChunk in chunk.SubChunks)
             {
-                if (subChunk.Cg != null)
-                {
-                    var myLayer = subChunk.Cg as ITagfileExternalStorage;
-                    var root = subChunk.Cg.GetTagfileObject("#0001");
-                    var statics = TagfileLoader.ProcessObject(root, ref myLayer);
-                    for (int i = 0; i < statics.Length; i++)
-                    {
-                        var stat = statics[i];
-                        stat.Pose.Position += origin;
-                        Simulation.Statics.Add(stat);
-                    }
-                }
-
-                // TODO: Process subChunk.Cg2, subChunk.Cg3
+                LoadChunkLayer(origin, subChunk.Cg);
+                LoadChunkLayer(origin, subChunk.Cg2);
+                LoadChunkLayer(origin, subChunk.Cg3);
             }
 
             return true;
@@ -138,6 +130,24 @@ public class ZoneLoader
         {
             _logger.Error("LoadChunkJSON Failed: {Message} ({Type}) on {Path}\n{StackTrace}", e.Message, e.GetType().Name, path, e.StackTrace);
             return false;
+        }
+    }
+
+    private void LoadChunkLayer(Vector3 origin, ENWFLayer layer)
+    {
+        if (layer == null)
+        {
+            return;
+        }
+
+        var storage = layer as ITagfileExternalStorage;
+        var root = layer.GetTagfileObject("#0001");
+        var statics = TagfileLoader.ProcessObject(root, ref storage);
+        for (int i = 0; i < statics.Length; i++)
+        {
+            var stat = statics[i];
+            stat.Pose.Position += origin;
+            Simulation.Statics.Add(stat);
         }
     }
 
@@ -156,11 +166,8 @@ public class ZoneLoader
                 return ProcessShape(cylinder, ref layer);
             case HkpExtendedMeshShapeObject extendedMesh:
                 return ProcessShape(extendedMesh, ref layer);
-
-            /*
             case HkpConvexVerticesShapeObject convexVertices:
                 return ProcessShape(convexVertices, ref layer);
-            */
 
             // Containers
             case HkpListShapeObject list:
@@ -405,9 +412,89 @@ public class ZoneLoader
 
     private StaticDescription[] ProcessShape(HkpConvexVerticesShapeObject obj, ref ENWFLayer layer)
     {
-        // TODO: ConvexVertices
-        // return null;
-        throw new NotImplementedException("Fix Pls");
+        try
+        {
+            Vector3[] vertices = UnrotateRotatedVertices(obj.RotatedVertices, obj.NumVertices);
+            ConvexHullHelper.ComputeHull(vertices, BufferPool, out HullData hullData);
+            if (IsHullFaceValid(vertices, hullData))
+            {
+                ConvexHullHelper.CreateShape(vertices, hullData, BufferPool, out Vector3 center, out ConvexHull convexHull);
+                var pose = new RigidPose(center);
+                var stat = new StaticDescription(pose, Simulation.Shapes.Add(convexHull));
+                return [stat];
+            }
+
+            _logger.Error("Failed to process hkpConvexVerticesShape {Name}. IsHullFaceValid reports false.", obj.Name);
+            return [new StaticDescription(RigidPose.Identity, PlaceholderBox)];
+        }
+        catch (Exception ex)
+        {
+            _logger.Error("Failed to process hkpConvexVerticesShape {Name}. Exception: {Message} ({Type})\n{StackTrace}", obj.Name, ex.Message, ex.GetType().Name, ex.StackTrace);
+            return [new StaticDescription(RigidPose.Identity, PlaceholderBox)];
+        }
+    }
+
+    private static Vector3[] UnrotateRotatedVertices(Vector4[][] rotatedVertices, uint numVertices)
+    {
+        Vector3[] vertices = new Vector3[numVertices];
+        var vert = 0;
+        for (int i = 0; i < rotatedVertices.Length; i++)
+        {
+            vertices[vert++] = new Vector3(rotatedVertices[i][0].X, rotatedVertices[i][1].X, rotatedVertices[i][2].X);
+            if (vert == numVertices)
+            {
+                break;
+            }
+
+            vertices[vert++] = new Vector3(rotatedVertices[i][0].Y, rotatedVertices[i][1].Y, rotatedVertices[i][2].Y);
+            if (vert == numVertices)
+            {
+                break;
+            }
+
+            vertices[vert++] = new Vector3(rotatedVertices[i][0].Z, rotatedVertices[i][1].Z, rotatedVertices[i][2].Z);
+            if (vert == numVertices)
+            {
+                break;
+            }
+
+            vertices[vert++] = new Vector3(rotatedVertices[i][0].W, rotatedVertices[i][1].W, rotatedVertices[i][2].W);
+            if (vert == numVertices)
+            {
+                break;
+            }
+        }
+
+        return vertices;
+    }
+
+    private static bool IsHullFaceValid(Span<Vector3> points, HullData hullData)
+    {
+        for (int faceIndex = 0; faceIndex < hullData.FaceStartIndices.Length; ++faceIndex)
+        {
+            hullData.GetFace(faceIndex, out var face);
+
+            Vector3 faceNormal = default;
+            var a = points[face[0]];
+            var b = points[face[1]];
+            var prev = b - a;
+
+            for (int i = 2; i < face.VertexCount; ++i)
+            {
+                var c = points[face[i]];
+                var curr = c - a;
+
+                faceNormal += Vector3.Cross(prev, curr);
+                prev = curr;
+            }
+
+            if (faceNormal.LengthSquared() <= 1e-20f)
+            {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     [StructLayout(LayoutKind.Sequential)]
