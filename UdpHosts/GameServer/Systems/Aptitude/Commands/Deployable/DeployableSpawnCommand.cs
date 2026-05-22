@@ -21,6 +21,7 @@ public class DeployableSpawnCommand : Command, ICommand
         var orientation = Quaternion.Identity;
 
         uint typeId = 0;
+        bool suppressSpawnAbility = false;
         if (Params.DeployableTypeId != null && Params.DeployableTypeId != 0)
         {
             typeId = (uint)Params.DeployableTypeId;
@@ -28,12 +29,13 @@ public class DeployableSpawnCommand : Command, ICommand
         else if (context.Self is DeployableEntity selfDeployable && selfDeployable.Type != 0)
         {
             typeId = selfDeployable.Type;
-            Logger.Debug("{Command} {CommandId} has no DeployableTypeId; falling back to self type {TypeId}.", nameof(DeployableSpawnCommand), Params.Id, typeId);
+            suppressSpawnAbility = true;
+            Logger.Debug("{Command} {CommandId} has no DeployableTypeId; falling back to self type {TypeId} without re-triggering its spawn ability.", nameof(DeployableSpawnCommand), Params.Id, typeId);
         }
 
         if (typeId != 0)
         {
-            var entity = context.Shard.EntityMan.SpawnDeployable(typeId, position, orientation);
+            var entity = context.Shard.EntityMan.SpawnDeployable(typeId, position, orientation, suppressSpawnAbility: suppressSpawnAbility);
 
             if (entity == null)
             {

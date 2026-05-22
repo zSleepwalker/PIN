@@ -123,7 +123,7 @@ public class EntityManager
         return vehicleEntity;
     }
 
-    public DeployableEntity SpawnDeployable(uint typeId, Vector3 position, Quaternion orientation, CharacterEntity owner = null, bool useOwnerFaction = false, byte overrideFactionId = 0)
+    public DeployableEntity SpawnDeployable(uint typeId, Vector3 position, Quaternion orientation, CharacterEntity owner = null, bool useOwnerFaction = false, byte overrideFactionId = 0, bool suppressSpawnAbility = false)
     {
         var deployableInfo = SDBInterface.GetDeployable(typeId);
         var deployableEntity = new DeployableEntity(_shard, _shard.GetNextGuid(), typeId, 0, owner);
@@ -192,7 +192,7 @@ public class EntityManager
         _shard.Physics.UpdateEntity(deployableEntity);
         Add(deployableEntity.EntityId, deployableEntity);
 
-        if (deployableInfo.SpawnAbilityid != 0)
+        if (!suppressSpawnAbility && deployableInfo.SpawnAbilityid != 0)
         {
             _shard.Abilities.HandleActivateAbility(_shard, deployableEntity, deployableInfo.SpawnAbilityid);
         }
