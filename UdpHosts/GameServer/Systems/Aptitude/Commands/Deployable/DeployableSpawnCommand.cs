@@ -1,5 +1,6 @@
 using System.Numerics;
 using GameServer.Data.SDB.Records.customdata;
+using GameServer.Entities.Deployable;
 
 namespace GameServer.Aptitude;
 
@@ -19,9 +20,19 @@ public class DeployableSpawnCommand : Command, ICommand
         var position = target.Position;
         var orientation = Quaternion.Identity;
 
+        uint typeId = 0;
         if (Params.DeployableTypeId != null && Params.DeployableTypeId != 0)
         {
-            var typeId = (uint)Params.DeployableTypeId;
+            typeId = (uint)Params.DeployableTypeId;
+        }
+        else if (context.Self is DeployableEntity selfDeployable && selfDeployable.Type != 0)
+        {
+            typeId = selfDeployable.Type;
+            Logger.Debug("{Command} {CommandId} has no DeployableTypeId; falling back to self type {TypeId}.", nameof(DeployableSpawnCommand), Params.Id, typeId);
+        }
+
+        if (typeId != 0)
+        {
             var entity = context.Shard.EntityMan.SpawnDeployable(typeId, position, orientation);
 
             if (entity == null)

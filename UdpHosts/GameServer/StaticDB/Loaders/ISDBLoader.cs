@@ -22,7 +22,7 @@ public interface ISDBLoader
     Dictionary<uint, Faction> LoadFaction();
     Dictionary<uint, Monster> LoadMonster();
     Dictionary<uint, MonsterVisualOptions> LoadMonsterVisualOptions();
-    Dictionary<int, List<MonsterVisualOption>> LoadMonsterVisualOption();
+    Dictionary<uint, List<MonsterVisualOption>> LoadMonsterVisualOption();
     Dictionary<uint, Turret> LoadTurret();
     Dictionary<uint, GliderParameters> LoadGliderParameters();
     Dictionary<uint, CharInfo> LoadCharInfo();

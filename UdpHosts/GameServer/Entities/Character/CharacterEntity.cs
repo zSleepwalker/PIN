@@ -389,7 +389,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         // Pick the gender-appropriate sub-group parent ID.
-        int parentId = monsterInfo.Gender == 'F' ? visualOptions.Female : visualOptions.Male;
+        uint parentId = monsterInfo.Gender == 'F' ? visualOptions.Female : visualOptions.Male;
         if (parentId == 0)
         {
             return (Array.Empty<uint>(), Array.Empty<uint>(), Array.Empty<HalfFloat>());
@@ -407,15 +407,15 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         foreach (var opt in options)
         {
-            switch (opt.Type)
+            switch ((MonsterVisualOptionType)opt.Type)
             {
-                case (int)MonsterVisualOptionType.Gradient:
+                case MonsterVisualOptionType.Gradient:
                     gradients.Add((uint)opt.Value);
                     break;
-                case (int)MonsterVisualOptionType.CziMap:
+                case MonsterVisualOptionType.CziMap:
                     cziMaps.Add((uint)opt.Value);
                     break;
-                case (int)MonsterVisualOptionType.MorphWeight:
+                case MonsterVisualOptionType.MorphWeight:
                     morphWeights.Add((HalfFloat)BitConverter.Int32BitsToSingle((int)opt.Value));
                     break;
                 default:

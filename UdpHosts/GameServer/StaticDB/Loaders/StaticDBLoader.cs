@@ -190,11 +190,11 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, MonsterVisualOptions> LoadMonsterVisualOptions()
     {
         return LoadStaticDB<MonsterVisualOptions>("dbcharacter::MonsterVisualOptions")
-            .GroupBy(row => (uint)row.Id)
+            .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }
 
-    public Dictionary<int, List<MonsterVisualOption>> LoadMonsterVisualOption()
+    public Dictionary<uint, List<MonsterVisualOption>> LoadMonsterVisualOption()
     {
         return LoadStaticDB<MonsterVisualOption>("dbcharacter::MonsterVisualOption")
             .GroupBy(row => row.Parent)
