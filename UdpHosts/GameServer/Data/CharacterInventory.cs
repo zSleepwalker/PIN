@@ -74,14 +74,14 @@ public class CharacterInventory
         { (byte)AbilitySlotType.AbilityCalldownGlider, (byte)LoadoutSlotType.Glider },
     };
 
-    private Dictionary<ulong, Item> _items; // By guid
-    private Dictionary<uint, Resource> _resources; // By typeid
-    private Dictionary<int, Loadout> _loadouts; // By loadoutid
+    private readonly Dictionary<ulong, Item> _items; // By guid
+    private readonly Dictionary<uint, Resource> _resources; // By typeid
+    private readonly Dictionary<int, Loadout> _loadouts; // By loadoutid
     private Dictionary<uint, FrameProgressionState> _frameProgressions; // By chassis id
 
-    private IShard _shard;
-    private INetworkClient _player;
-    private CharacterEntity _character;
+    private readonly IShard _shard;
+    private readonly INetworkClient _player;
+    private readonly CharacterEntity _character;
 
     public CharacterInventory(IShard shard, INetworkClient player, CharacterEntity character)
     {
@@ -474,12 +474,10 @@ public class CharacterInventory
     /// <returns>The loadout data as LoadoutReferenceData or null if the loadoutId was invalid</returns>
     public LoadoutReferenceData GetLoadoutReferenceData(int loadoutId)
     {
-        if (!_loadouts.ContainsKey(loadoutId))
+        if (!_loadouts.TryGetValue(loadoutId, out var loadout))
         {
             return null;
         }
-
-        var loadout = _loadouts[loadoutId];
 
         var refData = new LoadoutReferenceData()
         {
@@ -560,12 +558,11 @@ public class CharacterInventory
 
     public bool ConsumeResource(uint sdbId, uint cost)
     {
-        if (!_resources.ContainsKey(sdbId))
+        if (!_resources.TryGetValue(sdbId, out var res))
         {
             return false;
         }
 
-        var res = _resources[sdbId];
         if (res.Quantity < cost)
         {
             return false;
@@ -573,6 +570,7 @@ public class CharacterInventory
         else
         {
             res.Quantity -= cost;
+
 
             if (res.Quantity > 0)
             {
@@ -582,6 +580,7 @@ public class CharacterInventory
             {
                 _resources.Remove(sdbId);
             }
+
 
             SendResourceUpdate(sdbId);
 
@@ -784,6 +783,7 @@ public class CharacterInventory
             itemChanges = itemChanges.Append(newItem).ToArray();
         }
 
+
         var update = new InventoryUpdate()
         {
             ClearExistingData = 0,
@@ -813,6 +813,7 @@ public class CharacterInventory
 
         NormalizeAndStoreLoadout(loadoutId);
 
+
         // Unequip old Item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Items.Any((e) => e.SlotIndex == (byte)slot))
         {
@@ -828,10 +829,15 @@ public class CharacterInventory
                 _character.CurrentLoadout.SlottedItems[slot] = 0;
             }
 
+
+            // Update CurrentLoadout
+            _character.CurrentLoadout.SlottedItems[slot] = 0;
+
             // Update LoadoutConfigs
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items
                 .Where(e => e.SlotIndex != (byte)slot).ToArray();
         }
+
 
         // Equip new item (if any)
         if (guid != 0)
@@ -867,6 +873,7 @@ public class CharacterInventory
             // Update LoadoutConfig
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items.Append(new LoadoutConfig_Item() { ItemGUID = guid, SlotIndex = (byte)slot }).ToArray();
         }
+
 
         // Update StaticInfo when visuals are changed
         var equippedSdbId = (guid != 0) ? _items[guid].SdbId : 0;
@@ -1079,6 +1086,7 @@ public class CharacterInventory
             or LoadoutConfig_Visual.LoadoutVisualType.Glider
             or LoadoutConfig_Visual.LoadoutVisualType.Vehicle;
     }
+
 
     private byte GetInventoryTypeByItemTypeId(uint sdbId)
     {

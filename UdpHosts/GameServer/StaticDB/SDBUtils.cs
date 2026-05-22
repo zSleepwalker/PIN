@@ -3,6 +3,7 @@ namespace GameServer.Data.SDB;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Numerics;
 using AeroMessages.GSS.V66.Character;
 using global::GameServer.Enums.Visuals;
 using Records.dbcharacter;
@@ -278,6 +279,7 @@ public class SDBUtils
                     var driverComponent = SDBInterface.GetDriverComponentDef(componentId);
                     result.HasDriverSeat = true;
                     result.DriverPosture = driverComponent.Posture;
+                    result.DriverComponent = driverComponent;
                     break;
 
                 case ComponentType.Passenger:
@@ -286,6 +288,7 @@ public class SDBUtils
                     result.PassengerPosture = passengerComponent.Posture;
                     result.HasActivePassenger = passengerComponent.ActivePassenger == 1;
                     result.SkipOnePassenger = passengerComponent.LeadingZero == 1;
+                    result.PassengerComponent = passengerComponent;
                     break;
 
                 case ComponentType.Ability:
@@ -310,6 +313,10 @@ public class SDBUtils
                     result.Turrets.Add(turretComponent);
                     break;
 
+                case ComponentType.HullSegment:
+                    result.HullSegment = SDBInterface.GetHullSegmentDef(componentId);
+                    break;
+
                 case ComponentType.Deployable:
                     var deployableComponent = SDBInterface.GetDeployableComponentDef(componentId);
                     result.Deployables.Add(deployableComponent);
@@ -327,6 +334,11 @@ public class SDBUtils
         }
 
         return result;
+    }
+
+    public static Vector3 Vector3FromFauFau(FauFau.Util.CommmonDataTypes.Vector3 value)
+    {
+        return new Vector3(value.x, value.y, value.z);
     }
 
     public static WeaponInfoResult GetDetailedWeaponInfo(uint weaponSdbId)
@@ -644,6 +656,9 @@ public class VehicleInfoResult
     public byte PassengerPosture;
     public bool HasActivePassenger;
     public bool SkipOnePassenger;
+    public DriverComponentDef DriverComponent;
+    public PassengerComponentDef PassengerComponent;
+    public HullSegmentDef HullSegment;
     public List<AbilityComponentDef> Abilities;
     public uint DeathAbility;
     public float MaxHitPoints;
@@ -651,6 +666,12 @@ public class VehicleInfoResult
     public uint StatusFxId;
     public List<TurretComponentDef> Turrets;
     public List<DeployableComponentDef> Deployables;
+
+    public uint DriverPoseFile => DriverComponent?.DriverPoseFile ?? 0;
+    public Vector3 DriverPoseOffset => DriverComponent != null ? SDBUtils.Vector3FromFauFau(DriverComponent.DriverPoseFileOffset) : Vector3.Zero;
+    public uint PasengerPoseFile => PassengerComponent?.PassengerPoseFile ?? 0;
+    public uint PassengerPoseFile => PassengerComponent?.PassengerPoseFile ?? 0;
+    public Vector3 PassengerPoseOffset => PassengerComponent != null ? SDBUtils.Vector3FromFauFau(PassengerComponent.PassengerPoseFileOffset) : Vector3.Zero;
 }
 
 public class ChassisWarpaintResult

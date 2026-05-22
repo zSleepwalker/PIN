@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using AeroMessages.Common;
-using BepuPhysics;
+using AeroMessages.GSS.V66;
 using Serilog;
 
 namespace GameServer.Entities;
@@ -19,9 +19,11 @@ public class BaseEntity : IEntity
     public ulong EntityId { get; }
     public EntityId AeroEntityId { get; protected set; }
     public IShard Shard { get; }
-    public Vector3 Position { get; set; }
-    public BodyHandle BodyHandle { get; set; }
+    public Vector3 Position { get; set; } = Vector3.Zero;
+    public Quaternion Orientation { get; set; } = Quaternion.Identity;
+    public HostilityInfoData HostilityInfo { get; set; }
 
+    public CollisionComponent Collision { get; set; }
     public InteractionComponent Interaction { get; set; }
     public ScopingComponent Scoping { get; set; }
     public EncounterComponent Encounter { get; set; }

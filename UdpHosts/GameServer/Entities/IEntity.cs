@@ -1,6 +1,6 @@
 ﻿using System.Numerics;
 using AeroMessages.Common;
-using BepuPhysics;
+using AeroMessages.GSS.V66;
 
 namespace GameServer.Entities;
 
@@ -10,7 +10,8 @@ public interface IEntity
     EntityId AeroEntityId { get; }
     IShard Shard { get; }
     Vector3 Position { get; set; }
-    BodyHandle BodyHandle { get; set; }
+    Quaternion Orientation { get; set; }
+    HostilityInfoData HostilityInfo { get; set; }
 
     bool IsInteractable();
     bool CanBeInteractedBy(IEntity other);

@@ -6,6 +6,7 @@ using Records.aptfs;
 using Records.dbcharacter;
 using Records.dbencounterdata;
 using Records.dbitems;
+using Records.dbphysicsmaterials;
 using Records.dbvisualrecords;
 using Records.dbzonemetadata;
 using Records.vcs;
@@ -22,6 +23,8 @@ public interface ISDBLoader
     Dictionary<uint, Monster> LoadMonster();
     Dictionary<uint, Turret> LoadTurret();
     Dictionary<uint, GliderParameters> LoadGliderParameters();
+    Dictionary<uint, CharInfo> LoadCharInfo();
+    Dictionary<uint, PoseType> LoadPoseType();
 
     // dbencounterdata
     Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo();
@@ -29,6 +32,7 @@ public interface ISDBLoader
 
     // dbvisualrecords
     Dictionary<uint, WarpaintPalette> LoadWarpaintPalettes();
+    Dictionary<uint, VisualRecord> LoadVisualRecord();
 
     // dbitems
     Dictionary<uint, AttributeCategory> LoadAttributeCategory();
@@ -46,6 +50,10 @@ public interface ISDBLoader
     Dictionary<uint, WeaponUnderbarrel> LoadWeaponUnderbarrel();
     Dictionary<uint, Ammo> LoadAmmo();
     Dictionary<uint, LevelBand> LoadLevelBand();
+    Dictionary<uint, List<BattleframeVisuals>> LoadBattleframeVisuals();
+
+    // dbphysicsmaterials
+    Dictionary<uint, PhysicsMaterial> LoadPhysicsMaterial();
 
     // dbzonemetadata
     Dictionary<uint, ZoneRecord> LoadZoneRecord();
@@ -242,6 +250,7 @@ public interface ISDBLoader
     Dictionary<uint, ScopingComponentDef> LoadScopingComponentDef();
     Dictionary<uint, DriverComponentDef> LoadDriverComponentDef();
     Dictionary<uint, PassengerComponentDef> LoadPassengerComponentDef();
+    Dictionary<uint, HullSegmentDef> LoadHullSegmentDef();
     Dictionary<uint, AbilityComponentDef> LoadAbilityComponentDef();
     Dictionary<uint, DamageComponentDef> LoadDamageComponentDef();
     Dictionary<uint, StatusEffectComponentDef> LoadStatusEffectComponentDef();

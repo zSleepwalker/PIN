@@ -11,6 +11,7 @@ using Records.apttf;
 using Records.dbcharacter;
 using Records.dbencounterdata;
 using Records.dbitems;
+using Records.dbphysicsmaterials;
 using Records.dbvisualrecords;
 using Records.dbzonemetadata;
 using Records.vcs;
@@ -207,6 +208,20 @@ public class StaticDBLoader : ISDBLoader
             .ToDictionary(group => group.Key, group => ResolveDuplicate<ushort, EmoteRecord>("dbcharacter::EmoteRecord", group));
     }
 
+    public Dictionary<uint, CharInfo> LoadCharInfo()
+    {
+        return LoadStaticDB<CharInfo>("dbcharacter::CharInfo")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, PoseType> LoadPoseType()
+    {
+        return LoadStaticDB<PoseType>("dbcharacter::PoseType")
+            .GroupBy(row => row.PoseId)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
     public Dictionary<uint, MapMarkerInfo> LoadMapMarkerInfo()
     {
         return LoadStaticDB<MapMarkerInfo>("dbencounterdata::MapMarkerInfo")
@@ -224,6 +239,13 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, WarpaintPalette> LoadWarpaintPalettes()
     {
         return LoadStaticDB<WarpaintPalette>("dbvisualrecords::WarpaintPalette")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, VisualRecord> LoadVisualRecord()
+    {
+        return LoadStaticDB<VisualRecord>("dbvisualrecords::VisualRecord")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }
@@ -1008,6 +1030,12 @@ public class StaticDBLoader : ISDBLoader
         .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
     }
 
+    public Dictionary<uint, HullSegmentDef> LoadHullSegmentDef()
+    {
+        return LoadStaticDB<HullSegmentDef>("vcs::HullSegmentDef")
+        .GroupBy(row => row.Id).ToDictionary(group => group.Key, group => group.First());
+    }
+
     public Dictionary<uint, AbilityComponentDef> LoadAbilityComponentDef()
     {
         return LoadStaticDB<AbilityComponentDef>("vcs::AbilityComponentDef")
@@ -1571,6 +1599,20 @@ public class StaticDBLoader : ISDBLoader
     public Dictionary<uint, LevelBand> LoadLevelBand()
     {
         return LoadStaticDB<LevelBand>("dbitems::LevelBand")
+            .GroupBy(row => row.Id)
+            .ToDictionary(group => group.Key, group => group.First());
+    }
+
+    public Dictionary<uint, List<BattleframeVisuals>> LoadBattleframeVisuals()
+    {
+        return LoadStaticDB<BattleframeVisuals>("dbitems::BattleframeVisuals")
+            .GroupBy(row => row.VisualGroup)
+            .ToDictionary(group => group.Key, group => group.ToList());
+    }
+
+    public Dictionary<uint, PhysicsMaterial> LoadPhysicsMaterial()
+    {
+        return LoadStaticDB<PhysicsMaterial>("dbphysicsmaterials::PhysicsMaterial")
             .GroupBy(row => row.Id)
             .ToDictionary(group => group.Key, group => group.First());
     }

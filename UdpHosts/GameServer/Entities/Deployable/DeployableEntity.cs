@@ -26,10 +26,8 @@ public sealed class DeployableEntity : BaseAptitudeEntity, IAptitudeTarget
 
     public INetworkPlayer Player { get; set; }
     public bool IsPlayerOwned => Player != null;
-    public Quaternion Orientation { get; set; }
     public Vector3 AimPosition => Position;
     public Vector3 AimDirection { get; set; }
-    public HostilityInfoData HostilityInfo { get; set; }
     public TurretEntity Turret { get; set; }
 
     public uint ConstructedTime { get; set; }
@@ -143,18 +141,22 @@ public sealed class DeployableEntity : BaseAptitudeEntity, IAptitudeTarget
         Deployable_ObserverView.PositionProp = Position;
     }
 
-    public void SetRotation(Quaternion newRotation)
+    public void SetOrientation(Quaternion newOrientation)
     {
-        Orientation = newRotation;
+        Orientation = newOrientation;
         Deployable_ObserverView.OrientationProp = Orientation;
     }
-
-    public void SetOrientation(Quaternion newRotation) => SetRotation(newRotation);
 
     public void SetAimDirection(Vector3 newDirection)
     {
         AimDirection = newDirection;
         Deployable_ObserverView.AimDirectionProp = AimDirection;
+    }
+
+    public void SetHostilityInfo(HostilityInfoData newValue)
+    {
+        HostilityInfo = newValue;
+        Deployable_ObserverView.HostilityInfoProp = HostilityInfo;
     }
 
     public override bool IsInteractable()

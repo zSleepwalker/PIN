@@ -8,7 +8,7 @@ namespace GameServer.Systems.ProjectileSim;
 
 public class ProjectileSim
 {
-    private Shard _shard;
+    private readonly Shard _shard;
 
     // Keyed by lower 16 bits of the trace uint (matches client ReportProjectileHit.TraceRef)
     private readonly Dictionary<ushort, PendingProjectileHit> _pendingHits = new();

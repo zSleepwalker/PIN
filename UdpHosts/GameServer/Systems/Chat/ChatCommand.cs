@@ -5,17 +5,18 @@ namespace GameServer.Systems.Chat;
 
 public abstract class ChatCommand
 {
-    protected readonly ILogger Logger;
+    protected readonly ILogger _logger;
 
     protected ChatCommand()
     {
-        Logger = Log.ForContext(GetType());
+        _logger = Log.ForContext(GetType());
     }
+
 
     public abstract void Execute(string[] parameters, ChatCommandContext context);
     public virtual void SourceFeedback(string message, ChatCommandContext context)
     {
-        Logger.Information(message);
+        _logger.Information(message);
         context.SourcePlayer?.SendDebugChat(message);
     }
 
@@ -25,11 +26,9 @@ public abstract class ChatCommand
         {
             return result;
         }
-        else
-        {
-            Logger.Warning("Invalid format: {value}", value);
-            return 0;
-        }
+
+        _logger.Warning("Invalid format: {value}", value);
+        return 0;
     }
 
     public ulong ParseULongParameter(string value)
@@ -38,18 +37,16 @@ public abstract class ChatCommand
         {
             return result;
         }
-        else
-        {
-            Logger.Warning("Invalid format: {value}", value);
-            return 0;
-        }
+
+        _logger.Warning("Invalid format: {value}", value);
+        return 0;
     }
 
     public Vector3? ParseVector3Parameters(string[] parameters, int startIndex = 0)
     {
         if (startIndex < 0 || startIndex >= parameters.Length)
         {
-            Logger.Warning("Invalid start index: {startIndex}", startIndex);
+            _logger.Warning("Invalid start index: {startIndex}", startIndex);
             return null;
         }
 
@@ -60,10 +57,8 @@ public abstract class ChatCommand
         {
             return new Vector3(x, y, z);
         }
-        else
-        {
-            Logger.Warning("Invalid format for Vector3 parameters");
-            return null;
-        }
+
+        _logger.Warning("Invalid format for Vector3 parameters");
+        return null;
     }
 }

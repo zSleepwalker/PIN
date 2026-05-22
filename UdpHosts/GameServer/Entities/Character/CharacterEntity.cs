@@ -12,12 +12,17 @@ using GameServer.Aptitude;
 using GameServer.Data;
 using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.customdata;
+using GameServer.Data.SDB.Records.dbcharacter;
+using GameServer.Data.SDB.Records.dbitems;
+using GameServer.Data.SDB.Records.dbvisualrecords;
 using GameServer.Entities.Deployable;
 using GameServer.Enums;
 using GameServer.Systems.Encounters;
 using GameServer.Test;
 using GrpcGameServerAPIClient;
 using CharacterLoadout = GameServer.Data.CharacterLoadout;
+using Serilog;
+using GibVisuals = AeroMessages.GSS.V66.Character.GibVisuals;
 using LoadoutVisualType = AeroMessages.GSS.V66.Character.LoadoutConfig_Visual.LoadoutVisualType;
 
 namespace GameServer.Entities.Character;
@@ -53,7 +58,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         InitFields();
         InitViews();
-        InitBody();
     }
 
     public BaseController Character_BaseController { get; set; }
@@ -67,9 +71,9 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public MovementView Character_MovementView { get; set; }
     public TinyObjectView Character_TinyObjectView { get; set; }
 
+    public new CharacterCollisionComponent Collision { get; set; }
     public INetworkPlayer Player { get; set; }
     public bool IsPlayerControlled => Player != null;
-    public Quaternion Rotation { get; set; }
     public Vector3 Velocity { get; set; }
     public Vector3 AimDirection { get; set; }
     public short MovementState { get; set; }
@@ -137,7 +141,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public CharacterStateData CharacterState { get; set; }
     public int TimePlayed { get; set; }
-    public HostilityInfoData HostilityInfo { get; set; }
     public MaxVital MaxShields { get; set; }
     public MaxVital MaxHealth { get; set; }
     public GibVisuals GibVisualsInfo { get; set; }
@@ -337,6 +340,12 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 Overlays = Array.Empty<VisualsOverlayBlock>()
             },
             ArmyTag = string.Empty
+        });
+
+        SetHostilityInfo(new HostilityInfoData
+        {
+            Flags = 0 | HostilityInfoData.HostilityFlags.Faction,
+            FactionId = (byte)monsterInfo.FactionId
         });
 
         ApplyLoadout(loadout);
@@ -895,6 +904,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             EndUnk2 = 0
         });
 
+
         SetCharacterStats(new CharacterStatsData
         {
             ItemAttributes = loadout.GetItemAttributes(),
@@ -916,6 +926,118 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         StatusEffectsChangeTime_0 = loadout.ChassisChangeTime != 0 ? (ushort)loadout.ChassisChangeTime : (ushort)0;
 
         RefreshStats();
+
+        if (chassis.SdbId != 0)
+        {
+            var gender = StaticInfo.Gender;
+            var race = StaticInfo.Race;
+            var charInfoId = StaticInfo.CharInfoId;
+
+            CharInfo charInfo;
+            Battleframe battleframeRecord;
+            PoseType poseTypeRecord;
+            List<BattleframeVisuals> battleframeVisualGroupRecords;
+            BattleframeVisuals battleframeVisualGroupRecord = null;
+            VisualRecord battleframeVisualRecord = null;
+
+            try
+            {
+                charInfo = SDBInterface.GetCharInfo(charInfoId);
+                battleframeRecord = SDBInterface.GetBattleframe(chassis.SdbId);
+                poseTypeRecord = SDBInterface.GetPoseType(battleframeRecord.PosetypeId);
+                battleframeVisualGroupRecords = SDBInterface.GetBattleframeVisuals(battleframeRecord.VisualGroup);
+
+                // Find the appropriate visual record
+                byte retries = 3;
+                do
+                {
+                    foreach (var record in battleframeVisualGroupRecords)
+                    {
+                        bool matchesRace = record.Race == race;
+                        bool matchesAnyRace = record.Race == 255;
+                        bool matchesGender = (record.Gender == 'F' && gender == 1) || (record.Gender == 'M' && gender == 0);
+                        bool matchesAnyGender = record.Gender == 'X';
+
+                        bool valid = true;
+                        switch (retries)
+                        {
+                            case 3:
+                                // Pick exact match if found
+                                valid = matchesRace && matchesGender;
+                                break;
+                            case 2:
+                                // Otherwise, pick fallback if found
+                                valid = matchesAnyRace && matchesAnyGender;
+                                break;
+                            case 1:
+                                // Try to pick something reasonable
+                                valid = matchesRace || matchesGender;
+                                break;
+                            case 0:
+                                // Pick first result
+                                valid = true;
+                                break;
+                        }
+
+                        if (valid)
+                        {
+                            if (retries < 2)
+                            {
+                                Log.Warning("Picking uncertain Battleframe VisualRecord {recordId} of group {visualGroup} for chassi {chassiId}.", record.VisualrecId, battleframeRecord.VisualGroup, chassis.SdbId);
+                            }
+
+                            Log.Debug("Selected Battleframe VisualRecord {recordId} of group {visualGroup} for chassi {chassiId} (Had Gender {genderChar}, Race {raceId} ({raceStr}))", record.VisualrecId, battleframeRecord.VisualGroup, chassis.SdbId, gender == 1 ? "F" : "M", race, (CharacterRace)race);
+
+                            battleframeVisualGroupRecord = record;
+                            break;
+                        }
+                    }
+
+                    retries--;
+                }
+                while (battleframeVisualRecord == null && retries > 0);
+
+                battleframeVisualRecord = SDBInterface.GetVisualRecord(battleframeVisualGroupRecord.VisualrecId);
+            }
+            catch
+            {
+                Log.Error("Failed to get pose or visualrecord for chassi {chassiId}", chassis.SdbId);
+                throw;
+            }
+
+            // We should have the data now since we survived
+            Log.Debug(
+                "ApplyLoadout Collision Debug | CharInfo: {id} ({name}) | RequiresRagdoll: {requiresRagdoll} | ChassisId: {chassisId} | PoseType: {poseId} | Physics: (R={radius}, H={height}, M={mass}) | VisualGroup: {visualGroup} | VisualRecord: {visualRecord} | StandingCollisionId: {standingCollisionId} | HitboxCollisionId: {hitboxCollisionId} | RagdollCollisionId: {ragdollCollisionId}",
+                charInfo.Id,
+                charInfo.Name,
+                charInfo.RequiresRagdoll,
+                chassis.SdbId,
+                poseTypeRecord.PoseId,
+                poseTypeRecord.PhysicsRadius,
+                poseTypeRecord.PhysicsHeight,
+                poseTypeRecord.PhysicsMass,
+                battleframeRecord.VisualGroup,
+                battleframeVisualRecord.Id,
+                poseTypeRecord.StandingCollisionid,
+                battleframeVisualRecord.HitboxCollisionId,
+                battleframeVisualRecord.RagdollCollisionId);
+
+            // Scale
+            // max_rand_scale, min_rand_scale
+            if (battleframeRecord.MinRandScale != battleframeRecord.MaxRandScale)
+            {
+                Log.Warning("Wtf battleframe {battleframe} has random scale: min: {min}, max: {max}", battleframeRecord.Id, battleframeRecord.MinRandScale, battleframeRecord.MaxRandScale);
+            }
+
+            Collision = new CharacterCollisionComponent
+            {
+                RequiresRagdoll = charInfo.RequiresRagdoll == 1,
+                PoseTypeRecord = poseTypeRecord,
+                RagdollCollisionId = battleframeVisualRecord.RagdollCollisionId,
+                HitboxCollisionId = battleframeVisualRecord.HitboxCollisionId,
+                Scale = battleframeRecord.MinRandScale,
+            };
+        }
     }
 
     public float GetItemAttribute(ushort id) => CurrentLoadout.ItemAttributes.GetValueOrDefault(id);
@@ -1291,7 +1413,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     public void SetPoseData(MovementPoseData poseData, ushort shortTime)
     {
         Position = poseData.PosRotState.Pos;
-        Rotation = poseData.PosRotState.Rot;
+        Orientation = poseData.PosRotState.Rot;
         MovementState = poseData.PosRotState.MovementState;
         Velocity = poseData.Velocity;
         AimDirection = poseData.Aim;
@@ -1315,16 +1437,16 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         Character_CombatView.WeaponReloadCancelledProp = time;
     }
 
-    public void SetRotation(Quaternion newRotation)
+    public void SetOrientation(Quaternion newOrientation)
     {
-        Rotation = newRotation;
+        Orientation = newOrientation;
         RefreshMovementView();
     }
 
     public void PositionAtSpawnPoint(SpawnPoint spawnPoint)
     {
         Position = spawnPoint.Position;
-        Rotation = spawnPoint.Orientation;
+        Orientation = spawnPoint.Orientation;
         AimDirection = spawnPoint.AimDirection;
         RefreshMovementView();
     }
@@ -1335,7 +1457,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Time = Shard.CurrentTime,
             Position = Position,
-            Rotation = Rotation,
+            Rotation = Orientation,
             AimDirection = AimDirection,
             Velocity = Velocity,
             MovementState = 0x1000,
@@ -1622,10 +1744,12 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         return ids.Length == 0 ? "none" : string.Join(",", ids);
     }
 
-    public void SetAttachedTo(AttachedToData newValue, IEntity entity)
+    public void SetAttachedTo(AttachedToData newValue, IEntity entity, uint pose, Vector3 poseOffset)
     {
         AttachedToEntity = entity;
         AttachedTo = newValue;
+        Collision.AttachmentPoseId = pose;
+        Collision.AttachmentPoseOffset = poseOffset;
         Character_ObserverView.AttachedToProp = AttachedTo;
         if (Character_BaseController != null)
         {
@@ -1637,6 +1761,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     {
         AttachedToEntity = null;
         AttachedTo = null;
+        Collision.AttachmentPoseId = 0;
+        Collision.AttachmentPoseOffset = Vector3.Zero;
         Character_ObserverView.AttachedToProp = AttachedTo;
         Character_ObserverView.SnapMountProp = 0;
         if (Character_BaseController != null)
@@ -1832,17 +1958,24 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             muzzleBase.Z = 1.08f;
         }
 
-        var muzzleBaseWorld = QuaternionEx.Transform(muzzleBase, QuaternionEx.Inverse(Rotation)); // Match the characters orientation
+        var muzzleBaseWorld = QuaternionEx.Transform(muzzleBase, QuaternionEx.Inverse(Orientation)); // Match the characters orientation
         var muzzleOffset = new Vector3(aimDirection.X, aimDirection.Y, aimDirection.Z) * 0.1f; // Offset like a sphere based on aim
         var muzzleOffsetWorld = muzzleBaseWorld + muzzleOffset; // Apply offset to base in world
         var origin = Position + muzzleOffsetWorld; // Translate to character
         return origin;
     }
 
+    public void SetHostilityInfo(HostilityInfoData newValue)
+    {
+        HostilityInfo = newValue;
+        Character_ObserverView?.HostilityInfoProp = HostilityInfo;
+        Character_BaseController?.HostilityInfoProp = HostilityInfo;
+    }
+
     private void InitFields()
     {
         Position = new Vector3();
-        Rotation = Quaternion.Identity;
+        Orientation = Quaternion.Identity;
         Velocity = new Vector3();
         AimDirection = new Vector3(0.70707911253f, 0.707134246826f, 0.000504541851114f); // Look kinda forward instead of up
         MovementState = 0x1000;
@@ -1882,7 +2015,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         {
             Time = Shard.CurrentTime,
             Position = Position,
-            Rotation = Rotation,
+            Rotation = Orientation,
             AimDirection = AimDirection,
             Velocity = Velocity,
             MovementState = 0x1000,
@@ -2175,7 +2308,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             MovementProp = new AeroMessages.GSS.V66.Character.MovementData
             {
                 Position = Position,
-                Rotation = Rotation,
+                Rotation = Orientation,
                 Aim = AimDirection,
                 MovementState = (ushort)MovementState,
                 Time = Shard.CurrentTime
@@ -2183,22 +2316,16 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         };
     }
 
-    private void InitBody()
-    {
-        BodyHandle = Shard.Physics.CreateKineticEntity(this);
-    }
-
     private void RefreshMovementView()
     {
         Character_MovementView.MovementProp = new MovementData
         {
             Position = Position,
-            Rotation = Rotation,
+            Rotation = Orientation,
             Aim = AimDirection,
             MovementState = (ushort)MovementState,
             Time = Shard.CurrentTime
         };
-        Shard.Physics.UpdateEntity(this);
     }
 
     private void RefreshAllStatusEffects()

@@ -9,7 +9,7 @@ namespace GameServer.Entities.Turret;
 
 public sealed class TurretEntity : BaseEntity
 {
-    public TurretEntity(IShard shard, ulong eid, uint type, BaseEntity parent, byte parentChildIndex, byte posture)
+    public TurretEntity(IShard shard, ulong eid, uint type, BaseEntity parent, byte parentChildIndex, byte posture, uint gunnerPoseId, Vector3 gunnerPoseOffset)
         : base(shard, eid)
     {
         AeroEntityId = new EntityId() { Backing = EntityId, ControllerId = Controller.Turret };
@@ -18,10 +18,14 @@ public sealed class TurretEntity : BaseEntity
         Parent = parent;
         ParentChildIndex = parentChildIndex;
         Posture = posture;
+        GunnerPoseId = gunnerPoseId;
+        GunnerPoseOffset = gunnerPoseOffset;
 
         // BaseEntity has the Position prop and other systems may wish to use that
         // when processing this entity, EntityManagers scoping in/out logic is one such system.
         Position = parent.Position;
+
+        HostilityInfo = parent.HostilityInfo;
         InitControllers();
         InitViews();
     }
@@ -36,6 +40,8 @@ public sealed class TurretEntity : BaseEntity
     public BaseEntity Parent { get; set; }
     public byte ParentChildIndex { get; set; }
     public byte Posture { get; set; }
+    public uint GunnerPoseId { get; set; }
+    public Vector3 GunnerPoseOffset { get; set; }
 
     public void SetControllingPlayer(INetworkPlayer player)
     {
@@ -61,7 +67,9 @@ public sealed class TurretEntity : BaseEntity
                 Unk2 = Posture,
                 Unk3 = 0,
             },
-                                    this);
+            this,
+            GunnerPoseId,
+            GunnerPoseOffset);
 
             ControllingPlayer = player;
             InitControllers();
@@ -80,6 +88,13 @@ public sealed class TurretEntity : BaseEntity
         Turret_ObserverView.WeaponBurstEndedProp = time;
     }
 
+    public void SetHostilityInfo(HostilityInfoData newValue)
+    {
+        HostilityInfo = newValue;
+        Turret_ObserverView.HostilityInfoProp = HostilityInfo;
+        Turret_BaseController?.HostilityInfoProp = HostilityInfo;
+    }
+
     private void InitControllers()
     {
         Turret_BaseController = new BaseController()
@@ -91,9 +106,9 @@ public sealed class TurretEntity : BaseEntity
             SpawnPoseProp = new SpawnPoseData() { Rotation = Quaternion.Identity, Time = Shard.CurrentTime },
             ProcessDelayProp = new ProcessDelayData() { Unk1 = 30721, Unk2 = 236 },
             WeaponFireBaseTimeProp = new WeaponFireBaseTimeData() { ChangeTime = 0, Unk = 0 },
-            AmmoProp = new AmmoData() { Ammo = new ushort[] { } },
+            AmmoProp = new AmmoData() { Ammo = [] },
             FireRateModifierProp = 1.0f,
-            HostilityInfoProp = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 },
+            HostilityInfoProp = HostilityInfo,
             PersonalFactionStanceProp = null,
             ScalingLevelProp = 1,
         };
@@ -111,9 +126,9 @@ public sealed class TurretEntity : BaseEntity
             ProcessDelayProp = new ProcessDelayData() { Unk1 = 30721, Unk2 = 236 },
             WeaponBurstFiredProp = Shard.CurrentTime,
             WeaponBurstEndedProp = Shard.CurrentTime,
-            AmmoProp = new AmmoStruct() { AmmoIndex = new ushort[] { } },
+            AmmoProp = new AmmoStruct() { AmmoIndex = [] },
             FireRateModifierProp = 1.0f,
-            HostilityInfoProp = new HostilityInfoData { Flags = 0 | HostilityInfoData.HostilityFlags.Faction, FactionId = 1 },
+            HostilityInfoProp = HostilityInfo,
             PersonalFactionStanceProp = null,
         };
     }

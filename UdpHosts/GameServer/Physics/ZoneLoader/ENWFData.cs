@@ -1,8 +1,9 @@
 using System.Collections.Generic;
-using System.Linq;
 using System.Numerics;
-using System.Text.Json.Nodes;
+using System.Text.Json.Serialization;
+using GameServer.Physics.TagfileLoader;
 using Serilog;
+using TagfileBaseTagfileObject = global::GameServer.Physics.TagfileLoader.BaseTagfileObject;
 
 namespace GameServer.Physics.ZoneLoader;
 
@@ -10,39 +11,26 @@ public class ENWFData
 {
     private static readonly ILogger _logger = Log.ForContext<ENWFData>();
 
-    public struct VertBlockContent
-    {
-        public Vector3[] Verts;
-    }
-
-    public struct IndiceBlockContent
-    {
-        public uint[][] Indices;
-    }
-
-    public struct TagfileObjectContent
-    {
-        public string Name;
-        public string Class;
-        public JsonObject Data;
-    }
-
-    public class ENWFLayer
+    public class ENWFLayer : ITagfileExternalStorage
     {
         public ulong Id;
         public uint NumPhysicsMatIds;
         public uint[] PhysicsMatIds;
         public uint NumVertBlocks;
-        public VertBlockContent[] VertBlocks;
         public uint NumIndiceBlocks;
-        public IndiceBlockContent[] IndiceBlocks;
         public uint NumMatItems;
         public uint NumMoppBlocks;
-        public List<BaseTagfileObject> TagfileObjects;
 
-        public BaseTagfileObject GetTagfileObject(string query)
+        public VertBlockContent[] VertBlocks { get; set; }
+        public IndiceBlockContent[] IndiceBlocks { get; set; }
+
+        [JsonConverter(typeof(TagfileObjectDictionaryConverter))]
+        public Dictionary<string, TagfileBaseTagfileObject> TagfileObjects { get; set; }
+
+        public TagfileBaseTagfileObject GetTagfileObject(string query)
         {
-            var result = TagfileObjects.Where((obj) => obj.Name == query).First();
+            TagfileObjects.TryGetValue(query, out TagfileBaseTagfileObject result);
+
             if (result != null)
             {
                 return result;

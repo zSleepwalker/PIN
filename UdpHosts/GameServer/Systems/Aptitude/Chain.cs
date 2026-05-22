@@ -9,9 +9,6 @@ public class Chain
         1508823,
     };
 
-    public uint Id = 0;
-    public List<ICommand> Commands;
-
     public enum ExecutionMethod
     {
         /// <summary>
@@ -24,6 +21,9 @@ public class Chain
         /// </summary>
         OrChain
     }
+
+    public uint Id { get; set; }
+    public List<ICommand> Commands { get; set; }
 
     public bool Execute(Context context, ExecutionMethod method = ExecutionMethod.AndChain)
     {
@@ -76,6 +76,7 @@ public class Chain
                 }
             }
 
+
             return chainSuccess;
         }
 
@@ -84,7 +85,12 @@ public class Chain
 
     public void DebugPrintCommands()
     {
-        Serilog.Log.Information($"Chain {Id}");
+        Serilog.Log.Information("Chain {ChainId}", Id);
+        if (Commands.Count == 0)
+        {
+            Serilog.Log.Warning("Loaded empty chain {ChainId}", Id);
+        }
+
         foreach (var command in Commands)
         {
             Serilog.Log.Information($"- Command {command.Id} {command}");

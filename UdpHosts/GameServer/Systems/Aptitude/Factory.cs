@@ -6,13 +6,13 @@ namespace GameServer.Aptitude;
 
 public class Factory
 {
-    private Shard Shard;
-    private ILogger Logger;
+    private readonly Shard _shard;
+    private readonly ILogger _logger;
 
     public Factory(Shard shard)
     {
-        Shard = shard;
-        Logger = shard.Logger.ForContext<AbilitySystem>();
+        _shard = shard;
+        _logger = shard.Logger.ForContext<AbilitySystem>();
     }
 
     public Effect LoadEffect(uint effectId)
@@ -63,7 +63,7 @@ public class Factory
 
         if (chain.Commands.Count == 0)
         {
-            Logger.Debug("Loaded empty chain {chainId}", chainId);
+            _logger.Debug("Loaded empty chain {chainId}", chainId);
         }
 
         return chain;
@@ -168,11 +168,11 @@ public class Factory
                             });
                         }
 
-                        Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in SDB apt::ImpactRemoveEffectCommandDef, falling back to CustomData JSON.", commandId);
+                        _logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in SDB apt::ImpactRemoveEffectCommandDef, falling back to CustomData JSON.", commandId);
                         return new ImpactRemoveEffectCommand(customDef);
                     }
 
-                    Logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in both SDB and CustomData, using SDB placeholder semantics.", commandId);
+                    _logger.Warning("ImpactRemoveEffectCommand {CommandId} missing in both SDB and CustomData, using SDB placeholder semantics.", commandId);
                     return new ImpactRemoveEffectCommand(new Data.SDB.Records.customdata.ImpactRemoveEffectCommandDef
                     {
                         Id = commandId,

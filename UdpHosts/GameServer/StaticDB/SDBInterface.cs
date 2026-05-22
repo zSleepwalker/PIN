@@ -9,6 +9,7 @@ using Records.apttf;
 using Records.dbcharacter;
 using Records.dbencounterdata;
 using Records.dbitems;
+using Records.dbphysicsmaterials;
 using Records.dbvisualrecords;
 using Records.dbzonemetadata;
 using Records.vcs;
@@ -28,6 +29,8 @@ public class SDBInterface
     private static Dictionary<ushort, EmoteRecord> EmoteRecord;
     private static Dictionary<string, EmoteRecord> EmoteRecordByName;
     private static Dictionary<string, EmoteRecord> EmoteRecordByAnimationName;
+    private static Dictionary<uint, CharInfo> CharInfo;
+    private static Dictionary<uint, PoseType> PoseType;
 
     // dbencounterdata
     private static Dictionary<uint, MapMarkerInfo> MapMarkerInfo;
@@ -35,6 +38,7 @@ public class SDBInterface
 
     // dbvisualrecords
     private static Dictionary<uint, WarpaintPalette> WarpaintPalettes;
+    private static Dictionary<uint, VisualRecord> VisualRecord;
 
     // dbitems
     private static Dictionary<uint, AttributeCategory> AttributeCategory;
@@ -53,11 +57,15 @@ public class SDBInterface
     private static Dictionary<uint, WeaponUnderbarrel> WeaponUnderbarrel;
     private static Dictionary<uint, Ammo> Ammo;
     private static Dictionary<uint, LevelBand> LevelBand;
+    private static Dictionary<uint, List<BattleframeVisuals>> BattleframeVisuals;
     private static Dictionary<uint, ResourceNodeBeacon> ResourceNodeBeacon;
     private static Dictionary<KeyValuePair<uint, uint>, LevelCategoryScalars> LevelCategoryScalars;
     private static Dictionary<uint, FrameProgressionLevel> FrameProgressionLevel;
     private static Dictionary<uint, Blueprints> Blueprints;
     private static Dictionary<uint, List<Blueprint_Items>> BlueprintItems;
+
+    // dbphysicsmaterials
+    private static Dictionary<uint, PhysicsMaterial> PhysicsMaterial;
 
     // dbzonemetadata
     private static Dictionary<uint, ZoneRecord> ZoneRecord;
@@ -270,6 +278,7 @@ public class SDBInterface
     private static Dictionary<uint, ScopingComponentDef> ScopingComponentDef;
     private static Dictionary<uint, DriverComponentDef> DriverComponentDef;
     private static Dictionary<uint, PassengerComponentDef> PassengerComponentDef;
+    private static Dictionary<uint, HullSegmentDef> HullSegmentDef;
     private static Dictionary<uint, AbilityComponentDef> AbilityComponentDef;
     private static Dictionary<uint, DamageComponentDef> DamageComponentDef;
     private static Dictionary<uint, StatusEffectComponentDef> StatusEffectComponentDef;
@@ -292,6 +301,8 @@ public class SDBInterface
         Turret = loader.LoadTurret();
         GliderParameters = loader.LoadGliderParameters();
         EmoteRecord = loader.LoadEmoteRecord();
+        CharInfo = loader.LoadCharInfo();
+        PoseType = loader.LoadPoseType();
         EmoteRecordByName = EmoteRecord.Values
             .Where(row => !string.IsNullOrWhiteSpace(row.Name))
             .GroupBy(row => NormalizeLookupKey(row.Name))
@@ -307,6 +318,7 @@ public class SDBInterface
 
         // dbvisualrecords
         WarpaintPalettes = loader.LoadWarpaintPalettes();
+        VisualRecord = loader.LoadVisualRecord();
 
         // dbitems
         AttributeCategory = loader.LoadAttributeCategory();
@@ -325,11 +337,15 @@ public class SDBInterface
         WeaponUnderbarrel = loader.LoadWeaponUnderbarrel();
         Ammo = loader.LoadAmmo();
         LevelBand = loader.LoadLevelBand();
+        BattleframeVisuals = loader.LoadBattleframeVisuals();
         ResourceNodeBeacon = loader.LoadResourceNodeBeacon();
         LevelCategoryScalars = loader.LoadLevelCategoryScalars();
         FrameProgressionLevel = loader.LoadFrameProgressionLevel();
         Blueprints = loader.LoadBlueprints();
         BlueprintItems = loader.LoadBlueprintItems();
+
+        // dbphysicsmaterials
+        PhysicsMaterial = loader.LoadPhysicsMaterial();
 
         // dbzonemetadata
         ZoneRecord = loader.LoadZoneRecord();
@@ -572,6 +588,7 @@ public class SDBInterface
         ScopingComponentDef = loader.LoadScopingComponentDef();
         DriverComponentDef = loader.LoadDriverComponentDef();
         PassengerComponentDef = loader.LoadPassengerComponentDef();
+        HullSegmentDef = loader.LoadHullSegmentDef();
         AbilityComponentDef = loader.LoadAbilityComponentDef();
         DamageComponentDef = loader.LoadDamageComponentDef();
         StatusEffectComponentDef = loader.LoadStatusEffectComponentDef();
@@ -698,6 +715,8 @@ public class SDBInterface
     public static Turret GetTurret(uint id) => Turret.GetValueOrDefault(id);
     public static GliderParameters GetGliderParameters(uint id) => GliderParameters.GetValueOrDefault(id);
     public static EmoteRecord GetEmoteRecord(ushort id) => EmoteRecord.GetValueOrDefault(id);
+    public static CharInfo GetCharInfo(uint id) => CharInfo.GetValueOrDefault(id);
+    public static PoseType GetPoseType(uint id) => PoseType.GetValueOrDefault(id);
     public static EmoteRecord ResolveEmoteRecord(string token)
     {
         if (string.IsNullOrWhiteSpace(token))
@@ -735,6 +754,7 @@ public class SDBInterface
 
     // dbvisaulrecords
     public static WarpaintPalette GetWarpaintPalette(uint id) => WarpaintPalettes.GetValueOrDefault(id);
+    public static VisualRecord GetVisualRecord(uint id) => VisualRecord.GetValueOrDefault(id);
     public static uint[] GetWarpaintPaletteIds() => WarpaintPalettes?.Keys.Where(id => id > 0).Distinct().ToArray() ?? Array.Empty<uint>();
 
     // dbitems
@@ -749,9 +769,13 @@ public class SDBInterface
     public static WeaponUnderbarrel GetWeaponUnderbarrel(uint id) => WeaponUnderbarrel.GetValueOrDefault(id);
     public static Ammo GetAmmo(uint id) => Ammo.GetValueOrDefault(id);
     public static LevelBand GetLevelBand(uint id) => LevelBand.GetValueOrDefault(id);
+    public static List<BattleframeVisuals> GetBattleframeVisuals(uint visualGroupId) => BattleframeVisuals.GetValueOrDefault(visualGroupId) ?? new List<BattleframeVisuals>();
     public static ResourceNodeBeacon GetResourceNodeBeacon(uint id) => ResourceNodeBeacon.GetValueOrDefault(id);
     public static LevelCategoryScalars GetLevelCategoryScalar(uint attributeCategory, uint level) => LevelCategoryScalars.GetValueOrDefault(new KeyValuePair<uint, uint>(attributeCategory, level));
     public static FrameProgressionLevel GetFrameProgressionLevel(uint level) => FrameProgressionLevel.GetValueOrDefault(level);
+
+    // dbphysicsmaterials
+    public static PhysicsMaterial GetPhysicsMaterial(uint id) => PhysicsMaterial.GetValueOrDefault(id);
 
     // dbzonemetadata
     public static ZoneRecord GetZoneRecord(uint id) => ZoneRecord.GetValueOrDefault(id);
@@ -1153,6 +1177,7 @@ public class SDBInterface
     public static ScopingComponentDef GetScopingComponentDef(uint id) => ScopingComponentDef.GetValueOrDefault(id);
     public static DriverComponentDef GetDriverComponentDef(uint id) => DriverComponentDef.GetValueOrDefault(id);
     public static PassengerComponentDef GetPassengerComponentDef(uint id) => PassengerComponentDef.GetValueOrDefault(id);
+    public static HullSegmentDef GetHullSegmentDef(uint id) => HullSegmentDef.GetValueOrDefault(id);
     public static AbilityComponentDef GetAbilityComponentDef(uint id) => AbilityComponentDef.GetValueOrDefault(id);
     public static DamageComponentDef GetDamageComponentDef(uint id) => DamageComponentDef.GetValueOrDefault(id);
     public static StatusEffectComponentDef GetStatusEffectComponentDef(uint id) => StatusEffectComponentDef.GetValueOrDefault(id);

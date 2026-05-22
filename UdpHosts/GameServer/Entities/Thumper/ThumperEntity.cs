@@ -42,7 +42,6 @@ public sealed class ThumperEntity : BaseAptitudeEntity, IAptitudeTarget
 
     public INetworkPlayer Player { get; set; }
     public bool IsPlayerOwned => Player != null;
-    public HostilityInfoData HostilityInfo { get; set; }
 
     public uint NodeType { get; set; }
     public uint BeaconType { get; set; }
@@ -156,6 +155,12 @@ public sealed class ThumperEntity : BaseAptitudeEntity, IAptitudeTarget
     {
         Progress = newProgress;
         ResourceNode_ObserverView.ProgressProp = Progress;
+    }
+
+    public void SetHostilityInfo(HostilityInfoData newValue)
+    {
+        HostilityInfo = newValue;
+        ResourceNode_ObserverView?.HostilityInfoProp = HostilityInfo;
     }
 
     public void TransitionToState(ThumperState newState)

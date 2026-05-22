@@ -27,7 +27,7 @@ public class SpawnDeployableServerCommand : ServerCommand
             return;
         }
 
-        var orientation = context.SourcePlayer.CharacterEntity.Rotation;
+        var orientation = context.SourcePlayer.CharacterEntity.Orientation;
 
         if (parameters.Length == 4)
         {

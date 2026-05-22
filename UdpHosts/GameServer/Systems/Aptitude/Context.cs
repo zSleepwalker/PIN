@@ -45,7 +45,7 @@ public class Context
     public uint SourceContext { get; set; }
     public uint SourceEffect { get; set; }
 
-    public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = new Dictionary<ICommand, ICommandActiveContext>();
+    public Dictionary<ICommand, ICommandActiveContext> Actives { get; set; } = [];
 
     public static string CreateNamedVariableKey(byte varSrcType, ushort nameId, string memberName)
     {

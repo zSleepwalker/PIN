@@ -194,6 +194,9 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
 
         CharacterEntity.ApplyLoadout(loadout);
 
+        // Collision data should have been initialized now, create physics representation
+        AssignedShard.Physics.CreateKineticEntity(CharacterEntity);
+
         // Loadout bootstrap can overwrite chassis visuals; restore authoritative battleframe visuals
         // from DB so in-world appearance matches character/garage screens at login.
         CharacterEntity.ReapplyRemoteBattleframeVisuals(remoteData.BattleframeVisuals);
@@ -341,6 +344,7 @@ public class NetworkPlayer : NetworkClient, INetworkPlayer
         Inventory.SendBattleframeProgressionUpdate();
         Inventory.EnablePartialUpdates = true;
 
+        AssignedShard.Physics.UpdateEntity(CharacterEntity);
         CharacterEntity.Alive = true; // Accept MovementInputs only after Respawn
     }
 

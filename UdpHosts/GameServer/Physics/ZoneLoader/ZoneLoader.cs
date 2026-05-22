@@ -10,9 +10,22 @@ using BepuPhysics;
 using BepuPhysics.Collidables;
 using BepuUtilities;
 using BepuUtilities.Memory;
+using GameServer.Physics.TagfileLoader;
 using Serilog;
 using static GameServer.Physics.ZoneLoader.BepuData;
-using static GameServer.Physics.ZoneLoader.ENWFData;
+using BaseTagfileObject = GameServer.Physics.TagfileLoader.BaseTagfileObject;
+using ENWFLayer = GameServer.Physics.ZoneLoader.ENWFData.ENWFLayer;
+using HkpBoxShapeObject = GameServer.Physics.TagfileLoader.HkpBoxShapeObject;
+using HkpCapsuleShapeObject = GameServer.Physics.TagfileLoader.HkpCapsuleShapeObject;
+using HkpConvexTransformShapeObject = GameServer.Physics.TagfileLoader.HkpConvexTransformShapeObject;
+using HkpConvexTranslateShapeObject = GameServer.Physics.TagfileLoader.HkpConvexTranslateShapeObject;
+using HkpConvexVerticesShapeObject = GameServer.Physics.TagfileLoader.HkpConvexVerticesShapeObject;
+using HkpCylinderShapeObject = GameServer.Physics.TagfileLoader.HkpCylinderShapeObject;
+using HkpExtendedMeshShapeObject = GameServer.Physics.TagfileLoader.HkpExtendedMeshShapeObject;
+using HkpListShapeObject = GameServer.Physics.TagfileLoader.HkpListShapeObject;
+using HkpMoppBvTreeShapeObject = GameServer.Physics.TagfileLoader.HkpMoppBvTreeShapeObject;
+using HkpSphereShapeObject = GameServer.Physics.TagfileLoader.HkpSphereShapeObject;
+using HkpTransformShapeObject = GameServer.Physics.TagfileLoader.HkpTransformShapeObject;
 
 namespace GameServer.Physics.ZoneLoader;
 
@@ -26,11 +39,12 @@ public class ZoneLoader
         PropertyNameCaseInsensitive = true
     };
 
-    public ZoneLoader(Simulation simulation, BufferPool pool, ThreadDispatcher dispatcher)
+    public ZoneLoader(Simulation simulation, BufferPool pool, ThreadDispatcher dispatcher, TagfileLoader.TagfileLoader tagfileLoader)
     {
         Simulation = simulation;
         BufferPool = pool;
         ThreadDispatcher = dispatcher;
+        TagfileLoader = tagfileLoader;
 
         _serializerOptions.Converters.Add(new TagfileObjectJsonConverter());
         _serializerOptions.Converters.Add(new Vector4Converter());
@@ -41,25 +55,26 @@ public class ZoneLoader
     public Simulation Simulation { get; protected set; }
     public BufferPool BufferPool { get; private set; }
     public ThreadDispatcher ThreadDispatcher { get; private set; }
+    public TagfileLoader.TagfileLoader TagfileLoader { get; private set; }
 
-    public void LoadCollision(string mapsPath, uint zoneId)
+    public bool LoadCollision(string mapsPath, uint zoneId)
     {
         Stopwatch stopWatch = new Stopwatch();
         stopWatch.Start();
 
-        var zoneFilePath = $"{mapsPath}\\{zoneId}.pinzone.json";
+        var zoneFilePath = Path.Combine(mapsPath, $"{zoneId}.pinzone.json");
         PinZone zoneData = LoadZoneJSON(zoneFilePath);
         if (zoneData == null)
         {
-            _logger.Error("ZoneLoader Failed to load {zoneFilePath}", zoneFilePath);
-            return;
+            _logger.Error("Failed to load {zoneFilePath}", zoneFilePath);
+            return false;
         }
 
         _logger.Information("Loading {ChunkCount} chunks", zoneData.Chunks.Length);
         var counter = 0;
         foreach (var chunk in zoneData.Chunks)
         {
-            var chunkFilePath = $"{mapsPath}\\chunks\\{chunk.Name}.pinchunk.json";
+            var chunkFilePath = Path.Combine(mapsPath, "chunks", $"{chunk.Name}.pinchunk.json");
             var success = LoadChunkJSON(chunk.Origin, chunkFilePath);
             _logger.Information("({Counter}/{ChunkCount}) Chunk {ChunkName} {Status}", ++counter, zoneData.Chunks.Length, chunk.Name, success ? "Loaded" : "Failed");
         }
@@ -72,12 +87,13 @@ public class ZoneLoader
             ts.Seconds,
             ts.Milliseconds / 10);
 
-        _logger.Information("ZoneLoader LoadCollision Finished in {ElapsedTime}", elapsedTime);
+        _logger.Information("LoadCollision Finished in {ElapsedTime}", elapsedTime);
+        return true;
     }
 
     private PinZone LoadZoneJSON(string path)
     {
-        _logger.Information("ZoneLoader LoadZoneJSON {Path}", path);
+        _logger.Information("LoadZoneJSON {Path}", path);
         try
         {
             string json = File.ReadAllText(path);
@@ -85,14 +101,14 @@ public class ZoneLoader
         }
         catch (Exception e)
         {
-            _logger.Error("ZoneLoader LoadZoneJSON Failed: {Message} ({Type})", e.Message, e.GetType().Name);
+            _logger.Error("LoadZoneJSON Failed: {Message} ({Type})", e.Message, e.GetType().Name);
             return null;
         }
     }
 
     private bool LoadChunkJSON(Vector3 origin, string path)
     {
-        // Serilog.Log.Information($"ZoneLoader LoadChunkJSON {path}");
+        _logger.Debug("LoadChunkJSON {Path}", path);
         try
         {
             string json = File.ReadAllText(path);
@@ -102,9 +118,9 @@ public class ZoneLoader
             {
                 if (subChunk.Cg != null)
                 {
-                    var myLayer = subChunk.Cg;
+                    var myLayer = subChunk.Cg as ITagfileExternalStorage;
                     var root = subChunk.Cg.GetTagfileObject("#0001");
-                    var statics = ProcessChunkObject(root, ref myLayer);
+                    var statics = TagfileLoader.ProcessObject(root, ref myLayer);
                     for (int i = 0; i < statics.Length; i++)
                     {
                         var stat = statics[i];
@@ -120,7 +136,7 @@ public class ZoneLoader
         }
         catch (Exception e)
         {
-            _logger.Error("ZoneLoader LoadChunkJSON Failed: {Message} ({Type}) on {Path}", e.Message, e.GetType().Name, path);
+            _logger.Error("LoadChunkJSON Failed: {Message} ({Type}) on {Path}\n{StackTrace}", e.Message, e.GetType().Name, path, e.StackTrace);
             return false;
         }
     }
@@ -424,7 +440,7 @@ public class ZoneLoader
     {
         public string Name;
         public ENWFLayer Cg;
-        public ENWFLayer Cg2 = null;
-        public ENWFLayer Cg3 = null;
+        public ENWFLayer Cg2;
+        public ENWFLayer Cg3;
     }
 }

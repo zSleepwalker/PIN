@@ -101,6 +101,26 @@ public class GameServerModule : Module
                 }
             }
 
+            if (ConfigurationManager.AppSettings["AssetDBPath"] != null)
+            {
+                settings.AssetDBPath = ConfigurationManager.AppSettings["AssetDBPath"];
+            }
+
+            if (ConfigurationManager.AppSettings["AssetsPath"] != null)
+            {
+                settings.AssetsPath = ConfigurationManager.AppSettings["AssetsPath"];
+            }
+
+            if (ConfigurationManager.AppSettings["AssetDBPath"] != null)
+            {
+                settings.AssetDBPath = ConfigurationManager.AppSettings["AssetDBPath"];
+            }
+
+            if (ConfigurationManager.AppSettings["AssetsPath"] != null)
+            {
+                settings.AssetsPath = ConfigurationManager.AppSettings["AssetsPath"];
+            }
+
             return settings;
         })
         .As<GameServerSettings>().SingleInstance();
