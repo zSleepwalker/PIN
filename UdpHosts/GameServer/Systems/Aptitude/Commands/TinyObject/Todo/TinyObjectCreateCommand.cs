@@ -14,6 +14,8 @@ public class TinyObjectCreateCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
+        // TinyObject lifecycle is not yet implemented server-side.
+        Logger.Debug("TinyObjectCreate CMD {Id}: no-op (TinyObject entity system not yet implemented)", Id);
         return true;
     }
 }

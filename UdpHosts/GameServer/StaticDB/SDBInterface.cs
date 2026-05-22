@@ -16,6 +16,10 @@ using Records.vcs;
 
 public class SDBInterface
 {
+    // Fallback ID for the default player-thumper resource node type:
+    // "Default, Thumper Sifted Earth - Resource Vein 0" in dbzonemetadata::ResourceNodeType.
+    private const uint DefaultThumperNodeTypeFallbackId = 20;
+
     // dbcharacter
     private static Dictionary<uint, CharCreateLoadout> CharCreateLoadout;
     private static Dictionary<uint, Dictionary<byte, CharCreateLoadoutSlots>> CharCreateLoadoutSlots;
@@ -787,6 +791,18 @@ public class SDBInterface
     public static ZoneRecord GetZoneRecord(uint id) => ZoneRecord.GetValueOrDefault(id);
     public static ResourceNodeType GetResourceNodeType(uint id) => ResourceNodeType.GetValueOrDefault(id);
     public static List<ResourceNodeTypeResource> GetResourceNodeTypeResources(uint nodeTypeId) => ResourceNodeTypeResource.GetValueOrDefault(nodeTypeId) ?? new List<ResourceNodeTypeResource>();
+
+    /// <summary>
+    /// Returns the ID of the default player-thumper resource node type.
+    /// The SDB entry named "Default, Thumper Sifted Earth - Resource Vein 0" (ID 20) is the
+    /// correct target for all player-called-down thumpers. Falls back to 20 if the table is absent.
+    /// </summary>
+    public static uint GetDefaultThumperNodeTypeId()
+    {
+        var entry = ResourceNodeType?.Values.FirstOrDefault(t =>
+            t.Name != null && t.Name.StartsWith("Default, Thumper", StringComparison.OrdinalIgnoreCase));
+        return entry?.Id ?? DefaultThumperNodeTypeFallbackId;
+    }
 
     // apt
     public static BaseCommandDef GetBaseCommandDef(uint id) => BaseCommandDef.GetValueOrDefault(id);

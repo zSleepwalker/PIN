@@ -14,8 +14,10 @@ public class TargetTinyObjectCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        // TinyObject system not fully implemented.
-        Serilog.Log.Information($"[TargetTinyObject] CMD {Id}: TinyObject system not implemented. Passing through targets.");
+        // TinyObjects are not tracked as IAptitudeTarget entities; replace the target
+        // set with an empty collection so downstream commands see no tiny-object targets.
+        context.FormerTargets = context.Targets;
+        context.Targets = new AptitudeTargets();
         return true;
     }
 }

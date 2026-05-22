@@ -16,4 +16,11 @@ public record class ResourceNodeBeaconCalldownCommandDef : ICommandDef
     public uint Id { get; set; }
     public byte Tier { get; set; }
     public byte GroundAlignment { get; set; }
+
+    /// <summary>
+    /// Optional override for the resource node type spawned by this thumper.
+    /// Not currently present in the SDB (will be 0 unless the SDB is extended).
+    /// When 0, the command falls back to <see cref="SDBInterface.GetDefaultThumperNodeTypeId"/>.
+    /// </summary>
+    public uint NodeTypeId { get; set; }
 }

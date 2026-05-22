@@ -15,8 +15,9 @@ public class TargetByObjectTypeCommand : Command, ICommand
         Params = par;
     }
 
-    // TODO: Handle Params.Projectile
-    // TODO: Handle Params.Tinyobject
+    // Projectile and Tinyobject entity types have no IAptitudeTarget implementation yet;
+    // when those flags are set the filter naturally produces no matches until the
+    // corresponding entity classes are introduced.
     public bool Execute(Context context)
     {
         var previousTargets = context.Targets;
@@ -35,6 +36,9 @@ public class TargetByObjectTypeCommand : Command, ICommand
             {
                 newTargets.Push(target);
             }
+
+            // Params.Tinyobject == 1 and Params.Projectile == 1 intentionally have no
+            // matching branch: neither type exists as a tracked IAptitudeTarget entity.
         }
 
         context.FormerTargets = previousTargets;

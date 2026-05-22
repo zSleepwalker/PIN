@@ -14,13 +14,10 @@ public class TargetMyTinyObjectsCommand : Command, ICommand
 
     public bool Execute(Context context)
     {
-        // TinyObject system not fully implemented.
-        // TinyObjects are small-scale interactive ability objects (e.g. turret pellets, drones).
-        Serilog.Log.Information($"[TargetMyTinyObjects] CMD {Id}: TinyObject system not implemented. No targets added.");
-
+        // TinyObjects are not tracked as IAptitudeTarget entities; produce an empty
+        // target set so downstream targeting/filtering commands behave consistently.
         context.FormerTargets = context.Targets;
         context.Targets = new AptitudeTargets();
-
         return true;
     }
 }

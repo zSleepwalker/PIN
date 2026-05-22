@@ -1,3 +1,4 @@
+using GameServer.Data.SDB;
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
 
@@ -20,7 +21,12 @@ public class ResourceNodeBeaconCalldownCommand : Command, ICommand
         if (request != null)
         {
             var encounterMan = context.Shard.EncounterMan;
-            uint nodeType = 20; // TODO: Figure out how to use and determine these
+
+            // NodeTypeId 0 means the SDB has no per-def override; fall back to the well-known default
+            // ("Default, Thumper Sifted Earth - Resource Vein 0", ID 20).
+            uint nodeType = Params.NodeTypeId != 0
+                ? Params.NodeTypeId
+                : SDBInterface.GetDefaultThumperNodeTypeId();
             var position = request.Position;
             encounterMan.CreateThumper(nodeType, position, caller as CharacterEntity, Params);
             return true;

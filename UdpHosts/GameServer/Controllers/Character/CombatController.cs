@@ -303,12 +303,15 @@ public class CombatController : Base
     public void RequestSelfRevive(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var character = player.CharacterEntity;
-        bool canSelfRevive = !character.Alive
-            && character.CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.self_revive);
+        bool hasSelfRevivePermission = character.CurrentPermissions.TryGetValue(
+            PermissionFlagsData.CharacterPermissionFlags.self_revive,
+            out bool selfRevivePermission)
+            && selfRevivePermission;
+        bool canSelfRevive = !character.Alive && hasSelfRevivePermission;
 
         _logger.Information("RequestSelfRevive Alive={Alive} Permission={Permission} Granted={Granted}",
             character.Alive,
-            character.CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.self_revive),
+            hasSelfRevivePermission,
             canSelfRevive);
 
         var response = new SelfReviveResponse
