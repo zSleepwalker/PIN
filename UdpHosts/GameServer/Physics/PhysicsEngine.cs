@@ -141,9 +141,10 @@ public partial class PhysicsEngine
     public BodyHandle CreateKineticEntity(BaseEntity entity)
     {
         _logger.Debug("CreateKineticEntity Base {entityId}", entity.EntityId);
-        var assetId = entity.Collision.HitboxCollisionId;
+        var collision = entity.Collision;
+        var assetId = collision?.HitboxCollisionId ?? 0;
         var offset = Vector3.Zero;
-        var scale = entity.Collision.Scale;
+        var scale = collision?.Scale ?? 1f;
         var pose = new RigidPose { Position = entity.Position, Orientation = Quaternion.Inverse(entity.Orientation) };
         var key = new AssetCompoundKey(assetId, offset, scale);
         var shape = GetAssetShape(key);

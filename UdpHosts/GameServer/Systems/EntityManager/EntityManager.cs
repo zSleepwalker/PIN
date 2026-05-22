@@ -123,7 +123,7 @@ public class EntityManager
         return vehicleEntity;
     }
 
-    public DeployableEntity SpawnDeployable(uint typeId, Vector3 position, Quaternion orientation, CharacterEntity owner = null, bool useOwnerFaction = false, byte overrideFactionId = 0, bool suppressSpawnAbility = false)
+    public DeployableEntity SpawnDeployable(uint typeId, Vector3 position, Quaternion orientation, CharacterEntity owner = null, bool useOwnerFaction = false, byte overrideFactionId = 0, bool suppressAutomaticAbilities = false)
     {
         var deployableInfo = SDBInterface.GetDeployable(typeId);
         var deployableEntity = new DeployableEntity(_shard, _shard.GetNextGuid(), typeId, 0, owner);
@@ -192,12 +192,12 @@ public class EntityManager
         _shard.Physics.UpdateEntity(deployableEntity);
         Add(deployableEntity.EntityId, deployableEntity);
 
-        if (!suppressSpawnAbility && deployableInfo.SpawnAbilityid != 0)
+        if (!suppressAutomaticAbilities && deployableInfo.SpawnAbilityid != 0)
         {
             _shard.Abilities.HandleActivateAbility(_shard, deployableEntity, deployableInfo.SpawnAbilityid);
         }
 
-        if (deployableInfo.ConstructedAbilityid != 0)
+        if (!suppressAutomaticAbilities && deployableInfo.ConstructedAbilityid != 0)
         {
             var timer = new Timer(state =>
                  {
@@ -213,7 +213,7 @@ public class EntityManager
             deployableEntity.Turret = SpawnTurret(deployableInfo.TurretType, deployableEntity);
         }
 
-        if (deployableInfo.PoweredOnAbility != 0)
+        if (!suppressAutomaticAbilities && deployableInfo.PoweredOnAbility != 0)
         {
             deployableEntity.PoweredOnAbility = deployableInfo.PoweredOnAbility;
             var poweredOnAbility = deployableInfo.PoweredOnAbility;
