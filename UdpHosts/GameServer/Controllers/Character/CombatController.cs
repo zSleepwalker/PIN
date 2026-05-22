@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Command;
+using AeroMessages.GSS.V66.Character.Controller;
 using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Aptitude;
 using GameServer.Data.SDB;
@@ -26,7 +27,8 @@ public class CombatController : Base
     [MessageID((byte)Commands.FireInputIgnored)]
     public void FireInputIgnored(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement
+        var query = packet.Unpack<FireInputIgnored>();
+        _logger.Verbose("FireInputIgnored Time={Time} Ignored={Ignored}", query?.Time, query?.Ignored);
     }
 
     [MessageID((byte)Commands.FireBurst)]
@@ -269,27 +271,57 @@ public class CombatController : Base
     [MessageID((byte)Commands.AcquireWeaponTarget)]
     public void AcquireWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client reporting it locked onto a target
-        _ = packet.Unpack<AcquireWeaponTarget>();
+        var query = packet.Unpack<AcquireWeaponTarget>();
+        if (query == null)
+        {
+            return;
+        }
+
+        _logger.Verbose("AcquireWeaponTarget Time={Time} TargetEntityId=0x{TargetId:X} Unk3={Unk3} Unk4={Unk4}",
+            query.Unk1, query.Unk2, query.Unk3, query.Unk4);
+
+        var targetBaseId = query.Unk2 & 0xffffffffffffff00UL;
+        if (targetBaseId != 0 && client.AssignedShard.Entities.TryGetValue(targetBaseId, out var targetEntity))
+        {
+            var targetCharacter = targetEntity as CharacterEntity;
+            if (targetCharacter?.IsPlayerControlled == true)
+            {
+                targetCharacter.Player.NetChannels[ChannelType.ReliableGss].SendMessage(
+                    new WarnLockTargeted(), targetCharacter.EntityId);
+            }
+        }
     }
 
     [MessageID((byte)Commands.LoseWeaponTarget)]
     public void LoseWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client reporting it lost weapon lock
-        _ = packet.Unpack<LoseWeaponTarget>();
+        var query = packet.Unpack<LoseWeaponTarget>();
+        _logger.Verbose("LoseWeaponTarget Time={Time} TargetEntityId=0x{TargetId:X}", query?.Unk1, query?.Unk2);
     }
 
     [MessageID((byte)Commands.RequestSelfRevive)]
     public void RequestSelfRevive(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – validate and process self-revive
+        var character = player.CharacterEntity;
+        bool canSelfRevive = !character.Alive
+            && character.CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.self_revive);
+
+        _logger.Information("RequestSelfRevive Alive={Alive} Permission={Permission} Granted={Granted}",
+            character.Alive,
+            character.CurrentPermissions.GetValueOrDefault(PermissionFlagsData.CharacterPermissionFlags.self_revive),
+            canSelfRevive);
+
         var response = new SelfReviveResponse
         {
-            Unk1 = 0,
+            Unk1 = canSelfRevive ? (sbyte)0 : (sbyte)-1,
             Unk2 = 0,
             Unk3 = 0,
         };
         client.NetChannels[ChannelType.ReliableGss].SendMessage(response, entityId);
+
+        if (canSelfRevive)
+        {
+            player.Respawn();
+        }
     }
 }

@@ -916,15 +916,15 @@ public class BaseController : Base
     [MessageID((byte)Commands.AcquireWeaponTarget)]
     public void AcquireWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client reporting it locked onto a target
-        _ = packet.Unpack<AcquireWeaponTarget>();
+        var query = packet.Unpack<AcquireWeaponTarget>();
+        _logger.Verbose("AcquireWeaponTarget (BaseController) Time={Time} TargetEntityId=0x{TargetId:X}", query?.Unk1, query?.Unk2);
     }
 
     [MessageID((byte)Commands.LoseWeaponTarget)]
     public void LoseWeaponTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client reporting it lost weapon lock
-        _ = packet.Unpack<LoseWeaponTarget>();
+        var query = packet.Unpack<LoseWeaponTarget>();
+        _logger.Verbose("LoseWeaponTarget (BaseController) Time={Time} TargetEntityId=0x{TargetId:X}", query?.Unk1, query?.Unk2);
     }
 
     [MessageID((byte)Commands.PickupCarryableObjectByProximity)]
