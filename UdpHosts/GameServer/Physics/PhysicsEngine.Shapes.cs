@@ -1,4 +1,5 @@
 #nullable enable
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Numerics;
@@ -78,6 +79,11 @@ public partial class PhysicsEngine
                 var assetId = hkx.Filename;
                 var assetPath = Path.Combine(_assetsPath, $"{assetId}.pinasset.json");
                 var statics = TagfileLoader.LoadRigidBody(Vector3.Zero, assetPath);
+                if (statics.Length == 0)
+                {
+                    _logger.Warning("Pose {PoseFileName} shape {ShapeName} produced no rigid bodies from {AssetPath}", poseDef.Name, name, assetPath);
+                }
+
                 for (int i = 0; i < statics.Length; i++)
                 {
                     var stat = statics[i];
@@ -148,23 +154,37 @@ public partial class PhysicsEngine
             }
         }
 
-        builder.BuildKinematicCompound(out var children, out Vector3 center);
-        var compound = new Compound(children);
-
-        // Origin at bottom
-        Vector3 origin = new Vector3(0, 0, center.Z);
-        for (int i = 0; i < childIndex; ++i)
+        if (childIndex == 0)
         {
-            ref var child = ref compound.Children[i];
-            child.LocalPosition += origin + offset;
+            _logger.Warning("Pose {PoseFileName} generated no collision children; using fallback shape", poseDef.Name);
+            return (new CompoundCacheEntry { ShapeIndex = _fallbackShape }, result);
         }
 
-        var entry = new CompoundCacheEntry
+        try
         {
-            ShapeIndex = Simulation.Shapes.Add(compound)
-        };
+            builder.BuildKinematicCompound(out var children, out Vector3 center);
+            var compound = new Compound(children);
 
-        return (entry, result);
+            // Origin at bottom
+            Vector3 origin = new Vector3(0, 0, center.Z);
+            for (int i = 0; i < childIndex; ++i)
+            {
+                ref var child = ref compound.Children[i];
+                child.LocalPosition += origin + offset;
+            }
+
+            var entry = new CompoundCacheEntry
+            {
+                ShapeIndex = Simulation.Shapes.Add(compound)
+            };
+
+            return (entry, result);
+        }
+        catch (Exception ex)
+        {
+            _logger.Error(ex, "Pose {PoseFileName} failed to build kinematic compound; using fallback shape", poseDef.Name);
+            return (new CompoundCacheEntry { ShapeIndex = _fallbackShape }, result);
+        }
     }
 
     public TypedIndex GetAssetShape(uint assetId, Vector3 offset, float scale = 1f)
@@ -183,10 +203,27 @@ public partial class PhysicsEngine
         var ok = PoseLoader.TryLoad(key.AssetId.ToString("D8"), out var poseDef);
         if (ok && poseDef != null)
         {
-            var (entry, result) = CreateActivePose(poseDef, key.Offset, key.Scale);
+            CompoundCacheEntry entry;
+            Dictionary<int, ActivePoseShapeData> result;
+            try
+            {
+                (entry, result) = CreateActivePose(poseDef, key.Offset, key.Scale);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "CreateActivePose failed for assetId {assetId}; using fallback shape", key.AssetId);
+                entry = new CompoundCacheEntry { ShapeIndex = _fallbackShape };
+                result = [];
+            }
+
             _compoundCache[key] = entry;
-            _assetIdToPoseCompoundData.TryAdd(key.AssetId, result);
-            _poseCompoundToAssetId.Add(entry.ShapeIndex, key.AssetId);
+
+            if (entry.ShapeIndex != _fallbackShape && result.Count > 0)
+            {
+                _assetIdToPoseCompoundData.TryAdd(key.AssetId, result);
+                _poseCompoundToAssetId.TryAdd(entry.ShapeIndex, key.AssetId);
+            }
+
             return entry.ShapeIndex;
         }
 
