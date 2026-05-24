@@ -981,6 +981,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         RefreshStats();
 
+        if (Character_BaseController != null && MaxHealth.Value > 0)
+        {
+            // Battleframe swaps should come up at the destination frame's full health.
+            Character_BaseController.CurrentHealthProp = MaxHealth.Value;
+            Character_ObserverView.CurrentHealthPctProp = 100;
+            Shard.EntityMan.FlushChanges(this);
+        }
+
         if (chassis.SdbId != 0)
         {
             var gender = StaticInfo.Gender;
