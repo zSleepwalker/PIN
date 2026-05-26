@@ -1,4 +1,5 @@
-﻿using GameServer.Data.SDB.Records.aptfs;
+﻿using System;
+using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
@@ -30,8 +31,8 @@ public class RequireMovingCommand : Command, ICommand
                 }
                 else
                 {
-                    // todo
-                    Logger.Debug("[{Command} {CommandId}] velocity tolerance: {VelocityTol}, negate: {Negate}", nameof(RequireMovingCommand), Params.Id, Params.Velocitytol, Params.Negate);
+                    var velocityTolerance = Math.Max(0f, Params.Velocitytol);
+                    result = character.Velocity.LengthSquared() <= velocityTolerance * velocityTolerance;
                 }
             }
         }

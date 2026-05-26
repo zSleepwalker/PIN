@@ -1,4 +1,5 @@
 using GameServer.Data.SDB.Records.customdata;
+using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
 
@@ -19,7 +20,17 @@ public class UnlockTitlesCommand : Command, ICommand
             return true;
         }
 
-        // todo aptitude: unlock title
+        if (context.Self is not CharacterEntity { IsPlayerControlled: true } character)
+        {
+            return true;
+        }
+
+        bool changed = character.Player.Inventory.Unlocks.UnlockByType("title", Params.TitleId, "apt_unlock_titles");
+        if (changed)
+        {
+            character.Player.Inventory.SendCertificateUnlocksUpdate();
+        }
+
         return true;
     }
 }

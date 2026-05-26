@@ -22,7 +22,20 @@ namespace GameServer;
 
 public class NetworkClient : INetworkClient
 {
+    private readonly struct ReliablePacketInfo
+    {
+        public ReliablePacketInfo(DateTime sentAtUtc, ushort packetLength)
+        {
+            SentAtUtc = sentAtUtc;
+            PacketLength = packetLength;
+        }
+
+        public DateTime SentAtUtc { get; }
+        public ushort PacketLength { get; }
+    }
+
     protected readonly ILogger Logger;
+    private readonly ConcurrentDictionary<ChannelType, ConcurrentDictionary<ushort, ReliablePacketInfo>> _reliablePacketsByChannel;
 
     protected NetworkClient(IPEndPoint endPoint, uint socketId, ILogger logger)
     {
@@ -31,6 +44,7 @@ public class NetworkClient : INetworkClient
         RemoteEndpoint = endPoint;
         NetClientStatus = ClientStatus.Unknown;
         NetLastActive = DateTime.Now;
+        _reliablePacketsByChannel = new ConcurrentDictionary<ChannelType, ConcurrentDictionary<ushort, ReliablePacketInfo>>();
     }
 
     public ClientStatus NetClientStatus { get; private set; }
@@ -189,6 +203,29 @@ public class NetworkClient : INetworkClient
         }
     }
 
+    public void RegisterReliablePacket(ChannelType channel, ushort sequenceNumber, ushort packetLength)
+    {
+        var pendingBySequence = _reliablePacketsByChannel.GetOrAdd(channel, static _ => new ConcurrentDictionary<ushort, ReliablePacketInfo>());
+        pendingBySequence[sequenceNumber] = new ReliablePacketInfo(DateTime.UtcNow, packetLength);
+    }
+
+    public bool TryAcknowledgeReliablePacket(ChannelType channel, ushort sequenceNumber, out TimeSpan roundTripTime)
+    {
+        roundTripTime = TimeSpan.Zero;
+        if (!_reliablePacketsByChannel.TryGetValue(channel, out var pendingBySequence))
+        {
+            return false;
+        }
+
+        if (!pendingBySequence.TryRemove(sequenceNumber, out var packetInfo))
+        {
+            return false;
+        }
+
+        roundTripTime = DateTime.UtcNow - packetInfo.SentAtUtc;
+        return true;
+    }
+
     private void GSS_PacketAvailable(GamePacket packet)
     {
         var controllerId = packet.Read<Enums.GSS.Controllers>();
@@ -287,14 +324,44 @@ public class NetworkClient : INetworkClient
                 AssignedShard.MigrateOut((INetworkPlayer)this);
                 break;
             case ControlPacketType.MatrixAck:
-                // TODO: Track reliable packets
                 var matrixAckPackage = packet.Unpack<MatrixAck>();
-                Logger.Verbose("--> {0} Ack for {1} on {2}.", ChannelType.Control, Utils.SimpleFixEndianness(matrixAckPackage.AckForNum), ChannelType.Matrix);
+                var matrixAckSequence = Utils.SimpleFixEndianness(matrixAckPackage.AckForNum);
+                if (TryAcknowledgeReliablePacket(ChannelType.Matrix, matrixAckSequence, out var matrixAckRtt))
+                {
+                    Logger.Verbose("--> {0} Ack for {1} on {2} ({3:F2}ms).",
+                                   ChannelType.Control,
+                                   matrixAckSequence,
+                                   ChannelType.Matrix,
+                                   matrixAckRtt.TotalMilliseconds);
+                }
+                else
+                {
+                    Logger.Verbose("--> {0} Ack for unknown sequence {1} on {2}.",
+                                   ChannelType.Control,
+                                   matrixAckSequence,
+                                   ChannelType.Matrix);
+                }
+
                 break;
             case ControlPacketType.ReliableGSSAck:
-                // TODO: Track reliable packets
                 var reliableGssAckPackage = packet.Unpack<GSSAck>();
-                Logger.Verbose("--> {0} Ack for {1} on {2}.", ChannelType.Control, Utils.SimpleFixEndianness(reliableGssAckPackage.AckForNum), ChannelType.ReliableGss);
+                var reliableGssAckSequence = Utils.SimpleFixEndianness(reliableGssAckPackage.AckForNum);
+                if (TryAcknowledgeReliablePacket(ChannelType.ReliableGss, reliableGssAckSequence, out var reliableGssAckRtt))
+                {
+                    Logger.Verbose("--> {0} Ack for {1} on {2} ({3:F2}ms).",
+                                   ChannelType.Control,
+                                   reliableGssAckSequence,
+                                   ChannelType.ReliableGss,
+                                   reliableGssAckRtt.TotalMilliseconds);
+                }
+                else
+                {
+                    Logger.Verbose("--> {0} Ack for unknown sequence {1} on {2}.",
+                                   ChannelType.Control,
+                                   reliableGssAckSequence,
+                                   ChannelType.ReliableGss);
+                }
+
                 break;
             case ControlPacketType.TimeSyncRequest:
                 var timeSyncRequestPackage = packet.Unpack<TimeSyncRequest>();
@@ -305,7 +372,8 @@ public class NetworkClient : INetworkClient
                 });
                 break;
             case ControlPacketType.MTUProbe:
-                // TODO: ???
+                var mtuProbePayload = packet.Read(packet.BytesRemaining).ToArray();
+                Logger.Verbose("--> {0} MTU probe ({1} bytes).", ChannelType.Control, mtuProbePayload.Length);
                 break;
             default:
                 Logger.Error("---> Unrecognized Control Packet {0} ({1:X2})!!!", messageId, (byte)messageId);

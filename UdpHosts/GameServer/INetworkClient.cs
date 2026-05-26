@@ -32,6 +32,8 @@ public interface INetworkClient
     void NetworkTick(double deltaTime, ulong currentTime, CancellationToken ct);
     void Send(Memory<byte> packet);
     void SendAck(ChannelType forChannel, ushort forSequenceNumber, DateTime? received = null);
+    void RegisterReliablePacket(ChannelType channel, ushort sequenceNumber, ushort packetLength);
+    bool TryAcknowledgeReliablePacket(ChannelType channel, ushort sequenceNumber, out TimeSpan roundTripTime);
 
     void SendDebugChat(string message);
     void SendDebugLog(string log);

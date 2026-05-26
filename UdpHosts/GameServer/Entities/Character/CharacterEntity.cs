@@ -979,6 +979,8 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
         StatusEffectsChangeTime_0 = loadout.ChassisChangeTime != 0 ? (ushort)loadout.ChassisChangeTime : (ushort)0;
 
+        InitializeWeaponAmmoPools(loadout);
+
         RefreshStats();
 
         if (Character_BaseController != null && MaxHealth.Value > 0)
@@ -1099,6 +1101,85 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
                 HitboxCollisionId = battleframeVisualRecord.HitboxCollisionId,
                 Scale = battleframeRecord.MinRandScale,
             };
+        }
+    }
+
+    private void InitializeWeaponAmmoPools(CharacterLoadout loadout)
+    {
+        uint primaryWeaponId = loadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Primary);
+        uint secondaryWeaponId = loadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Secondary, 0u);
+
+        var primaryInfo = primaryWeaponId != 0 ? SDBUtils.GetDetailedWeaponInfo(primaryWeaponId) : null;
+        var secondaryInfo = secondaryWeaponId != 0 ? SDBUtils.GetDetailedWeaponInfo(secondaryWeaponId) : null;
+
+        InitializeWeaponAmmoPoolForSlot(primaryInfo?.Main, 0, isAlt: false);
+        InitializeWeaponAmmoPoolForSlot(secondaryInfo?.Main, 1, isAlt: false);
+        InitializeWeaponAmmoPoolForSlot(primaryInfo?.Alt, 0, isAlt: true);
+        InitializeWeaponAmmoPoolForSlot(secondaryInfo?.Alt, 1, isAlt: true);
+    }
+
+    private void InitializeWeaponAmmoPoolForSlot(WeaponTemplateResult weaponTemplate, int slotIndex, bool isAlt)
+    {
+        if (weaponTemplate == null)
+        {
+            return;
+        }
+
+        ushort configuredClip = weaponTemplate.BaseClipSize > 0 ? weaponTemplate.BaseClipSize : weaponTemplate.MaxAmmo;
+        ushort maxClip = (ushort)Math.Min(configuredClip, weaponTemplate.MaxAmmo);
+        ushort maxReserve = weaponTemplate.MaxAmmo;
+
+        if (Character_CombatController != null)
+        {
+            if (isAlt)
+            {
+                if (slotIndex == 0)
+                {
+                    Character_CombatController.AltClip_0Prop = maxClip;
+                    Character_CombatController.AltAmmo_0Prop = maxReserve;
+                }
+                else
+                {
+                    Character_CombatController.AltClip_1Prop = maxClip;
+                    Character_CombatController.AltAmmo_1Prop = maxReserve;
+                }
+            }
+            else
+            {
+                if (slotIndex == 0)
+                {
+                    Character_CombatController.Clip_0Prop = maxClip;
+                    Character_CombatController.Ammo_0Prop = maxReserve;
+                }
+                else
+                {
+                    Character_CombatController.Clip_1Prop = maxClip;
+                    Character_CombatController.Ammo_1Prop = maxReserve;
+                }
+            }
+        }
+
+        if (isAlt)
+        {
+            if (slotIndex == 0)
+            {
+                Character_CombatView.AltAmmo_0Prop = maxClip;
+            }
+            else
+            {
+                Character_CombatView.AltAmmo_1Prop = maxClip;
+            }
+        }
+        else
+        {
+            if (slotIndex == 0)
+            {
+                Character_CombatView.Ammo_0Prop = maxClip;
+            }
+            else
+            {
+                Character_CombatView.Ammo_1Prop = maxClip;
+            }
         }
     }
 
@@ -1942,26 +2023,45 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
 #nullable enable
 
+    private bool IsUsingAlternateFireMode()
+    {
+        // FireMode_0 is selected fire mode; FireMode_1 is scope/ADS state.
+        return FireMode_0.Mode != 0;
+    }
+
     // TODO: cache this
     public ActiveWeaponDetails? GetActiveWeaponDetails()
     {
         // Weapon
         uint weaponId;
+        int slotIndex;
         StatsData[] weaponAttributes;
         switch (WeaponIndex.Index)
         {
             case 2:
                 weaponId = CurrentLoadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Secondary);
+                slotIndex = 1;
                 weaponAttributes = CurrentLoadout.GetSecondaryWeaponAttributes();
                 break;
             case 1:
+            case 0:
                 weaponId = CurrentLoadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Primary);
+                slotIndex = 0;
                 weaponAttributes = CurrentLoadout.GetPrimaryWeaponAttributes();
                 break;
-            case 0:
             default:
-                // Serilog.Log.Information($"GetActiveWeaponDetails fails because invalid selected weapon index {WeaponIndex.Index}");
-                return null;
+                weaponId = CurrentLoadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Primary);
+                slotIndex = 0;
+                weaponAttributes = CurrentLoadout.GetPrimaryWeaponAttributes();
+                if (weaponId == 0)
+                {
+                    weaponId = CurrentLoadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Secondary);
+                    slotIndex = 1;
+                    weaponAttributes = CurrentLoadout.GetSecondaryWeaponAttributes();
+                }
+
+                Serilog.Log.Debug("GetActiveWeaponDetails using fallback for weapon index {WeaponIndex}", WeaponIndex.Index);
+                break;
         }
 
         if (weaponId == 0)
@@ -1971,8 +2071,15 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         var weaponDetails = SDBUtils.GetDetailedWeaponInfo(weaponId);
+        if (weaponDetails == null)
+        {
+            Serilog.Log.Information("GetActiveWeaponDetails failed to resolve weapon details for sdbId {WeaponId}", weaponId);
+            return null;
+        }
+
         var weapon = weaponDetails.Main;
-        if (weaponDetails.Alt != null && (FireMode_0.Mode != 0 || FireMode_1.Mode != 0))
+        bool useAltPool = weaponDetails.Alt != null && IsUsingAlternateFireMode();
+        if (useAltPool)
         {
             weapon = weaponDetails.Alt;
         }
@@ -2003,7 +2110,131 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             AmmoId = AmmoOverride != 0 ? AmmoOverride : weapon.AmmoId,
             Spread = spreadFactor,
             RateOfFire = weaponAttributeRateOfFire,
+            UseAltPool = useAltPool,
+            SlotIndex = slotIndex,
         };
+    }
+
+    public bool TryGetActiveWeaponAmmoState(out ushort clip, out ushort reserve, out ushort maxClip, out ushort maxReserve)
+    {
+        clip = 0;
+        reserve = 0;
+        maxClip = 0;
+        maxReserve = 0;
+
+        if (Character_CombatController == null)
+        {
+            return false;
+        }
+
+        var details = GetActiveWeaponDetails();
+        if (details == null)
+        {
+            return false;
+        }
+
+        bool usingAlt = details.UseAltPool;
+        int slotIndex = details.SlotIndex;
+
+        var ammoTemplate = details.Weapon;
+        if (usingAlt)
+        {
+            ushort altClip = slotIndex == 0 ? Character_CombatController.AltClip_0Prop : Character_CombatController.AltClip_1Prop;
+            ushort altReserve = slotIndex == 0 ? Character_CombatController.AltAmmo_0Prop : Character_CombatController.AltAmmo_1Prop;
+            ushort mainClip = slotIndex == 0 ? Character_CombatController.Clip_0Prop : Character_CombatController.Clip_1Prop;
+            ushort mainReserve = slotIndex == 0 ? Character_CombatController.Ammo_0Prop : Character_CombatController.Ammo_1Prop;
+
+            if (altClip == 0 && altReserve == 0 && (mainClip > 0 || mainReserve > 0))
+            {
+                usingAlt = false;
+                var mainDetails = SDBUtils.GetDetailedWeaponInfo(details.WeaponId);
+                if (mainDetails != null)
+                {
+                    ammoTemplate = mainDetails.Main;
+                }
+
+                Serilog.Log.Debug(
+                    "Active ammo pool fallback to main for {EntityId}; fireMode={FireMode}, slot={SlotIndex}, mainClip={MainClip}, altClip={AltClip}.",
+                    EntityId,
+                    FireMode_0.Mode,
+                    slotIndex,
+                    mainClip,
+                    altClip);
+            }
+        }
+
+        ushort configuredClip = ammoTemplate.BaseClipSize > 0 ? ammoTemplate.BaseClipSize : ammoTemplate.MaxAmmo;
+        maxClip = (ushort)Math.Min(configuredClip, ammoTemplate.MaxAmmo);
+        maxReserve = ammoTemplate.MaxAmmo;
+
+        if (usingAlt)
+        {
+            clip = slotIndex == 0 ? Character_CombatController.AltClip_0Prop : Character_CombatController.AltClip_1Prop;
+            reserve = slotIndex == 0 ? Character_CombatController.AltAmmo_0Prop : Character_CombatController.AltAmmo_1Prop;
+        }
+        else
+        {
+            clip = slotIndex == 0 ? Character_CombatController.Clip_0Prop : Character_CombatController.Clip_1Prop;
+            reserve = slotIndex == 0 ? Character_CombatController.Ammo_0Prop : Character_CombatController.Ammo_1Prop;
+        }
+
+        return true;
+    }
+
+    public void SetActiveWeaponAmmoState(ushort clip, ushort reserve)
+    {
+        if (Character_CombatController == null)
+        {
+            return;
+        }
+
+        var details = GetActiveWeaponDetails();
+        bool usingAlt = details?.UseAltPool == true;
+        int slotIndex = details?.SlotIndex ?? 0;
+
+        if (usingAlt)
+        {
+            ushort altClip = slotIndex == 0 ? Character_CombatController.AltClip_0Prop : Character_CombatController.AltClip_1Prop;
+            ushort altReserve = slotIndex == 0 ? Character_CombatController.AltAmmo_0Prop : Character_CombatController.AltAmmo_1Prop;
+            ushort mainClip = slotIndex == 0 ? Character_CombatController.Clip_0Prop : Character_CombatController.Clip_1Prop;
+            ushort mainReserve = slotIndex == 0 ? Character_CombatController.Ammo_0Prop : Character_CombatController.Ammo_1Prop;
+
+            if (altClip == 0 && altReserve == 0 && (mainClip > 0 || mainReserve > 0))
+            {
+                usingAlt = false;
+            }
+        }
+
+        if (usingAlt)
+        {
+            if (slotIndex == 0)
+            {
+                Character_CombatController.AltClip_0Prop = clip;
+                Character_CombatController.AltAmmo_0Prop = reserve;
+                Character_CombatView.AltAmmo_0Prop = clip;
+            }
+            else
+            {
+                Character_CombatController.AltClip_1Prop = clip;
+                Character_CombatController.AltAmmo_1Prop = reserve;
+                Character_CombatView.AltAmmo_1Prop = clip;
+            }
+        }
+        else
+        {
+            if (slotIndex == 0)
+            {
+                Character_CombatController.Clip_0Prop = clip;
+                Character_CombatController.Ammo_0Prop = reserve;
+                Character_CombatView.Ammo_0Prop = clip;
+            }
+            else
+            {
+                Character_CombatController.Clip_1Prop = clip;
+                Character_CombatController.Ammo_1Prop = reserve;
+                Character_CombatView.Ammo_1Prop = clip;
+            }
+        }
     }
 #nullable disable
 
@@ -2360,10 +2591,10 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             AbilityCooldownEndMs_2Prop = Shard.CurrentTime,
             AbilityCooldownEndMs_3Prop = Shard.CurrentTime,
             EquipmentLoadTimeProp = Shard.CurrentTime,
-            Ammo_0Prop = 88,
-            Ammo_1Prop = 88,
-            AltAmmo_0Prop = 52,
-            AltAmmo_1Prop = 52,
+            Ammo_0Prop = 0,
+            Ammo_1Prop = 0,
+            AltAmmo_0Prop = 0,
+            AltAmmo_1Prop = 0,
         };
         Character_MovementView = new MovementView
         {
@@ -2498,5 +2729,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         public uint AmmoId;
         public float Spread;
         public float RateOfFire;
+        public bool UseAltPool;
+        public int SlotIndex;
     }
 }

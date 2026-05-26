@@ -135,10 +135,9 @@ public class EncounterManager
 
             foreach (var encounter in _encountersToUpdate)
             {
-                // todo add update queue
                 encounter.OnUpdate(currentTime);
 
-                // FlushChanges(encounter);
+                FlushChanges(encounter);
             }
 
             foreach (var (entity, encounter) in _entitiesToCheckProximity)

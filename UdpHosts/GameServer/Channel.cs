@@ -19,6 +19,7 @@ public class Channel
     private const int GameSocketHeaderSize = 4;
     private const int TotalHeaderSize = ProtocolHeaderSize + GameSocketHeaderSize;
     private const int MaxPacketSize = PacketServer.MTU - TotalHeaderSize;
+    private const int ReliableReceiveWindow = 2048;
 
     private static readonly byte[] XorByte = { 0xFF, 0xAA, 0xCC };
 
@@ -27,6 +28,8 @@ public class Channel
     private readonly INetworkClient _client;
     private readonly ConcurrentQueue<GamePacket> _incomingPackets;
     private readonly ConcurrentQueue<Memory<byte>> _outgoingPackets;
+    private readonly HashSet<ushort> _processedReliableSequences;
+    private readonly Queue<ushort> _processedReliableSequenceOrder;
     private SortedDictionary<ushort, GamePacket> _incomingSplitMessagePackets;
 
     private Channel(ChannelType channelType, bool isSequenced, bool isReliable, bool isGSS, INetworkClient networkClient, ILogger logger)
@@ -42,6 +45,8 @@ public class Channel
 
         _incomingPackets = new ConcurrentQueue<GamePacket>();
         _outgoingPackets = new ConcurrentQueue<Memory<byte>>();
+        _processedReliableSequences = new HashSet<ushort>();
+        _processedReliableSequenceOrder = new Queue<ushort>();
         _incomingSplitMessagePackets = new SortedDictionary<ushort, GamePacket>();
     }
 
@@ -90,18 +95,49 @@ public class Channel
                 sequenceNumber = Utils.SimpleFixEndianness(packet.Read<ushort>());
             }
 
-            // TODO: Verify if resent message handling works and resolve any issues
             if (packet.Header.ResendCount > 0)
             {
                 var xorIndex = packet.Header.ResendCount - 1;
-                var data = packet.Peek(packet.BytesRemaining).ToArray();
-                for (var i = 0; i < data.Length; i++)
+                if (xorIndex >= 0 && xorIndex < XorByte.Length)
                 {
-                    data[i] ^= XorByte[xorIndex];
+                    var data = packet.Peek(packet.BytesRemaining).ToArray();
+                    for (var i = 0; i < data.Length; i++)
+                    {
+                        data[i] ^= XorByte[xorIndex];
+                    }
+
+                    packet = new GamePacket(packet.Header, new ReadOnlyMemory<byte>(data));
+                    _logger.Debug("---> Resent packet!!! C:{Channel}: {PacketBytes} bytes", Type, packet.TotalBytes);
+                }
+                else
+                {
+                    _logger.Warning("---> Unsupported resend count {ResendCount} on {Channel}; processing packet without xor transform.",
+                                    packet.Header.ResendCount,
+                                    Type);
+                }
+            }
+
+            if (IsReliable)
+            {
+                _client.SendAck(Type, sequenceNumber, packet.Received);
+                if (!_processedReliableSequences.Add(sequenceNumber))
+                {
+                    _logger.Verbose("---> Duplicate reliable packet dropped on {Channel} seq={Sequence}.", Type, sequenceNumber);
+                    LastActivity = DateTime.Now;
+                    continue;
                 }
 
-                packet = new GamePacket(packet.Header, new ReadOnlyMemory<byte>(data));
-                _logger.Debug("---> Resent packet!!! C:{Channel}: {PacketBytes} bytes", Type, packet.TotalBytes);
+                _processedReliableSequenceOrder.Enqueue(sequenceNumber);
+                while (_processedReliableSequenceOrder.Count > ReliableReceiveWindow)
+                {
+                    var expired = _processedReliableSequenceOrder.Dequeue();
+                    _processedReliableSequences.Remove(expired);
+                }
+
+                if (IsNewerSequence(sequenceNumber, LastAck))
+                {
+                    LastAck = sequenceNumber;
+                }
             }
 
             if (InSplitMode)
@@ -119,8 +155,6 @@ public class Channel
 
                     var combinedPacket = new GamePacket(packet.Header, new ReadOnlyMemory<byte>(combined));
 
-                    _client.SendAck(Type, sequenceNumber, packet.Received);
-                    LastAck = sequenceNumber;
                     PacketAvailable?.Invoke(combinedPacket);
                 }
             }
@@ -129,17 +163,9 @@ public class Channel
                 // Enter split mode
                 InSplitMode = true;
                 _incomingSplitMessagePackets.Add(sequenceNumber, packet);
-                _client.SendAck(Type, sequenceNumber, packet.Received);
-                LastAck = sequenceNumber;
             }
             else
             {
-                if (IsReliable && (sequenceNumber > LastAck || (sequenceNumber < 0xff && LastAck > 0xff00)))
-                {
-                    _client.SendAck(Type, sequenceNumber, packet.Received);
-                    LastAck = sequenceNumber;
-                }
-
                 PacketAvailable?.Invoke(packet);
             }
 
@@ -479,12 +505,18 @@ public class Channel
 
             if (IsSequenced)
             {
+                var sequenceNumber = CurrentSequenceNumber;
                 if (IsReliable)
                 {
-                    _logger.Verbose("<- {Channel} SeqNum =  {SeqNum}", Type, CurrentSequenceNumber);
+                    _logger.Verbose("<- {Channel} SeqNum =  {SeqNum}", Type, sequenceNumber);
                 }
 
-                Serializer.WritePrimitive(Utils.SimpleFixEndianness(CurrentSequenceNumber)).CopyTo(t.Slice(2, 2));
+                Serializer.WritePrimitive(Utils.SimpleFixEndianness(sequenceNumber)).CopyTo(t.Slice(2, 2));
+                if (IsReliable)
+                {
+                    _client.RegisterReliablePacket(Type, sequenceNumber, (ushort)t.Length);
+                }
+
                 unchecked
                 {
                     CurrentSequenceNumber++;
@@ -508,5 +540,16 @@ public class Channel
         }
 
         return true;
+    }
+
+    private static bool IsNewerSequence(ushort sequence, ushort reference)
+    {
+        if (sequence == reference)
+        {
+            return false;
+        }
+
+        var difference = unchecked((ushort)(sequence - reference));
+        return difference < 0x8000;
     }
 }

@@ -882,15 +882,23 @@ public class BaseController : Base
     [MessageID((byte)Commands.CollectLoot)]
     public void CollectLoot(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – delegate to loot system
-        _ = packet.Unpack<CollectLoot>();
+        if (packet.Unpack<CollectLoot>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(CollectLoot), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.CameraPoseUpdate)]
     public void CameraPoseUpdate(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client notifying server of camera position/orientation
-        _ = packet.Unpack<CameraPoseUpdate>();
+        if (packet.Unpack<CameraPoseUpdate>() == null)
+        {
+            return;
+        }
+
+        _logger.Verbose("CameraPoseUpdate received for entity 0x{EntityId:X8}.", entityId);
     }
 
     [MessageID((byte)Commands.ChangeLookAtTarget)]
@@ -910,7 +918,8 @@ public class BaseController : Base
     [MessageID((byte)Commands.QueueUnstuck)]
     public void QueueUnstuck(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – client requesting to be unstuck
+        _logger.Information("QueueUnstuck requested by entity 0x{EntityId:X8}; falling back to respawn.", entityId);
+        player.Respawn();
     }
 
     [MessageID((byte)Commands.AcquireWeaponTarget)]
@@ -930,56 +939,88 @@ public class BaseController : Base
     [MessageID((byte)Commands.PickupCarryableObjectByProximity)]
     public void PickupCarryableObjectByProximity(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – handle carryable object pickup
-        _ = packet.Unpack<PickupCarryableObjectByProximity>();
+        if (packet.Unpack<PickupCarryableObjectByProximity>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(PickupCarryableObjectByProximity), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.DropCarryableObject)]
     public void DropCarryableObject(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – handle carryable object drop
-        _ = packet.Unpack<DropCarryableObject>();
+        if (packet.Unpack<DropCarryableObject>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(DropCarryableObject), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.DuelRequest)]
     public void DuelRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – initiate or respond to duel
-        _ = packet.Unpack<DuelRequest>();
+        if (packet.Unpack<DuelRequest>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(DuelRequest), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.NPCApplyEffect)]
     public void NPCApplyEffect(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – apply an effect to an NPC entity
-        _ = packet.Unpack<NPCApplyEffect>();
+        if (packet.Unpack<NPCApplyEffect>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(NPCApplyEffect), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.NPCRemoveEffect)]
     public void NPCRemoveEffect(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – remove an effect from an NPC entity
-        _ = packet.Unpack<NPCRemoveEffect>();
+        if (packet.Unpack<NPCRemoveEffect>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(NPCRemoveEffect), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.NPCInteractWithTarget)]
     public void NPCInteractWithTarget(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – NPC interacting with another entity
-        _ = packet.Unpack<NPCInteractWithTarget>();
+        if (packet.Unpack<NPCInteractWithTarget>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(NPCInteractWithTarget), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.NPCSetInteractionType)]
     public void NPCSetInteractionType(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – set kind of interaction an NPC offers
-        _ = packet.Unpack<NPCSetInteractionType>();
+        if (packet.Unpack<NPCSetInteractionType>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(NPCSetInteractionType), entityId, packet, _logger);
     }
 
     [MessageID((byte)Commands.NPCCombatUpdate)]
     public void NPCCombatUpdate(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
-        // TODO: Implement – NPC combat state / AI update
-        _ = packet.Unpack<NPCCombatUpdate>();
+        if (packet.Unpack<NPCCombatUpdate>() == null)
+        {
+            return;
+        }
+
+        LogMissingImplementation<BaseController>(nameof(NPCCombatUpdate), entityId, packet, _logger);
     }
 }

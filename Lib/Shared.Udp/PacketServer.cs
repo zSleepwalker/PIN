@@ -1,4 +1,5 @@
 ﻿using System;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -13,12 +14,12 @@ public abstract class PacketServer : IPacketSender
     public const int MTU = 1400;
 
     protected readonly ILogger Logger;
-
     protected readonly Socket ServerSocket;
     protected readonly IPEndPoint ListenEndpoint;
     protected BufferBlock<Packet?> IncomingPackets;
     protected BufferBlock<Packet?> OutgoingPackets;
     protected CancellationTokenSource Source;
+    private const int CommandPollDelayMs = 25;
 
     protected PacketServer(ushort port, ILogger logger)
     {
@@ -49,8 +50,17 @@ public abstract class PacketServer : IPacketSender
 
         while (IsRunning)
         {
-            // TODO: Handle Command
-            var line = Console.ReadLine();
+            if (!TryReadCommand(out var line))
+            {
+                if (ct.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                Thread.Sleep(CommandPollDelayMs);
+                continue;
+            }
+
             HandleCommand(line);
         }
 
@@ -69,7 +79,12 @@ public abstract class PacketServer : IPacketSender
 
     protected virtual void HandleCommand(string line)
     {
-        if (line.Trim().StartsWith("exit"))
+        if (string.IsNullOrWhiteSpace(line))
+        {
+            return;
+        }
+
+        if (line.Trim().StartsWith("exit", StringComparison.OrdinalIgnoreCase))
         {
             IsRunning = false;
             Source.Cancel();
@@ -92,6 +107,48 @@ public abstract class PacketServer : IPacketSender
 
     protected virtual void Shutdown(CancellationToken ct)
     {
+    }
+
+    private static bool TryReadCommand(out string line)
+    {
+        line = string.Empty;
+
+        try
+        {
+            if (Console.IsInputRedirected)
+            {
+                var redirectedLine = Console.In.ReadLine();
+                if (redirectedLine == null)
+                {
+                    return false;
+                }
+
+                line = redirectedLine;
+                return true;
+            }
+
+            if (!Console.KeyAvailable)
+            {
+                return false;
+            }
+
+            var consoleLine = Console.ReadLine();
+            if (consoleLine == null)
+            {
+                return false;
+            }
+
+            line = consoleLine;
+            return true;
+        }
+        catch (InvalidOperationException)
+        {
+            return false;
+        }
+        catch (IOException)
+        {
+            return false;
+        }
     }
 
     private async void ListenThreadAsync(CancellationToken ct)
@@ -126,7 +183,7 @@ public abstract class PacketServer : IPacketSender
                     // Should probably change to ArrayPool<byte>, but can't return a Memory<byte> :(
                     // TODO: Move Endpoint and Memory<byte> management to Packet (constructor + destructor)
                     var buf = new byte[numberOfBytesReceived];
-                    buffer.AsSpan()[..numberOfBytesReceived].ToArray().CopyTo(buf, 0);
+                    buffer.AsSpan(0, numberOfBytesReceived).CopyTo(buf);
                     _ = await IncomingPackets.SendAsync(new Packet((IPEndPoint)remoteEndPoint, new ReadOnlyMemory<byte>(buf, 0, numberOfBytesReceived), DateTime.Now), ct);
 
                     // Not 100% sure this needs to be cleared?
@@ -161,7 +218,7 @@ public abstract class PacketServer : IPacketSender
             Packet? packet;
             while ((packet = await OutgoingPackets.ReceiveAsync(ct)) != null)
             {
-                _ = ServerSocket.SendTo(packet.Value.PacketData.ToArray(), packet.Value.PacketData.Length, SocketFlags.None, packet.Value.RemoteEndpoint);
+                _ = ServerSocket.SendTo(packet.Value.PacketData.Span, SocketFlags.None, packet.Value.RemoteEndpoint);
             }
 
             _ = Thread.Yield();

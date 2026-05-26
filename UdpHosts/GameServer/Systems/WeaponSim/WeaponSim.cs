@@ -88,6 +88,31 @@ public class WeaponSim
             roundsToFire = weapon.RoundsPerBurst;
         }
 
+        if (!entity.TryGetActiveWeaponAmmoState(out ushort clip, out ushort reserve, out _, out _))
+        {
+            _logger.Debug("Skipping ammo consumption for {EntityId}; active weapon ammo state unavailable.", entity.EntityId);
+        }
+        else
+        {
+            int ammoPerRound = Math.Max(1, (int)weapon.AmmoPerBurst);
+            int requestedConsumption = roundsToFire * ammoPerRound;
+            int appliedConsumption = Math.Min(clip, requestedConsumption);
+
+            if (appliedConsumption == 0)
+            {
+                _logger.Debug("Blocked projectile fire for {EntityId}; clip is empty.", entity.EntityId);
+                return;
+            }
+
+            ushort updatedClip = (ushort)Math.Max(0, clip - appliedConsumption);
+            entity.SetActiveWeaponAmmoState(updatedClip, reserve);
+
+            if (updatedClip == 0)
+            {
+                _logger.Debug("Clip depleted for {EntityId}.", entity.EntityId);
+            }
+        }
+
         // Calculate spreadPct
         float spreadPct = GetCurrentSpreadPct(entity, weapon, weaponSimState, weaponSpreadFactor, time);
 

@@ -655,8 +655,8 @@ public class Factory
                 return new UnlockCertsCommand(CustomDBInterface.GetUnlockCertsCommandDef(commandId));
             case CommandType.UnlockPatterns:
                 return new UnlockPatternsCommand(CustomDBInterface.GetUnlockPatternsCommandDef(commandId));
-            // case CommandType.UnlockTitles:
-            //     return new UnlockTitlesCommand(CustomDBInterface.GetUnlockTitlesCommandDef(commandId));
+            case CommandType.UnlockTitles:
+                return new UnlockTitlesCommand(CustomDBInterface.GetUnlockTitlesCommandDef(commandId));
             case CommandType.UnlockWarpaints:
                 return new UnlockWarpaintsCommand(CustomDBInterface.GetUnlockWarpaintsCommandDef(commandId));
             case CommandType.UnlockDecals:

@@ -65,8 +65,15 @@ public class ImpactApplyEffectCommand : Command, ICommand
 
         if (Params.OverrideInitiator == 1)
         {
-            // TODO: With who?
-            effectContext.Initiator = context.Self;
+            effectContext.Initiator = context.Self ?? context.Initiator;
+            if (effectContext.Initiator == null)
+            {
+                Logger.Warning(
+                    "{Command} {CommandId} (effect {EffectId}) specifies OverrideInitiator but no Self/Initiator is available",
+                    nameof(ImpactApplyEffectCommand),
+                    Params.Id,
+                    Params.EffectId);
+            }
         }
         else if (Params.OverrideInitiatorWithTarget == 1)
         {

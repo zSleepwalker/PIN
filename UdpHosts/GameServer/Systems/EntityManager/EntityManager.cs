@@ -161,7 +161,7 @@ public class EntityManager
 
         // Set faction
         var hostilityInfo = deployableEntity.HostilityInfo;
-        hostilityInfo.FactionId = deployableInfo.DefaultFaction;
+        hostilityInfo.FactionId = factionId;
         deployableEntity.SetHostilityInfo(hostilityInfo);
 
         if (deployableInfo.InteractionType != 0)
@@ -177,11 +177,13 @@ public class EntityManager
             };
         }
 
+        var scoping = new ScopingComponent();
         if (deployableInfo.ScopeRange != 0)
         {
-            // TODO: What does ScopeRange 0 mean? Anyway, it will get a default from the component if so.
-            deployableEntity.Scoping = new ScopingComponent() { Range = deployableInfo.ScopeRange };
+            scoping.Range = deployableInfo.ScopeRange;
         }
+
+        deployableEntity.Scoping = scoping;
 
         if (deployableInfo.CollisionId != 0)
         {
@@ -962,7 +964,6 @@ public class EntityManager
             case DeployableEntity deployable:
                 switch (typecode)
                 {
-                    // TODO: Deployable_HardpointView
                     case Enums.GSS.Controllers.Deployable_ObserverView:
                         if (deployable.Deployable_ObserverView != null)
                         {
@@ -974,6 +975,21 @@ public class EntityManager
                             else
                             {
                                 client.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(deployable.Deployable_ObserverView, entity.EntityId);
+                            }
+                        }
+
+                        break;
+                    case Enums.GSS.Controllers.Deployable_HardpointView:
+                        if (deployable.Deployable_HardpointView != null)
+                        {
+                            uint ourChecksum = deployable.Deployable_HardpointView.SerializeToChecksum();
+                            if (clientChecksum == ourChecksum)
+                            {
+                                client.NetChannels[ChannelType.ReliableGss].SendChecksum(entity.EntityId, typecode, clientChecksum);
+                            }
+                            else
+                            {
+                                client.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(deployable.Deployable_HardpointView, entity.EntityId);
                             }
                         }
 
@@ -1218,10 +1234,17 @@ public class EntityManager
         else if (entity is DeployableEntity deployable)
         {
             var observer = deployable.Deployable_ObserverView;
+            var hardpoint = deployable.Deployable_HardpointView;
             bool haveObserver = observer != null;
+            bool haveHardpoint = hardpoint != null;
             if (haveObserver)
             {
                 player.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(observer, entity.EntityId);
+            }
+
+            if (haveHardpoint)
+            {
+                player.NetChannels[ChannelType.ReliableGss].SendViewKeyframe(hardpoint, entity.EntityId);
             }
         }
         else if (entity is TurretEntity turret)
@@ -1468,10 +1491,17 @@ public class EntityManager
         else if (entity is DeployableEntity deployable)
         {
             var observer = deployable.Deployable_ObserverView;
+            var hardpoint = deployable.Deployable_HardpointView;
             bool haveObserver = observer != null;
+            bool haveHardpoint = hardpoint != null;
             if (haveObserver)
             {
                 player.NetChannels[ChannelType.UnreliableGss].SendViewScopeOut(observer, entity.EntityId);
+            }
+
+            if (haveHardpoint)
+            {
+                player.NetChannels[ChannelType.UnreliableGss].SendViewScopeOut(hardpoint, entity.EntityId);
             }
         }
         else if (entity is TurretEntity turret)
@@ -1650,6 +1680,7 @@ public class EntityManager
         else if (entity is DeployableEntity deployable)
         {
             FlushViewChangesToScoped(deployable.Deployable_ObserverView, deployable.EntityId);
+            FlushViewChangesToScoped(deployable.Deployable_HardpointView, deployable.EntityId);
         }
         else if (entity is TurretEntity turret)
         {

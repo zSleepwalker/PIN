@@ -109,6 +109,20 @@ public class CombatController : Base
     public void ReloadWeapon(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {
         var query = packet.Unpack<ReloadWeapon>();
+
+        var character = player.CharacterEntity;
+        if (character.TryGetActiveWeaponAmmoState(out ushort clip, out ushort reserve, out ushort maxClip, out _))
+        {
+            int missingInClip = Math.Max(0, maxClip - clip);
+            int reloadAmount = Math.Min(missingInClip, reserve);
+            if (reloadAmount > 0)
+            {
+                ushort updatedClip = (ushort)Math.Min(maxClip, clip + reloadAmount);
+                ushort updatedReserve = (ushort)Math.Max(0, reserve - reloadAmount);
+                character.SetActiveWeaponAmmoState(updatedClip, updatedReserve);
+            }
+        }
+
         player.CharacterEntity.SetWeaponReloaded(query.Time);
     }
 

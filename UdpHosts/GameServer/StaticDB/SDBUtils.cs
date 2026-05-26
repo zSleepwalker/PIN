@@ -347,8 +347,24 @@ public class SDBUtils
         Weapons weapon = SDBInterface.GetWeapon(weaponSdbId);
         if (weapon == null)
         {
-            _logger.Error("GetDetailedWeaponInfo could not find weapon {weaponSdbId}", weaponSdbId);
-            return null;
+            var modifiers = SDBInterface.GetWeaponTemplateModifiers(weaponSdbId);
+            if (modifiers?.WeaponId > 0)
+            {
+                weapon = SDBInterface.GetWeapon(modifiers.WeaponId);
+                if (weapon != null)
+                {
+                    _logger.Debug(
+                        "GetDetailedWeaponInfo resolved weapon item {weaponSdbId} via modifier WeaponId {baseWeaponId}",
+                        weaponSdbId,
+                        modifiers.WeaponId);
+                }
+            }
+
+            if (weapon == null)
+            {
+                _logger.Error("GetDetailedWeaponInfo could not find weapon {weaponSdbId}", weaponSdbId);
+                return null;
+            }
         }
 
         // Get main template

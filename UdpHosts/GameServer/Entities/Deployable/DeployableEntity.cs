@@ -11,7 +11,6 @@ namespace GameServer.Entities.Deployable;
 
 public sealed class DeployableEntity : BaseAptitudeEntity, IAptitudeTarget
 {
-    // TODO: Add Deployable Hardpoint support
     public DeployableEntity(IShard shard, ulong eid, uint type, uint abilitySrcId, CharacterEntity owner = null)
         : base(shard, eid, owner)
     {
@@ -23,6 +22,7 @@ public sealed class DeployableEntity : BaseAptitudeEntity, IAptitudeTarget
     }
 
     public ObserverView Deployable_ObserverView { get; set; }
+    public HardpointView Deployable_HardpointView { get; set; }
 
     public INetworkPlayer Player { get; set; }
     public bool IsPlayerOwned => Player != null;
@@ -240,5 +240,7 @@ public sealed class DeployableEntity : BaseAptitudeEntity, IAptitudeTarget
             SinCardFields_18Prop = null,
             SinCardFields_19Prop = null,
         };
+
+        Deployable_HardpointView = new HardpointView();
     }
 }

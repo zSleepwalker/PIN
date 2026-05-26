@@ -631,19 +631,35 @@ public class CharacterInventory
 
     public void SendFullInventory()
     {
-        if (_items.Count > ((255 * 3) - 1))
+        var items = _items.Values.ToArray();
+        if (items.Length > ((255 * 3) - 1))
         {
-            throw new NotImplementedException("Too many items in inventory, CharacterInventory.SendFullInventory has to be updated");
+            _shard.Logger.Warning(
+                "Inventory for {charId} contains {count} items; truncating to protocol limit of {limit}",
+                _character.EntityId,
+                items.Length,
+                (255 * 3) - 1);
+            items = items[..((255 * 3) - 1)];
         }
 
-        if (_resources.Count > 254)
+        var resources = _resources.Values.ToArray();
+        if (resources.Length > 254)
         {
-            throw new NotImplementedException("Too many resources in inventory, CharacterInventory.SendFullInventory has to be updated");
+            _shard.Logger.Warning(
+                "Inventory for {charId} contains {count} resources; truncating to protocol limit of 254",
+                _character.EntityId,
+                resources.Length);
+            resources = resources[..254];
         }
 
-        if (_loadouts.Count > 254)
+        var loadouts = _loadouts.Values.ToArray();
+        if (loadouts.Length > 254)
         {
-            throw new NotImplementedException("Too many loadouts in inventory, CharacterInventory.SendFullInventory has to be updated");
+            _shard.Logger.Warning(
+                "Inventory for {charId} contains {count} loadouts; truncating to protocol limit of 254",
+                _character.EntityId,
+                loadouts.Length);
+            loadouts = loadouts[..254];
         }
 
         foreach (var loadoutId in _loadouts.Keys.ToArray())
@@ -660,36 +676,35 @@ public class CharacterInventory
             ItemsPart2 = Array.Empty<Item>(),
             ItemsPart3Length = 0,
             ItemsPart3 = Array.Empty<Item>(),
-            Resources = _resources.Values.ToArray(),
-            Loadouts = _loadouts.Values.ToArray(),
+            Resources = resources,
+            Loadouts = loadouts,
             Unk = 1,
             SecondItems = Array.Empty<Item>(),
             SecondResources = Array.Empty<Resource>()
         };
 
-        if (_items.Count >= 255)
+        if (items.Length >= 255)
         {
-            var tmp = _items.Values.ToArray();
             update.ItemsPart1Length = 255;
-            update.ItemsPart1Full = tmp[0..255];
-            if (_items.Count >= 510)
+            update.ItemsPart1Full = items[0..255];
+            if (items.Length >= 510)
             {
                 update.ItemsPart2Length = 255;
-                update.ItemsPart2Full = tmp[255..510];
+                update.ItemsPart2Full = items[255..510];
 
-                update.ItemsPart3Length = (byte)tmp[510..^0].Length;
-                update.ItemsPart3 = tmp[510..^0];
+                update.ItemsPart3Length = (byte)items[510..^0].Length;
+                update.ItemsPart3 = items[510..^0];
             }
             else
             {
-                update.ItemsPart2Length = (byte)tmp[255..^0].Length;
-                update.ItemsPart2 = tmp[255..^0];
+                update.ItemsPart2Length = (byte)items[255..^0].Length;
+                update.ItemsPart2 = items[255..^0];
             }
         }
         else
         {
-            update.ItemsPart1Length = (byte)_items.Count;
-            update.ItemsPart1 = _items.Values.ToArray();
+            update.ItemsPart1Length = (byte)items.Length;
+            update.ItemsPart1 = items;
         }
 
         _player.NetChannels[ChannelType.ReliableGss].SendMessage(update, _character.EntityId);

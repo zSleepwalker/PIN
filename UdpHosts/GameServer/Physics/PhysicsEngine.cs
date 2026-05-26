@@ -278,7 +278,9 @@ public partial class PhysicsEngine
                         var poseId = _poseCompoundToAssetId[shape];
                         var poseData = _assetIdToPoseCompoundData[poseId];
                         var poseShapeData = poseData[hitHandler.ChildIndex];
-                        var physicsMaterial = SDBInterface.GetPhysicsMaterial((uint)poseShapeData.Material); // TODO: Material can be 0 which will result in null here, but what should we do? Is there a default to fallback to?
+                        var physicsMaterial = poseShapeData.Material != 0
+                            ? SDBInterface.GetPhysicsMaterial((uint)poseShapeData.Material)
+                            : null;
 
                         headshot = poseShapeData.ShapeFlags.Headshot;
                         crit = physicsMaterial?.IsCritHit == 1;

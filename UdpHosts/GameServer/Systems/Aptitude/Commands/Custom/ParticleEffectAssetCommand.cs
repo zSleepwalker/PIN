@@ -26,7 +26,14 @@ public class ParticleEffectAssetCommand : ICommand
             Serilog.Log.Information($"[ParticleEffect] Placement particle fired for deployable {deployable} command={Id}");
         }
 
-        // TODO: Load apttf::tfParticleEffectAssetCommandDef payload and emit the real asset ID.
+        Serilog.Log.Debug(
+            "[ParticleEffect] Skipping unresolved particle command payload. CommandId={CommandId}, AbilityId={AbilityId}, ChainId={ChainId}, Self={Self}",
+            Id,
+            context.AbilityId,
+            context.ChainId,
+            context.Self);
+
+        // TODO: Load apttf::tfParticleEffectAssetCommandDef payload and emit the resolved particle asset ID.
         return true;
     }
 
