@@ -196,19 +196,18 @@ public class CombatController : Base
             var initiator = character as IAptitudeTarget;
             var shard = player.CharacterEntity.Shard;
             var targets = activateAbility.Targets
-            .Where(entityId =>
-            {
-                try
+                .Select(entityId =>
                 {
-                    return shard.Entities[entityId.Backing & 0xffffffffffffff00] != null;
-                }
-                catch
-                {
-                    return false;
-                }
-            })
-            .Select(entityId => (IAptitudeTarget)shard.Entities[entityId.Backing & 0xffffffffffffff00])
-            .ToArray();
+                    ulong baseEntityId = entityId.Backing & 0xffffffffffffff00;
+                    if (!shard.Entities.TryGetValue(baseEntityId, out var targetEntity))
+                    {
+                        return null;
+                    }
+
+                    return targetEntity;
+                })
+                .OfType<IAptitudeTarget>()
+                .ToArray();
 
             shard.Abilities.HandleActivateAbility(shard, initiator, abilityId, activationTime, new AptitudeTargets(targets));
         }
@@ -266,8 +265,11 @@ public class CombatController : Base
 
         if (attackAbilityId != 0 && shard.Entities.TryGetValue(pendingHit.HitEntityId, out var hitEntity))
         {
-            var targets = new AptitudeTargets(new[] { (IAptitudeTarget)hitEntity });
-            shard.Abilities.HandleActivateAbility(shard, shooter, attackAbilityId, report.ShortTime, targets);
+            if (hitEntity is IAptitudeTarget hitTarget)
+            {
+                var targets = new AptitudeTargets(new[] { hitTarget });
+                shard.Abilities.HandleActivateAbility(shard, shooter, attackAbilityId, report.ShortTime, targets);
+            }
         }
 
         client.NetChannels[ChannelType.ReliableGss].SendMessage(new ProjectileHitReported

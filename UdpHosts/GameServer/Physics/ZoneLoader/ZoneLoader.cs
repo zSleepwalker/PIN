@@ -391,13 +391,22 @@ public class ZoneLoader
 
         foreach (var shapepart in obj.ShapesSubparts)
         {
+            var shapepartRotation = NormalizeOrIdentity(shapepart.Rotation);
+            var shapepartTranslation = new Vector3(shapepart.Translation.X, shapepart.Translation.Y, shapepart.Translation.Z);
+            var shapepartPose = new RigidPose(shapepartTranslation, shapepartRotation);
+
             foreach (var childShape in shapepart.ChildShapes)
             {
-                // TODO: Consider rotation and translation of subpart shape
                 var childShapeObj = layer.GetTagfileObject(childShape);
                 try
                 {
                     var childShapeStaticArr = ProcessChunkObject(childShapeObj, ref layer);
+                    childShapeStaticArr = childShapeStaticArr.Select((StaticDescription childShapeStatic) =>
+                    {
+                        RigidPose.MultiplyWithoutOverlap(childShapeStatic.Pose, shapepartPose, out var transformedPose);
+                        childShapeStatic.Pose = transformedPose;
+                        return childShapeStatic;
+                    }).ToArray();
                     result.AddRange(childShapeStaticArr);
                 }
                 catch (NotImplementedException)
@@ -408,6 +417,21 @@ public class ZoneLoader
         }
 
         return result.ToArray();
+    }
+
+    private static Quaternion NormalizeOrIdentity(Vector4 rotation)
+    {
+        var q = new Quaternion(rotation.X, rotation.Y, rotation.Z, rotation.W);
+        var lengthSquared = q.LengthSquared();
+        if (lengthSquared <= 1e-12f || float.IsNaN(lengthSquared) || float.IsInfinity(lengthSquared))
+        {
+            return Quaternion.Identity;
+        }
+
+        var normalized = Quaternion.Normalize(q);
+        return float.IsNaN(normalized.X) || float.IsNaN(normalized.Y) || float.IsNaN(normalized.Z) || float.IsNaN(normalized.W)
+            ? Quaternion.Identity
+            : normalized;
     }
 
     private StaticDescription[] ProcessShape(HkpConvexVerticesShapeObject obj, ref ENWFLayer layer)

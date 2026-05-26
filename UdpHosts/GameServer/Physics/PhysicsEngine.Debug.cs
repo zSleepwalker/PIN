@@ -126,6 +126,7 @@ public partial class PhysicsEngine
             body.SetShape(shape);
             currentPose.Position = pose.Position;
             currentPose.Orientation = pose.Orientation;
+            _entityIdToAssetKey[entityId] = pipeKey;
         }
     }
 

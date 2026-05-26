@@ -53,22 +53,30 @@ public class GenericShard : Base
         var abilities = client.AssignedShard.Abilities;
 
         var message = packet.Unpack<LocalProximityAbilitySuccess>();
-        shard.Entities.TryGetValue(message.Source.Backing & 0xffffffffffffff00, out IEntity sourceEntity);
-        var source = (IAptitudeTarget)sourceEntity;
-        var targets = message.Targets
-        .Where(entityId =>
+        if (message == null)
         {
-            try
+            return;
+        }
+
+        if (!shard.Entities.TryGetValue(message.Source.Backing & 0xffffffffffffff00, out IEntity sourceEntity)
+            || sourceEntity is not IAptitudeTarget source)
+        {
+            return;
+        }
+
+        var targets = message.Targets
+            .Select(entityId =>
             {
-                return shard.Entities[entityId.Backing & 0xffffffffffffff00] != null;
-            }
-            catch
-            {
-                return false;
-            }
-        })
-        .Select(entityId => (IAptitudeTarget)shard.Entities[entityId.Backing & 0xffffffffffffff00])
-        .ToArray();
+                ulong baseEntityId = entityId.Backing & 0xffffffffffffff00;
+                if (!shard.Entities.TryGetValue(baseEntityId, out var targetEntity))
+                {
+                    return null;
+                }
+
+                return targetEntity;
+            })
+            .OfType<IAptitudeTarget>()
+            .ToArray();
 
         abilities.HandleLocalProximityAbilitySuccess(shard, source, message.ClientProximityCommandId, message.Time, new AptitudeTargets(targets));
     }

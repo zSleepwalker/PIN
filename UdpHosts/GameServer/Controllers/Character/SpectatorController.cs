@@ -24,4 +24,12 @@ public class SpectatorController : Base
         var shard = player.CharacterEntity.Shard;
         shard.Chat.CharacterPerformTextChat(client, character, query);
     }
+
+    [MessageID((byte)Commands.PerformQuickChatCommand)]
+    public void PerformQuickChatCommand(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var query = packet.Unpack<PerformQuickChatCommand>();
+        _logger?.Debug("PerformQuickChatCommand received in spectator controller from entity 0x{EntityId:X8} with quickChatId {QuickChatId}", entityId, query.Unk1);
+    }
 }
+

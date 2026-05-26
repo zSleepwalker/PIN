@@ -246,10 +246,16 @@ public partial class PhysicsEngine
 
         DebugProjectileHitCallbacks?.SendDebugProjectileSpawn(source, trace, origin, direction, speed);
 
+        if (!_entityIdToBody.TryGetValue(source.EntityId, out var sourceBody))
+        {
+            _logger.Warning("ProjectileRayCast source body not found for entity {EntityId}", source.EntityId);
+            return 0;
+        }
+
         var hitHandler = default(RayHitHandler);
         hitHandler.T = maxRange;
         hitHandler.AvoidSourceBody = true;
-        hitHandler.SourceBody = _entityIdToBody[source.EntityId];
+        hitHandler.SourceBody = sourceBody;
 
         Simulation.RayCast(origin, direction, float.MaxValue, BufferPool, ref hitHandler);
         if (hitHandler.T < maxRange)
@@ -306,16 +312,22 @@ public partial class PhysicsEngine
         Vector3 outPos = Vector3.Zero;
         ulong outEnt = 0;
 
+        if (!_entityIdToBody.TryGetValue(source.EntityId, out var sourceBody))
+        {
+            _logger.Warning("TargetRayCast source body not found for entity {EntityId}", source.EntityId);
+            return (outHit, outPos, outEnt);
+        }
+
         var hitHandler = default(RayHitHandler);
         hitHandler.T = maxRange;
         hitHandler.AvoidSourceBody = true;
-        hitHandler.SourceBody = _entityIdToBody[source.EntityId];
+        hitHandler.SourceBody = sourceBody;
         Simulation.RayCast(origin, direction, float.MaxValue, BufferPool, ref hitHandler);
         if (hitHandler.T < maxRange)
         {
             outHit = true;
             outPos = origin + (direction * hitHandler.T);
-            outEnt = _bodyToEntityId[hitHandler.HitCollidable.BodyHandle];
+            _bodyToEntityId.TryGetValue(hitHandler.HitCollidable.BodyHandle, out outEnt);
         }
 
         return (outHit, outPos, outEnt);

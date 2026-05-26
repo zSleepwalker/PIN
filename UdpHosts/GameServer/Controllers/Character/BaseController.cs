@@ -622,6 +622,13 @@ public class BaseController : Base
         shard.Chat.CharacterPerformTextChat(client, character, query);
     }
 
+    [MessageID((byte)Commands.PerformQuickChatCommand)]
+    public void PerformQuickChatCommand(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var query = packet.Unpack<PerformQuickChatCommand>();
+        _logger?.Debug("PerformQuickChatCommand received from entity 0x{EntityId:X8} with quickChatId {QuickChatId}", entityId, query.Unk1);
+    }
+
     [MessageID((byte)Commands.SlotGearRequest)]
     public void SlotGearRequest(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
     {

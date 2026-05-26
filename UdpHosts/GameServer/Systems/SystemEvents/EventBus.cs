@@ -38,7 +38,12 @@ public sealed class EventBus : IEventBus
 
     public void Enqueue<TEvent>(TEvent evt)
     {
-        _eventQueue.Enqueue(evt!);
+        if (evt is null)
+        {
+            return;
+        }
+
+        _eventQueue.Enqueue(evt);
     }
 
     public void Flush()
@@ -46,6 +51,10 @@ public sealed class EventBus : IEventBus
         while (_eventQueue.Count > 0)
         {
             var evt = _eventQueue.Dequeue();
+            if (evt is null)
+            {
+                continue;
+            }
 
             DispatchDynamic(evt);
         }

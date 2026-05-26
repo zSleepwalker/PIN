@@ -341,8 +341,7 @@ public class CharacterInventory
         foreach (var item in itemsToConsume)
         {
             _items.Remove(item.GUID);
-
-            // Send update to client (TODO: implement SendItemRemove if needed, or send full inventory)
+            RemoveItemFromLoadouts(item.GUID);
         }
 
         // Inform the backend database asynchronously to consume the items so it persists state
@@ -359,6 +358,44 @@ public class CharacterInventory
         return true;
     }
 
+    private void RemoveItemFromLoadouts(ulong guid)
+    {
+        foreach (var loadoutId in _loadouts.Keys.ToArray())
+        {
+            if (!_loadouts.TryGetValue(loadoutId, out var loadout))
+            {
+                continue;
+            }
+
+            NormalizeLoadoutForSerialization(ref loadout);
+
+            bool loadoutChanged = false;
+            for (int configIndex = 0; configIndex < loadout.LoadoutConfigs.Length; configIndex++)
+            {
+                var config = loadout.LoadoutConfigs[configIndex];
+                config.Items ??= Array.Empty<LoadoutConfig_Item>();
+
+                var filteredItems = config.Items.Where(entry => entry.ItemGUID != guid).ToArray();
+                if (filteredItems.Length == config.Items.Length)
+                {
+                    continue;
+                }
+
+                config.Items = filteredItems;
+                loadout.LoadoutConfigs[configIndex] = config;
+                loadoutChanged = true;
+            }
+
+            if (!loadoutChanged)
+            {
+                continue;
+            }
+
+            SyncUtilityVisualsFromLoadoutSlots(loadout);
+            _loadouts[loadoutId] = loadout;
+            PersistLoadoutToDatabase(loadout);
+        }
+    }
     public async Task RefreshFromDatabase()
     {
         var charId = (long)((NetworkPlayer)_player).CharacterId + 0xFE;
@@ -570,19 +607,18 @@ public class CharacterInventory
         else
         {
             res.Quantity -= cost;
+            bool resourceRemoved = res.Quantity == 0;
 
-
-            if (res.Quantity > 0)
+            if (!resourceRemoved)
             {
                 _resources[sdbId] = res;
+                SendResourceUpdate(sdbId);
             }
             else
             {
                 _resources.Remove(sdbId);
+                SendFullInventory();
             }
-
-
-            SendResourceUpdate(sdbId);
 
             // Inform the backend database asynchronously to consume the resource so it persists state
             _ = GRPCService.ConsumeCharacterResourceAsync(new GrpcGameServerAPIClient.ConsumeResourceReq
