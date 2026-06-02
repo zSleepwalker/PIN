@@ -82,5 +82,131 @@
 		"terminal_type": 8,
 		"terminal_id": 0,
 		"radius": 20
+	},
+	{
+		"id": 166,
+		"zone_id": 448,
+		"name": "Marketplace Terminal 166",
+		"service_type": "player_market",
+		"deployable_type": 1249,
+		"position": {
+			"x": -524.75653,
+			"y": -436.9878,
+			"z": 455.28748
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0.9998542,
+			"w": 0.017073868
+		},
+		"terminal_type": 11,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 310,
+		"zone_id": 448,
+		"name": "Marketplace Terminal 310",
+		"service_type": "player_market",
+		"deployable_type": 1249,
+		"position": {
+			"x": -462.35358,
+			"y": -419.7033,
+			"z": 445.41235
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": -0.705557,
+			"w": 0.70865315
+		},
+		"terminal_type": 11,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 330,
+		"zone_id": 448,
+		"name": "Marketplace Terminal 330",
+		"service_type": "player_market",
+		"deployable_type": 1249,
+		"position": {
+			"x": -527.5037,
+			"y": -425.2714,
+			"z": 455.3098
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": -0.6942169,
+			"w": 0.71976584
+		},
+		"terminal_type": 11,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 341,
+		"zone_id": 448,
+		"name": "Marketplace Terminal 341",
+		"service_type": "player_market",
+		"deployable_type": 1249,
+		"position": {
+			"x": -597.65967,
+			"y": -365.7234,
+			"z": 448.7685
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0.33698675,
+			"w": 0.94150937
+		},
+		"terminal_type": 11,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 258,
+		"zone_id": 448,
+		"name": "Luau Larry Terminal 258",
+		"service_type": "vendor",
+		"deployable_type": 2231,
+		"position": {
+			"x": -471.92465,
+			"y": -403.4211,
+			"z": 444.6476
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0.98618835,
+			"w": 0.16562763
+		},
+		"terminal_type": 7,
+		"terminal_id": 10,
+		"radius": 20
+	},
+	{
+		"id": 280,
+		"zone_id": 448,
+		"name": "Luau Larry Terminal 280",
+		"service_type": "vendor",
+		"deployable_type": 2231,
+		"position": {
+			"x": -469.55624,
+			"y": -400.66995,
+			"z": 444.6476
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0.77929753,
+			"w": 0.6266541
+		},
+		"terminal_type": 7,
+		"terminal_id": 10,
+		"radius": 20
 	}
 ]
