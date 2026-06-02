@@ -25,7 +25,7 @@ public class RequestBattleFrameListCommand : Command, ICommand
                 new AuthorizedTerminalData
                 {
                     TerminalId = 0,
-                    TerminalType = 8,
+                    TerminalType = TerminalTypes.BattleframeLoadoutSelector,
                     TerminalEntityId = 0
                 });
         }

@@ -1,4 +1,5 @@
-﻿using GameServer.Data.SDB.Records.aptfs;
+﻿using System;
+using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
 
 namespace GameServer.Aptitude;
@@ -25,12 +26,14 @@ public class RequireNeedsAmmoCommand : Command, ICommand
         {
             if (Params.CheckPrimary == 1)
             {
-                result = character.Character_CombatController.Ammo_0Prop == 0;
+                ushort primaryReserve = (ushort)Math.Max(0, character.Character_CombatController.Ammo_0Prop - character.Character_CombatController.Clip_0Prop);
+                result = primaryReserve == 0;
             }
 
             if (Params.CheckSecondary == 1)
             {
-                result = result || character.Character_CombatController.AltAmmo_0Prop == 0;
+                ushort secondaryReserve = (ushort)Math.Max(0, character.Character_CombatController.Ammo_1Prop - character.Character_CombatController.Clip_1Prop);
+                result = result || secondaryReserve == 0;
             }
         }
 

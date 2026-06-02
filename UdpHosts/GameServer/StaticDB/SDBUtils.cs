@@ -15,6 +15,18 @@ public class SDBUtils
 {
     private static readonly ILogger _logger = Log.ForContext<SDBInterface>();
 
+    private static float NormalizeWeaponTemplateMultiplier(float? multiplierValue)
+    {
+        if (multiplierValue == null)
+        {
+            return 1f;
+        }
+
+        // WeaponTemplateModifiers rows commonly carry 0 for omitted multiplier fields.
+        // Treat 0 as neutral to avoid collapsing base values like BaseClipSize to 0.
+        return Math.Abs(multiplierValue.Value) < float.Epsilon ? 1f : multiplierValue.Value;
+    }
+
     public static Dictionary<byte, CharCreateLoadoutSlots> GetDefaultLoadoutSlots(uint loadoutId)
     {
         var loadout = SDBInterface.GetCharCreateLoadout(loadoutId);
@@ -534,32 +546,41 @@ public class SDBUtils
 
     private static sbyte WeaponTemplateModifier(sbyte baseValue, sbyte? modifierValue, float? multiplierValue = 1)
     {
-        return (sbyte)((baseValue + (modifierValue ?? 0)) * (multiplierValue ?? 1));
+        float multiplier = NormalizeWeaponTemplateMultiplier(multiplierValue);
+        return (sbyte)((baseValue + (modifierValue ?? 0)) * multiplier);
     }
 
     private static byte WeaponTemplateModifier(byte baseValue, sbyte? modifierValue, float? multiplierValue = 1)
     {
-        return (byte)((baseValue + (modifierValue ?? 0)) * (multiplierValue ?? 1));
+        float multiplier = NormalizeWeaponTemplateMultiplier(multiplierValue);
+        float computed = (baseValue + (modifierValue ?? 0)) * multiplier;
+        return (byte)Math.Clamp((int)Math.Round(computed), byte.MinValue, byte.MaxValue);
     }
 
     private static uint WeaponTemplateModifier(uint baseValue, int? modifierValue, float? multiplierValue = 1)
     {
-        return (uint)((baseValue + (modifierValue ?? 0)) * (multiplierValue ?? 1));
+        float multiplier = NormalizeWeaponTemplateMultiplier(multiplierValue);
+        double computed = (baseValue + (modifierValue ?? 0)) * multiplier;
+        return (uint)Math.Clamp((long)Math.Round(computed), uint.MinValue, uint.MaxValue);
     }
 
     private static int WeaponTemplateModifier(int baseValue, int? modifierValue, float? multiplierValue = 1)
     {
-        return (int)((baseValue + (modifierValue ?? 0)) * (multiplierValue ?? 1));
+        float multiplier = NormalizeWeaponTemplateMultiplier(multiplierValue);
+        return (int)((baseValue + (modifierValue ?? 0)) * multiplier);
     }
 
     private static ushort WeaponTemplateModifier(ushort baseValue, short? modifierValue, float? multiplierValue = 1)
     {
-        return (ushort)((baseValue + (modifierValue ?? 0)) * (multiplierValue ?? 1));
+        float multiplier = NormalizeWeaponTemplateMultiplier(multiplierValue);
+        float computed = (baseValue + (modifierValue ?? 0)) * multiplier;
+        return (ushort)Math.Clamp((int)Math.Round(computed), ushort.MinValue, ushort.MaxValue);
     }
 
     private static float WeaponTemplateModifier(float baseValue, float? modifierValue, float? multiplierValue = 1)
     {
-        return (float)((baseValue + (modifierValue ?? 0)) * (multiplierValue ?? 1));
+        float multiplier = NormalizeWeaponTemplateMultiplier(multiplierValue);
+        return (baseValue + (modifierValue ?? 0)) * multiplier;
     }
 }
 

@@ -1,6 +1,7 @@
 using AeroMessages.GSS.V66.Character.Controller;
 using GameServer.Data.SDB.Records.customdata;
 using GameServer.Entities.Character;
+using GameServer.Entities.Deployable;
 
 namespace GameServer.Aptitude;
 
@@ -34,7 +35,32 @@ public class AuthorizeTerminalCommand : Command, ICommand
                 return true;
             }
 
-            Logger.Information("{Command} {CommandId} Authorized terminal {TerminalType}, {terminal}", nameof(AuthorizeTerminalCommand), Params.Id, Params.TerminalType, terminal);
+            var terminalName = TerminalTypes.GetName(Params.TerminalType);
+            if (terminal is DeployableEntity deployable)
+            {
+                Logger.Information(
+                    "{Command} {CommandId} Authorized terminal type={TerminalType} ({TerminalName}) terminalId={TerminalId} entityId={EntityId} deployableType={DeployableType} position={Position}",
+                    nameof(AuthorizeTerminalCommand),
+                    Params.Id,
+                    Params.TerminalType,
+                    terminalName,
+                    Params.TerminalId,
+                    terminal.AeroEntityId.Backing,
+                    deployable.Type,
+                    deployable.Position);
+            }
+            else
+            {
+                Logger.Information(
+                    "{Command} {CommandId} Authorized terminal type={TerminalType} ({TerminalName}) terminalId={TerminalId} entityId={EntityId} terminal={Terminal}",
+                    nameof(AuthorizeTerminalCommand),
+                    Params.Id,
+                    Params.TerminalType,
+                    terminalName,
+                    Params.TerminalId,
+                    terminal.AeroEntityId.Backing,
+                    terminal);
+            }
 
             character.SetAuthorizedTerminal(new AuthorizedTerminalData
             {

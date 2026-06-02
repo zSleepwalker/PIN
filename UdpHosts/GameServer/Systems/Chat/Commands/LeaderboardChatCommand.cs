@@ -1,4 +1,5 @@
 using AeroMessages.GSS.V66.Character.Controller;
+using GameServer.Aptitude;
 
 namespace GameServer.Systems.Chat.Commands;
 
@@ -17,7 +18,7 @@ public class LeaderboardChatCommand : ChatCommand
              new AuthorizedTerminalData
              {
                  TerminalId = ParseUIntParameter(parameters[0]),
-                 TerminalType = 14,
+                 TerminalType = TerminalTypes.WareffortLeaderboard,
                  TerminalEntityId = 0
              });
     }

@@ -1106,6 +1106,23 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     private void InitializeWeaponAmmoPools(CharacterLoadout loadout)
     {
+        if (Character_CombatController != null)
+        {
+            Character_CombatController.Clip_0Prop = 0;
+            Character_CombatController.Clip_1Prop = 0;
+            Character_CombatController.Ammo_0Prop = 0;
+            Character_CombatController.Ammo_1Prop = 0;
+            Character_CombatController.AltClip_0Prop = 0;
+            Character_CombatController.AltClip_1Prop = 0;
+            Character_CombatController.AltAmmo_0Prop = 0;
+            Character_CombatController.AltAmmo_1Prop = 0;
+        }
+
+        Character_CombatView.Ammo_0Prop = 0;
+        Character_CombatView.Ammo_1Prop = 0;
+        Character_CombatView.AltAmmo_0Prop = 0;
+        Character_CombatView.AltAmmo_1Prop = 0;
+
         uint primaryWeaponId = loadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Primary);
         uint secondaryWeaponId = loadout.SlottedItems.GetValueOrDefault(LoadoutSlotType.Secondary, 0u);
 
@@ -1702,6 +1719,14 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
 
     public void SetAuthorizedTerminal(AuthorizedTerminalData value)
     {
+        Serilog.Log.Debug(
+            "SetAuthorizedTerminal player={PlayerName} type={TerminalType} ({TerminalName}) terminalId={TerminalId} terminalEntityId={TerminalEntityId}",
+            StaticInfo.DisplayName,
+            value.TerminalType,
+            TerminalTypes.GetName(value.TerminalType),
+            value.TerminalId,
+            value.TerminalEntityId);
+
         AuthorizedTerminal = value;
 
         if (Character_BaseController != null)
@@ -2163,19 +2188,22 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             }
         }
 
-        ushort configuredClip = ammoTemplate.BaseClipSize > 0 ? ammoTemplate.BaseClipSize : ammoTemplate.MaxAmmo;
-        maxClip = (ushort)Math.Min(configuredClip, ammoTemplate.MaxAmmo);
-        maxReserve = ammoTemplate.MaxAmmo;
+        ushort maxTotal = ammoTemplate.MaxAmmo;
+        ushort configuredClip = ammoTemplate.BaseClipSize > 0 ? ammoTemplate.BaseClipSize : maxTotal;
+        maxClip = (ushort)Math.Min(configuredClip, maxTotal);
+        maxReserve = (ushort)Math.Max(0, maxTotal - maxClip);
 
         if (usingAlt)
         {
             clip = slotIndex == 0 ? Character_CombatController.AltClip_0Prop : Character_CombatController.AltClip_1Prop;
-            reserve = slotIndex == 0 ? Character_CombatController.AltAmmo_0Prop : Character_CombatController.AltAmmo_1Prop;
+            ushort total = slotIndex == 0 ? Character_CombatController.AltAmmo_0Prop : Character_CombatController.AltAmmo_1Prop;
+            reserve = (ushort)Math.Max(0, total - clip);
         }
         else
         {
             clip = slotIndex == 0 ? Character_CombatController.Clip_0Prop : Character_CombatController.Clip_1Prop;
-            reserve = slotIndex == 0 ? Character_CombatController.Ammo_0Prop : Character_CombatController.Ammo_1Prop;
+            ushort total = slotIndex == 0 ? Character_CombatController.Ammo_0Prop : Character_CombatController.Ammo_1Prop;
+            reserve = (ushort)Math.Max(0, total - clip);
         }
 
         return true;
@@ -2191,6 +2219,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         var details = GetActiveWeaponDetails();
         bool usingAlt = details?.UseAltPool == true;
         int slotIndex = details?.SlotIndex ?? 0;
+        var ammoTemplate = details?.Weapon;
 
         if (usingAlt)
         {
@@ -2202,21 +2231,32 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             if (altClip == 0 && altReserve == 0 && (mainClip > 0 || mainReserve > 0))
             {
                 usingAlt = false;
+                if (details != null)
+                {
+                    var mainDetails = SDBUtils.GetDetailedWeaponInfo(details.WeaponId);
+                    if (mainDetails != null)
+                    {
+                        ammoTemplate = mainDetails.Main;
+                    }
+                }
             }
         }
+
+        ushort maxTotal = ammoTemplate?.MaxAmmo ?? ushort.MaxValue;
+        ushort total = (ushort)Math.Min(maxTotal, clip + reserve);
 
         if (usingAlt)
         {
             if (slotIndex == 0)
             {
                 Character_CombatController.AltClip_0Prop = clip;
-                Character_CombatController.AltAmmo_0Prop = reserve;
+                Character_CombatController.AltAmmo_0Prop = total;
                 Character_CombatView.AltAmmo_0Prop = clip;
             }
             else
             {
                 Character_CombatController.AltClip_1Prop = clip;
-                Character_CombatController.AltAmmo_1Prop = reserve;
+                Character_CombatController.AltAmmo_1Prop = total;
                 Character_CombatView.AltAmmo_1Prop = clip;
             }
         }
@@ -2225,13 +2265,13 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             if (slotIndex == 0)
             {
                 Character_CombatController.Clip_0Prop = clip;
-                Character_CombatController.Ammo_0Prop = reserve;
+                Character_CombatController.Ammo_0Prop = total;
                 Character_CombatView.Ammo_0Prop = clip;
             }
             else
             {
                 Character_CombatController.Clip_1Prop = clip;
-                Character_CombatController.Ammo_1Prop = reserve;
+                Character_CombatController.Ammo_1Prop = total;
                 Character_CombatView.Ammo_1Prop = clip;
             }
         }

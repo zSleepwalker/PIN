@@ -1,3 +1,4 @@
+using System;
 using AeroMessages.GSS.V66.Vehicle.Command;
 using GameServer.Entities;
 using GameServer.Enums.GSS.Vehicle;
@@ -75,9 +76,49 @@ public class BaseController : Base
             return;
         }
 
-        // The packet only reports collision context (time/entity), not a damage value.
-        // Consume it so it is not treated as an unknown command; damage handling can be
-        // implemented later once authoritative collision-damage rules are defined.
+        // Approximate collision damage from current movement speed. The client packet does
+        // not include a damage scalar, so the server derives it from authoritative motion.
+        float speed = vehicle.Velocity.Length();
+        const float minDamageSpeed = 18.0f;
+        const float damagePerSpeedUnit = 4.0f;
+
+        if (speed >= minDamageSpeed)
+        {
+            int damageAmount = (int)((speed - minDamageSpeed) * damagePerSpeedUnit);
+            if (damageAmount > 0)
+            {
+                uint currentHealth = vehicle.CurrentHealth;
+                uint maxHealth = Math.Max(1u, vehicle.MaxHealth);
+                uint appliedDamage = (uint)Math.Min(damageAmount, int.MaxValue);
+                uint newHealth = currentHealth > appliedDamage ? currentHealth - appliedDamage : 0;
+
+                if (newHealth != currentHealth)
+                {
+                    vehicle.CurrentHealth = newHealth;
+                    if (vehicle.Vehicle_BaseController != null)
+                    {
+                        vehicle.Vehicle_BaseController.CurrentHealthProp = newHealth;
+                        vehicle.Vehicle_BaseController.MaxHealthProp = maxHealth;
+                    }
+
+                    if (vehicle.Vehicle_ObserverView != null)
+                    {
+                        vehicle.Vehicle_ObserverView.CurrentHealthProp = newHealth;
+                        vehicle.Vehicle_ObserverView.MaxHealthProp = maxHealth;
+                    }
+
+                    client.AssignedShard.EntityMan.FlushChanges(vehicle);
+
+                    Log.Information("Vehicle collision damage applied: vehicle=0x{VehicleId:X}, speed={Speed:F2}, damage={Damage}, health={OldHealth}->{NewHealth}",
+                        entityId,
+                        speed,
+                        damageAmount,
+                        currentHealth,
+                        newHealth);
+                }
+            }
+        }
+
         if (query.HaveEntity == 1)
         {
             Log.Information($"Vehicle collision reported by {player.PlayerId}: vehicle=0x{entityId:X}, collidedWith=0x{query.CollidedWithEntity.Backing:X}, shortTime={query.ShortTime}");

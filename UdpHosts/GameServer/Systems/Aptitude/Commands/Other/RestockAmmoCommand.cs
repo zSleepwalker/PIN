@@ -79,19 +79,28 @@ public class RestockAmmoCommand : Command, ICommand
             return;
         }
 
-        ushort maxReserve = detailed.Main.MaxAmmo;
-        ushort current = slotIndex == 0
+        ushort maxTotal = detailed.Main.MaxAmmo;
+        ushort configuredClip = detailed.Main.BaseClipSize > 0 ? detailed.Main.BaseClipSize : maxTotal;
+        ushort maxClip = (ushort)Math.Min(configuredClip, maxTotal);
+        ushort maxReserve = (ushort)Math.Max(0, maxTotal - maxClip);
+
+        ushort currentClip = slotIndex == 0
+            ? character.Character_CombatController.Clip_0Prop
+            : character.Character_CombatController.Clip_1Prop;
+        ushort currentTotal = slotIndex == 0
             ? character.Character_CombatController.Ammo_0Prop
             : character.Character_CombatController.Ammo_1Prop;
-        ushort next = ComputeRestockedAmmo(current, maxReserve, percent);
+        ushort currentReserve = (ushort)Math.Max(0, currentTotal - currentClip);
+        ushort nextReserve = ComputeRestockedAmmo(currentReserve, maxReserve, percent);
+        ushort nextTotal = (ushort)Math.Min(maxTotal, currentClip + nextReserve);
 
         if (slotIndex == 0)
         {
-            character.Character_CombatController.Ammo_0Prop = next;
+            character.Character_CombatController.Ammo_0Prop = nextTotal;
         }
         else
         {
-            character.Character_CombatController.Ammo_1Prop = next;
+            character.Character_CombatController.Ammo_1Prop = nextTotal;
         }
     }
 
@@ -109,19 +118,28 @@ public class RestockAmmoCommand : Command, ICommand
             return;
         }
 
-        ushort maxReserve = altTemplate.MaxAmmo;
-        ushort current = slotIndex == 0
+        ushort maxTotal = altTemplate.MaxAmmo;
+        ushort configuredClip = altTemplate.BaseClipSize > 0 ? altTemplate.BaseClipSize : maxTotal;
+        ushort maxClip = (ushort)Math.Min(configuredClip, maxTotal);
+        ushort maxReserve = (ushort)Math.Max(0, maxTotal - maxClip);
+
+        ushort currentClip = slotIndex == 0
+            ? character.Character_CombatController.AltClip_0Prop
+            : character.Character_CombatController.AltClip_1Prop;
+        ushort currentTotal = slotIndex == 0
             ? character.Character_CombatController.AltAmmo_0Prop
             : character.Character_CombatController.AltAmmo_1Prop;
-        ushort next = ComputeRestockedAmmo(current, maxReserve, percent);
+        ushort currentReserve = (ushort)Math.Max(0, currentTotal - currentClip);
+        ushort nextReserve = ComputeRestockedAmmo(currentReserve, maxReserve, percent);
+        ushort nextTotal = (ushort)Math.Min(maxTotal, currentClip + nextReserve);
 
         if (slotIndex == 0)
         {
-            character.Character_CombatController.AltAmmo_0Prop = next;
+            character.Character_CombatController.AltAmmo_0Prop = nextTotal;
         }
         else
         {
-            character.Character_CombatController.AltAmmo_1Prop = next;
+            character.Character_CombatController.AltAmmo_1Prop = nextTotal;
         }
     }
 

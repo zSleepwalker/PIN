@@ -1,3 +1,4 @@
+using System;
 using AeroMessages.GSS.V66.Character;
 using AeroMessages.GSS.V66.Character.Event;
 using GameServer.Entities;
@@ -75,6 +76,43 @@ public class MovementRelay
         if (previousAirborne != character.IsAirborne && character.IsRecoveryTraceActive())
         {
             character.TraceRecoveryState($"airborne changed {previousAirborne} -> {character.IsAirborne}");
+        }
+
+        // Apply basic fall damage when transitioning from airborne to grounded.
+        if (previousAirborne && !character.IsAirborne && character.Character_BaseController != null)
+        {
+            var combatFlags = character.Character_CombatController?.CombatFlagsProp.Value ?? 0;
+            bool immuneFallDamage = combatFlags.HasFlag(CombatFlagsData.CharacterCombatFlags.immune_falldamage);
+            if (!immuneFallDamage)
+            {
+                float downwardSpeed = Math.Max(0f, Math.Max(-poseData.Velocity.Y, -poseData.Velocity.Z));
+                const float minDamageSpeed = 22.0f;
+                const float damagePerSpeedUnit = 2.5f;
+                if (downwardSpeed > minDamageSpeed)
+                {
+                    int damage = (int)((downwardSpeed - minDamageSpeed) * damagePerSpeedUnit);
+                    if (damage > 0)
+                    {
+                        int currentHealth = character.Character_BaseController.CurrentHealthProp;
+                        int maxHealth = Math.Max(1, character.MaxHealth.Value);
+                        int newHealth = Math.Clamp(currentHealth - damage, 0, maxHealth);
+                        if (newHealth != currentHealth)
+                        {
+                            character.Character_BaseController.CurrentHealthProp = newHealth;
+                            character.Character_ObserverView.CurrentHealthPctProp = (byte)Math.Clamp((newHealth * 100) / maxHealth, 0, 100);
+                            _shard.EntityMan.FlushChanges(character);
+                            Serilog.Log.Information(
+                                "[FallDamage] Character {Character} took {Damage} ({OldHealth}->{NewHealth}/{MaxHealth}) speed={Speed:F2}",
+                                character,
+                                damage,
+                                currentHealth,
+                                newHealth,
+                                maxHealth,
+                                downwardSpeed);
+                        }
+                    }
+                }
+            }
         }
 
         if (moveInputRequested || (character.IsMoving && (previousMovementStateValue != character.MovementStateContainer.MovementStateValue || previousPosition != character.Position)))

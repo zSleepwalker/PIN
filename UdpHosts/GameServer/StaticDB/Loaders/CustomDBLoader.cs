@@ -895,6 +895,13 @@ public class CustomDBLoader
         .ToDictionary(group => group.Key, group => group.ToDictionary(row => row.Id, row => row));
     }
 
+    public Dictionary<uint, Dictionary<uint, ServiceTerminal>> LoadServiceTerminals()
+    {
+        return LoadJSON<ServiceTerminal>("./StaticDB/CustomData/service_terminal.json")
+        .GroupBy(row => row.ZoneId)
+        .ToDictionary(group => group.Key, group => group.ToDictionary(row => row.Id, row => row));
+    }
+
     public Dictionary<uint, Dictionary<uint, MeldingRepulsorDef>> LoadMeldingRepulsor()
     {
         return LoadJSON<MeldingRepulsorDef>("./StaticDB/CustomData/meldingRepulsor.json")
@@ -911,7 +918,27 @@ public class CustomDBLoader
 
     private T[] LoadJSON<T>(string fileName)
     {
-        string jsonString = File.ReadAllText(fileName);
-        return JsonSerializer.Deserialize<T[]>(jsonString, SerializerOptions);
+        string resolvedFileName = fileName;
+
+        if (!File.Exists(resolvedFileName) && resolvedFileName.Contains("/Todo/"))
+        {
+            string migratedPath = resolvedFileName.Replace("/Todo/", "/");
+            if (File.Exists(migratedPath))
+            {
+                resolvedFileName = migratedPath;
+            }
+            else
+            {
+                return System.Array.Empty<T>();
+            }
+        }
+
+        if (!File.Exists(resolvedFileName))
+        {
+            throw new FileNotFoundException($"Required custom data file not found: {resolvedFileName}", resolvedFileName);
+        }
+
+        string jsonString = File.ReadAllText(resolvedFileName);
+        return JsonSerializer.Deserialize<T[]>(jsonString, SerializerOptions) ?? System.Array.Empty<T>();
     }
 }

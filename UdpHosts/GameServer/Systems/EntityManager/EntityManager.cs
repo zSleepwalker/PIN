@@ -396,6 +396,13 @@ public class EntityManager
             SpawnOutpost(outpost);
         }
 
+        // Service terminals/stations
+        foreach (var entry in CustomDBInterface.GetZoneServiceTerminals(zoneId))
+        {
+            var terminal = entry.Value;
+            SpawnDeployable(terminal.DeployableType, terminal.Position, terminal.Orientation);
+        }
+
         // Testing
         TempSpawnTestEntities();
     }

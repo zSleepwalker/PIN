@@ -1,5 +1,6 @@
 using GameServer.Data.SDB.Records.aptfs;
 using GameServer.Entities.Character;
+using GameServer.Entities;
 
 namespace GameServer.Aptitude;
 
@@ -67,6 +68,22 @@ public class TargetByHostilityCommand : Command, ICommand
 
     private static bool IsHostile(IAptitudeTarget self, IAptitudeTarget other)
     {
+        if (ReferenceEquals(self, other))
+        {
+            return false;
+        }
+
+        // Prefer broad faction hostility when both targets are entities.
+        if (self is IEntity selfEntity && other is IEntity otherEntity)
+        {
+            byte selfFaction = selfEntity.HostilityInfo.FactionId;
+            byte otherFaction = otherEntity.HostilityInfo.FactionId;
+            if (selfFaction != 0 && otherFaction != 0)
+            {
+                return selfFaction != otherFaction;
+            }
+        }
+
         if (self is CharacterEntity selfChar
             && other is CharacterEntity otherChar)
         {

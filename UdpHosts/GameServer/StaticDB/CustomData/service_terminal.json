@@ -1,0 +1,86 @@
+[
+	{
+		"id": 343,
+		"zone_id": 448,
+		"name": "Battleframe Station 343",
+		"service_type": "loadout_selector",
+		"deployable_type": 395,
+		"position": {
+			"x": -434.86774,
+			"y": -392.1917,
+			"z": 449.4064
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0,
+			"w": 1
+		},
+		"terminal_type": 8,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 354,
+		"zone_id": 448,
+		"name": "Battleframe Station 354",
+		"service_type": "loadout_selector",
+		"deployable_type": 395,
+		"position": {
+			"x": -446.3193,
+			"y": -378.7849,
+			"z": 439.15958
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0,
+			"w": 1
+		},
+		"terminal_type": 8,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 365,
+		"zone_id": 448,
+		"name": "Battleframe Station 365",
+		"service_type": "loadout_selector",
+		"deployable_type": 395,
+		"position": {
+			"x": -328.9043,
+			"y": 736.0321,
+			"z": 401.98273
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0,
+			"w": 1
+		},
+		"terminal_type": 8,
+		"terminal_id": 0,
+		"radius": 20
+	},
+	{
+		"id": 372,
+		"zone_id": 448,
+		"name": "Battleframe Station 372",
+		"service_type": "loadout_selector",
+		"deployable_type": 395,
+		"position": {
+			"x": -386.6705,
+			"y": -424.03992,
+			"z": 428.35483
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0,
+			"w": 1
+		},
+		"terminal_type": 8,
+		"terminal_id": 0,
+		"radius": 20
+	}
+]
