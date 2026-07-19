@@ -158,6 +158,7 @@ public class CustomDBInterface
     private static Dictionary<uint, Dictionary<uint, Melding>> Melding;
     private static Dictionary<uint, Dictionary<uint, Outpost>> Outpost;
     private static Dictionary<uint, Dictionary<uint, ServiceTerminal>> ServiceTerminals;
+    private static Dictionary<uint, Dictionary<uint, DropshipRouteDef>> DropshipRoutes;
     private static Dictionary<uint, Dictionary<uint, MeldingRepulsorDef>> MeldingRepulsor;
     private static Dictionary<uint, Dictionary<uint, LgvRaceDef>> LgvRace;
 
@@ -315,6 +316,7 @@ public class CustomDBInterface
         Melding = loader.LoadMelding();
         Outpost = loader.LoadOutpost();
         ServiceTerminals = loader.LoadServiceTerminals();
+        DropshipRoutes = loader.LoadDropshipRoutes();
         MeldingRepulsor = loader.LoadMeldingRepulsor();
         LgvRace = loader.LoadLgvRace();
     }
@@ -469,6 +471,7 @@ public class CustomDBInterface
     public static Dictionary<uint, Melding> GetZoneMeldings(uint zoneId) => Melding.GetValueOrDefault(zoneId) ?? new Dictionary<uint, Melding>();
     public static Dictionary<uint, Outpost> GetZoneOutposts(uint zoneId) => Outpost.GetValueOrDefault(zoneId) ?? new Dictionary<uint, Outpost>();
     public static Dictionary<uint, ServiceTerminal> GetZoneServiceTerminals(uint zoneId) => ServiceTerminals.GetValueOrDefault(zoneId) ?? new Dictionary<uint, ServiceTerminal>();
+    public static Dictionary<uint, DropshipRouteDef> GetZoneDropshipRoutes(uint zoneId) => DropshipRoutes.GetValueOrDefault(zoneId) ?? new Dictionary<uint, DropshipRouteDef>();
     public static Dictionary<uint, MeldingRepulsorDef> GetZoneMeldingRepulsors(uint zoneId) => MeldingRepulsor.GetValueOrDefault(zoneId) ?? new Dictionary<uint, MeldingRepulsorDef>();
     public static Dictionary<uint, LgvRaceDef> GetZoneLgvRaces(uint zoneId) => LgvRace.GetValueOrDefault(zoneId) ?? new Dictionary<uint, LgvRaceDef>();
 

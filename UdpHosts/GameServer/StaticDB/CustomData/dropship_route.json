@@ -1,0 +1,78 @@
+[
+  {
+    "id": 1,
+    "zone_id": 448,
+    "name": "Sunken Harbor - Thump Dump Loop",
+    "ship_type": 2693,
+    "ship_count": 2,
+    "speed_units_per_second": 65.0,
+    "flight_altitude_offset": 150.0,
+    "heading_offset_degrees": 0.0,
+    "global_scope": true,
+    "scope_range": 5000.0,
+    "stops": [
+      { "name": "Sunken Harbor", "position": { "x": 770.4636, "y": -1484.4159, "z": 416.5774 } },
+      { "name": "Thump Dump", "position": { "x": -1743.53, "y": 1304.77, "z": 504.84518 } }
+    ]
+  },
+  {
+    "id": 2,
+    "zone_id": 448,
+    "name": "Copacabana - Sunken Harbor - Trans-Hub - Thump Dump Loop",
+    "ship_type": 2693,
+    "ship_count": 3,
+    "speed_units_per_second": 65.0,
+    "flight_altitude_offset": 150.0,
+    "heading_offset_degrees": 0.0,
+    "global_scope": true,
+    "scope_range": 5000.0,
+    "stops": [
+      { "name": "Copacabana", "position": { "x": -312.5574, "y": -416.0484, "z": 417.75537 } },
+      { "name": "Sunken Harbor", "position": { "x": 770.4636, "y": -1484.4159, "z": 416.5774 } },
+      { "name": "Trans-Hub Command", "position": { "x": -1075.734, "y": -923.4863, "z": 446.9358 } },
+      { "name": "Thump Dump", "position": { "x": -1743.53, "y": 1304.77, "z": 504.84518 } }
+    ]
+  },
+  {
+    "id": 3,
+    "zone_id": 448,
+    "name": "Copacabana - Trans-Hub - Bay of Bones - Cerrado - Thump Dump - Hydro-Core Loop",
+    "ship_type": 2693,
+    "ship_count": 3,
+    "speed_units_per_second": 65.0,
+    "flight_altitude_offset": 150.0,
+    "heading_offset_degrees": 0.0,
+    "global_scope": true,
+    "scope_range": 5000.0,
+    "stops": [
+      { "name": "Copacabana", "position": { "x": -312.5574, "y": -416.0484, "z": 417.75537 } },
+      { "name": "Trans-Hub Command", "position": { "x": -1075.734, "y": -923.4863, "z": 446.9358 } },
+      { "name": "Bay of Bones", "position": { "x": -1218.381, "y": 587.28076, "z": 492.88998 } },
+      { "name": "Cerrado Plains", "position": { "x": -1556.8442, "y": 460.60208, "z": 535.0605 } },
+      { "name": "Thump Dump", "position": { "x": -1743.53, "y": 1304.77, "z": 504.84518 } },
+      { "name": "Hydro-Core", "position": { "x": 217.96487, "y": 1123.656, "z": 409.13998 } }
+    ]
+  },
+  {
+    "id": 4,
+    "zone_id": 448,
+    "name": "Copacabana Southern Outpost Loop",
+    "ship_type": 2693,
+    "ship_count": 3,
+    "speed_units_per_second": 65.0,
+    "flight_altitude_offset": 150.0,
+    "heading_offset_degrees": 0.0,
+    "global_scope": true,
+    "scope_range": 5000.0,
+    "stops": [
+      { "name": "Copacabana", "position": { "x": -312.5574, "y": -416.0484, "z": 417.75537 } },
+      { "name": "Arclight Fragment Base", "position": { "x": -297.36798, "y": -840.42596, "z": 421.27844 } },
+      { "name": "Nautilus Science Facility", "position": { "x": 445.9255, "y": -1697.9397, "z": 506.37997 } },
+      { "name": "Sunken Harbor", "position": { "x": 770.4636, "y": -1484.4159, "z": 416.5774 } },
+      { "name": "Stonewall", "position": { "x": 135.2574, "y": -1851.7065, "z": 537.91455 } },
+      { "name": "Sigu's Sanctuary", "position": { "x": 59.4551, "y": -1195.8907, "z": 469.45676 } },
+      { "name": "Shanty Town", "position": { "x": -552.3151, "y": -1180.1615, "z": 560.92004 } },
+      { "name": "Trans-Hub Command", "position": { "x": -1075.734, "y": -923.4863, "z": 446.9358 } }
+    ]
+  }
+]

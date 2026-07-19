@@ -134,6 +134,43 @@ switch (command.ToLowerInvariant())
         SearchStrings(sdb, pattern);
         break;
 
+    case "deployable-interact":
+        {
+            var allDeployables = SDBInterface.GetAllDeployables();
+            if (options.TryGetUInt("type", out var depTypeId))
+            {
+                var dep = allDeployables.GetValueOrDefault(depTypeId);
+                if (dep == null)
+                {
+                    Console.WriteLine($"No deployable type {depTypeId} found.");
+                    break;
+                }
+
+                DumpDeployableInteract(dep);
+                break;
+            }
+
+            var filterByCategory = options.TryGetUInt("category", out var categoryId);
+            foreach (var dep in allDeployables.Values.OrderBy(d => d.Id))
+            {
+                if (filterByCategory)
+                {
+                    if (dep.DeployableCategory != categoryId)
+                    {
+                        continue;
+                    }
+                }
+                else if (dep.InteractCompletedAbilityid == 0 && dep.InteractAbilityid == 0)
+                {
+                    continue;
+                }
+
+                DumpDeployableInteract(dep);
+            }
+
+            break;
+        }
+
     default:
         Console.WriteLine($"Unknown command '{command}'.");
         PrintUsage();
@@ -229,6 +266,11 @@ void DumpGliderProfiles()
     {
         Console.WriteLine($"  Id={profile.Id} TurnRate={profile.TurnRate} ThrustAccel={profile.ThrustAccel} ThrustMaxSpeed={profile.ThrustMaxSpeed} Efficiency={profile.Efficiency} PlaneMode={profile.PlaneMode}");
     }
+}
+
+void DumpDeployableInteract(Deployable dep)
+{
+    Console.WriteLine($"Type={dep.Id} InteractAbility={dep.InteractAbilityid} InteractCompleted={dep.InteractCompletedAbilityid} Constructed={dep.ConstructedAbilityid} Category={dep.DeployableCategory}");
 }
 
 void ListTables(SDB sdbInstance, IReadOnlyCollection<string> knownTableNames, string? pattern)
@@ -696,6 +738,7 @@ static void PrintUsage()
     Console.WriteLine("  SdbInspect table-members --name <tableName> [--sdb <path>] [--custom-root <path>]");
     Console.WriteLine("  SdbInspect scan-id --value <rowId> [--field <column>] [--sdb <path>] [--custom-root <path>]");
     Console.WriteLine("  SdbInspect search-strings --pattern <text> [--sdb <path>] [--custom-root <path>]");
+    Console.WriteLine("  SdbInspect deployable-interact [--type <deployableType> | --category <categoryId>] [--sdb <path>] [--custom-root <path>]");
 }
 
 static SDB.Table? TryGetTable(SDB sdbInstance, string tableName)

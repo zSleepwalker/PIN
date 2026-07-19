@@ -716,6 +716,7 @@ public class SDBInterface
 
     public static Dictionary<byte, CharCreateLoadoutSlots> GetCharCreateLoadoutSlots(uint id) => CharCreateLoadoutSlots.GetValueOrDefault(id);
     public static Deployable GetDeployable(uint id) => Deployable.GetValueOrDefault(id);
+    public static IReadOnlyDictionary<uint, Deployable> GetAllDeployables() => Deployable;
     public static DeployableFunction GetDeployableFunction(uint id) => DeployableFunction.GetValueOrDefault(id);
     public static DeployableCategory GetDeployableCategory(uint id) => DeployableCategory.GetValueOrDefault(id);
     public static Faction GetFaction(uint id) => Faction.GetValueOrDefault(id);

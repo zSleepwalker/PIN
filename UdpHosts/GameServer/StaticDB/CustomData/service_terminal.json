@@ -208,5 +208,26 @@
 		"terminal_type": 7,
 		"terminal_id": 10,
 		"radius": 20
+	},
+	{
+		"id": 501,
+		"zone_id": 448,
+		"name": "Arcporter Ship 501",
+		"service_type": "arcporter",
+		"deployable_type": 2693,
+		"position": {
+			"x": -340.0,
+			"y": 730.0,
+			"z": 402.0
+		},
+		"orientation": {
+			"x": 0,
+			"y": 0,
+			"z": 0,
+			"w": 1
+		},
+		"terminal_type": 17,
+		"terminal_id": 0,
+		"radius": 20
 	}
 ]

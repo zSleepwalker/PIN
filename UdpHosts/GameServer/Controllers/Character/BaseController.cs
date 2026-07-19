@@ -394,6 +394,25 @@ public class BaseController : Base
         client.NetChannels[ChannelType.ReliableGss].SendMessage(forcedMove, character.EntityId);
     }
 
+    [MessageID((byte)Commands.RequestTransfer)]
+    public void RequestTransfer(INetworkClient client, IPlayer player, ulong entityId, GamePacket packet)
+    {
+        var req = packet.Unpack<RequestTransfer>();
+        _logger.Information("RequestTransfer: character {EntityId} requested zone {ZoneId} (unk2={Unk2})", entityId, req.ZoneId, req.Unk2);
+
+        // Zone transfer between separate game server instances is not yet implemented.
+        // If the request is for the current zone, just close the terminal so the client isn't left waiting.
+        var currentZoneId = player.CurrentZone.ID;
+        if (req.ZoneId == currentZoneId)
+        {
+            _logger.Debug("RequestTransfer: same-zone transfer ignored for zone {ZoneId}", req.ZoneId);
+        }
+        else
+        {
+            _logger.Warning("RequestTransfer: cross-zone transfer to {ZoneId} is not supported; request dropped", req.ZoneId);
+        }
+    }
+
     private static GeographicalReportResponse CreateEmptyGeographicalReportResponse(Vector3 position)
     {
         return new GeographicalReportResponse
@@ -740,15 +759,13 @@ public class BaseController : Base
                 continue;
             }
 
-            var unlockType = visual.VisualType switch
+            if (!unlocks.HasUnlock(visual.VisualType switch
             {
-                LoadoutConfig_Visual.LoadoutVisualType.Palette => "warpaints",
-                LoadoutConfig_Visual.LoadoutVisualType.Pattern => "czi_patterns",
-                LoadoutConfig_Visual.LoadoutVisualType.Decal => "decals",
+                LoadoutVisualType.Palette => "warpaints",
+                LoadoutVisualType.Pattern => "czi_patterns",
+                LoadoutVisualType.Decal => "decals",
                 _ => null,
-            };
-
-            if (unlockType != null && !unlocks.HasUnlock(unlockType, visual.ItemSdbId))
+            }, visual.ItemSdbId))
             {
                 return false;
             }

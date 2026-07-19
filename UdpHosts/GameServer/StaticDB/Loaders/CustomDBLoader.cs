@@ -902,6 +902,13 @@ public class CustomDBLoader
         .ToDictionary(group => group.Key, group => group.ToDictionary(row => row.Id, row => row));
     }
 
+    public Dictionary<uint, Dictionary<uint, DropshipRouteDef>> LoadDropshipRoutes()
+    {
+        return LoadJSON<DropshipRouteDef>("./StaticDB/CustomData/dropship_route.json")
+        .GroupBy(row => row.ZoneId)
+        .ToDictionary(group => group.Key, group => group.ToDictionary(row => row.Id, row => row));
+    }
+
     public Dictionary<uint, Dictionary<uint, MeldingRepulsorDef>> LoadMeldingRepulsor()
     {
         return LoadJSON<MeldingRepulsorDef>("./StaticDB/CustomData/meldingRepulsor.json")

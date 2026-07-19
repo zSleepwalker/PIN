@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
@@ -37,14 +38,17 @@ public class EntityManager
     private readonly ulong _scopeInIntervalMs = 20;
     private readonly ulong _scopeCheckIntervalMs = 5000;
     private readonly ulong _lifetimeCheckIntervalMs = 1000;
+    private readonly ulong _dropshipRouteUpdateIntervalMs = 33;
     private readonly ConcurrentDictionary<ulong, HashSet<INetworkPlayer>> _scopedPlayersByEntity = new();
     private readonly ConcurrentQueue<ScopeInRequest> _queuedScopeIn = new ConcurrentQueue<ScopeInRequest>();
     private readonly ConcurrentDictionary<ulong, Lifetime> _lifetimeByEntity = new();
+    private readonly List<DropshipRouteShipRuntime> _dropshipRouteShips = new();
     private uint _counter;
     private ulong _lastUpdateFlush;
     private ulong _lastScopeIn;
     private ulong _lastScopeCheck;
     private ulong _lastLifetimeCheck;
+    private ulong _lastDropshipRouteUpdate;
     private bool _hasSpawnedZoneEntities;
 
     public EntityManager(Shard shard)
@@ -403,8 +407,145 @@ public class EntityManager
             SpawnDeployable(terminal.DeployableType, terminal.Position, terminal.Orientation);
         }
 
+        SpawnDropshipRouteShips(zoneId);
+
         // Testing
         TempSpawnTestEntities();
+    }
+
+    private void SpawnDropshipRouteShips(uint zoneId)
+    {
+        foreach (var route in CustomDBInterface.GetZoneDropshipRoutes(zoneId).Values.OrderBy(route => route.Id))
+        {
+            if (route.Stops.Count < 2)
+            {
+                _logger.Warning("Dropship route {RouteId} ({RouteName}) has fewer than two stops and will not spawn", route.Id, route.Name);
+                continue;
+            }
+
+            if (route.ShipCount == 0)
+            {
+                _logger.Warning("Dropship route {RouteId} ({RouteName}) has zero ships and will not spawn", route.Id, route.Name);
+                continue;
+            }
+
+            float loopLength = CalculateDropshipRouteLoopLength(route);
+            if (loopLength <= 0.0f)
+            {
+                _logger.Warning("Dropship route {RouteId} ({RouteName}) has no measurable route length and will not spawn", route.Id, route.Name);
+                continue;
+            }
+
+            for (byte shipIndex = 0; shipIndex < route.ShipCount; shipIndex++)
+            {
+                float offsetDistance = loopLength * shipIndex / route.ShipCount;
+                var pose = CalculateDropshipRoutePose(route, offsetDistance, loopLength);
+                var ship = SpawnDeployable(route.ShipType, pose.Position, pose.Orientation, suppressAutomaticAbilities: true);
+                ship.Interaction = null;
+                ship.SetAimDirection(pose.AimDirection);
+
+                ship.Scoping ??= new ScopingComponent();
+                ship.Scoping.Global = route.GlobalScope;
+                ship.Scoping.Range = route.ScopeRange > 0.0f ? route.ScopeRange : ship.Scoping.Range;
+
+                _dropshipRouteShips.Add(new DropshipRouteShipRuntime(route, ship, loopLength, offsetDistance));
+            }
+
+            _logger.Information("Spawned {ShipCount} dropship route ships for route {RouteId} ({RouteName})", route.ShipCount, route.Id, route.Name);
+        }
+    }
+
+    private void UpdateDropshipRouteShips(ulong currentTime)
+    {
+        if (_dropshipRouteShips.Count == 0 || currentTime < _lastDropshipRouteUpdate + _dropshipRouteUpdateIntervalMs)
+        {
+            return;
+        }
+
+        _lastDropshipRouteUpdate = currentTime;
+        foreach (var runtime in _dropshipRouteShips)
+        {
+            if (!_shard.Entities.ContainsKey(runtime.Ship.EntityId))
+            {
+                continue;
+            }
+
+            double distance = ((currentTime / 1000.0d) * runtime.Route.SpeedUnitsPerSecond) + runtime.OffsetDistance;
+            var pose = CalculateDropshipRoutePose(runtime.Route, distance, runtime.LoopLength);
+            runtime.Ship.SetPosition(pose.Position);
+            runtime.Ship.SetOrientation(pose.Orientation);
+            runtime.Ship.SetAimDirection(pose.AimDirection);
+            _shard.Physics.UpdateEntity(runtime.Ship);
+        }
+    }
+
+    private static float CalculateDropshipRouteLoopLength(DropshipRouteDef route)
+    {
+        float length = 0.0f;
+        for (int i = 0; i < route.Stops.Count; i++)
+        {
+            var from = GetDropshipRouteStopPosition(route, i);
+            var to = GetDropshipRouteStopPosition(route, (i + 1) % route.Stops.Count);
+            length += Vector3.Distance(from, to);
+        }
+
+        return length;
+    }
+
+    private static DropshipRoutePose CalculateDropshipRoutePose(DropshipRouteDef route, double distance, float loopLength)
+    {
+        double remaining = distance % loopLength;
+        if (remaining < 0.0d)
+        {
+            remaining += loopLength;
+        }
+
+        for (int i = 0; i < route.Stops.Count; i++)
+        {
+            var from = GetDropshipRouteStopPosition(route, i);
+            var to = GetDropshipRouteStopPosition(route, (i + 1) % route.Stops.Count);
+            var delta = to - from;
+            float segmentLength = delta.Length();
+            if (segmentLength <= 0.0f)
+            {
+                continue;
+            }
+
+            if (remaining <= segmentLength)
+            {
+                float t = (float)(remaining / segmentLength);
+                var position = Vector3.Lerp(from, to, t);
+                var aimDirection = Vector3.Normalize(delta);
+                var orientation = CreateDropshipOrientation(delta, route.HeadingOffsetDegrees);
+                return new DropshipRoutePose(position, orientation, aimDirection);
+            }
+
+            remaining -= segmentLength;
+        }
+
+        var fallbackFrom = GetDropshipRouteStopPosition(route, 0);
+        var fallbackTo = GetDropshipRouteStopPosition(route, 1);
+        var fallbackDirection = Vector3.Normalize(fallbackTo - fallbackFrom);
+        return new DropshipRoutePose(fallbackFrom, CreateDropshipOrientation(fallbackDirection, route.HeadingOffsetDegrees), fallbackDirection);
+    }
+
+    private static Vector3 GetDropshipRouteStopPosition(DropshipRouteDef route, int stopIndex)
+    {
+        var position = route.Stops[stopIndex].Position;
+        position.Z += route.FlightAltitudeOffset;
+        return position;
+    }
+
+    private static Quaternion CreateDropshipOrientation(Vector3 direction, float headingOffsetDegrees)
+    {
+        if (direction.LengthSquared() <= 0.0f)
+        {
+            return Quaternion.Identity;
+        }
+
+        direction = Vector3.Normalize(direction);
+        float yaw = MathF.Atan2(direction.Y, direction.X) + (headingOffsetDegrees * MathF.PI / 180.0f);
+        return Quaternion.CreateFromAxisAngle(Vector3.UnitZ, yaw);
     }
 
     public void SetRemainingLifetime(IEntity entity, uint timeMs)
@@ -427,6 +568,8 @@ public class EntityManager
                 SpawnZoneEntities(_shard.ZoneId);
             }
         }
+
+        UpdateDropshipRouteShips(currentTime);
 
         // Process queued scope-ins
         if (!_queuedScopeIn.IsEmpty && currentTime > _lastScopeIn + _scopeInIntervalMs)
@@ -1788,4 +1931,12 @@ public class EntityManager
     {
         public ulong ExpireAt;
     }
+
+    private sealed record DropshipRouteShipRuntime(
+        DropshipRouteDef Route,
+        DeployableEntity Ship,
+        float LoopLength,
+        float OffsetDistance);
+
+    private readonly record struct DropshipRoutePose(Vector3 Position, Quaternion Orientation, Vector3 AimDirection);
 }
