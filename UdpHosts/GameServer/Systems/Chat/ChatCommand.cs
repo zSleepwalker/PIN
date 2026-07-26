@@ -12,7 +12,6 @@ public abstract class ChatCommand
         _logger = Log.ForContext(GetType());
     }
 
-
     public abstract void Execute(string[] parameters, ChatCommandContext context);
     public virtual void SourceFeedback(string message, ChatCommandContext context)
     {

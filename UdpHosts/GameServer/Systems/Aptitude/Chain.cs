@@ -76,7 +76,6 @@ public class Chain
                 }
             }
 
-
             return chainSuccess;
         }
 

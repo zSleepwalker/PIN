@@ -524,6 +524,11 @@ public class BaseController : Base
         var character = player.CharacterEntity;
         var entity = character.AttachedToEntity;
 
+        if (client.AssignedShard.EntityMan.TryRequestDropshipExit(character, entity))
+        {
+            return;
+        }
+
         if (entity is VehicleEntity vehicle)
         {
             vehicle.RemoveOccupant(character);

@@ -208,7 +208,6 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
     public uint DespawnAbility { get; set; } = 0;
     public uint DeathAbility { get; set; } = 0;
 
-
     public void Load(VehicleInfoResult vehicleInfo)
     {
         VehicleId = vehicleInfo.VehicleId;
@@ -412,7 +411,6 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
             Vehicle_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatController, data, null);
         }
 
-
         // CombatView
         Vehicle_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatView, time, null);
         Vehicle_CombatView.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatView, data, null);
@@ -435,7 +433,6 @@ public sealed class VehicleEntity : BaseAptitudeEntity, IAptitudeTarget
             Vehicle_CombatController.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatController, time, null);
             Vehicle_CombatController.GetType().GetProperty($"StatusEffects_{index}Prop").SetValue(Vehicle_CombatController, null, null);
         }
-
 
         // CombatView
         Vehicle_CombatView.GetType().GetProperty($"StatusEffectsChangeTime_{index}Prop").SetValue(Vehicle_CombatView, time, null);

@@ -21,8 +21,8 @@ using GameServer.Enums.Visuals;
 using GameServer.Systems.Encounters;
 using GameServer.Test;
 using GrpcGameServerAPIClient;
-using CharacterLoadout = GameServer.Data.CharacterLoadout;
 using Serilog;
+using CharacterLoadout = GameServer.Data.CharacterLoadout;
 using GibVisuals = AeroMessages.GSS.V66.Character.GibVisuals;
 using LoadoutVisualType = AeroMessages.GSS.V66.Character.LoadoutConfig_Visual.LoadoutVisualType;
 
@@ -958,7 +958,6 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
             EndUnk2 = 0
         });
 
-
         SetCharacterStats(new CharacterStatsData
         {
             ItemAttributes = loadout.GetItemAttributes(),
@@ -1143,7 +1142,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         }
 
         ushort configuredClip = weaponTemplate.BaseClipSize > 0 ? weaponTemplate.BaseClipSize : weaponTemplate.MaxAmmo;
-        ushort maxClip = (ushort)Math.Min(configuredClip, weaponTemplate.MaxAmmo);
+        ushort maxClip = Math.Min(configuredClip, weaponTemplate.MaxAmmo);
         ushort maxReserve = weaponTemplate.MaxAmmo;
 
         if (Character_CombatController != null)
@@ -1221,7 +1220,7 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
     {
         if (Character_CombatController != null)
         {
-            StatMultiplierData value = new()
+            var value = new StatMultiplierData
             {
                 Value = GetCurrentStatModifierValue(stat),
                 Time = Shard.CurrentTime,
@@ -2107,6 +2106,11 @@ public sealed partial class CharacterEntity : BaseAptitudeEntity, IAptitudeTarge
         if (useAltPool)
         {
             weapon = weaponDetails.Alt;
+        }
+
+        if (weapon == null)
+        {
+            return null;
         }
 
         var weaponAttributesDict = weaponAttributes.ToDictionary((StatsData p) => p.Id);

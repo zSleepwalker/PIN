@@ -32,13 +32,14 @@ namespace GameServer.Systems.EntityManager;
 public class EntityManager
 {
     private const byte _serverId = 31;
+    private const int _dropshipCruiseSamples = 64;
     private readonly Shard _shard;
     private readonly ILogger _logger;
     private readonly ulong _updateFlushIntervalMs = 5;
     private readonly ulong _scopeInIntervalMs = 20;
     private readonly ulong _scopeCheckIntervalMs = 5000;
     private readonly ulong _lifetimeCheckIntervalMs = 1000;
-    private readonly ulong _dropshipRouteUpdateIntervalMs = 33;
+    private readonly ulong _dropshipRouteUpdateIntervalMs = 20;
     private readonly ConcurrentDictionary<ulong, HashSet<INetworkPlayer>> _scopedPlayersByEntity = new();
     private readonly ConcurrentQueue<ScopeInRequest> _queuedScopeIn = new ConcurrentQueue<ScopeInRequest>();
     private readonly ConcurrentDictionary<ulong, Lifetime> _lifetimeByEntity = new();
@@ -429,26 +430,43 @@ public class EntityManager
                 continue;
             }
 
-            float loopLength = CalculateDropshipRouteLoopLength(route);
-            if (loopLength <= 0.0f)
+            if (route.SpeedUnitsPerSecond <= 0.0f || route.LandingSpeedUnitsPerSecond <= 0.0f)
             {
-                _logger.Warning("Dropship route {RouteId} ({RouteName}) has no measurable route length and will not spawn", route.Id, route.Name);
+                _logger.Warning("Dropship route {RouteId} ({RouteName}) has an invalid travel or landing speed and will not spawn", route.Id, route.Name);
+                continue;
+            }
+
+            var plan = BuildDropshipRoutePlan(route);
+            if (plan.CycleDurationSeconds <= 0.0d)
+            {
+                _logger.Warning("Dropship route {RouteId} ({RouteName}) has no measurable cycle duration and will not spawn", route.Id, route.Name);
                 continue;
             }
 
             for (byte shipIndex = 0; shipIndex < route.ShipCount; shipIndex++)
             {
-                float offsetDistance = loopLength * shipIndex / route.ShipCount;
-                var pose = CalculateDropshipRoutePose(route, offsetDistance, loopLength);
+                double timeOffsetSeconds = plan.CycleDurationSeconds * shipIndex / route.ShipCount;
+                var pose = CalculateDropshipRoutePose(plan, (_shard.CurrentTimeLong / 1000.0d) + timeOffsetSeconds);
                 var ship = SpawnDeployable(route.ShipType, pose.Position, pose.Orientation, suppressAutomaticAbilities: true);
-                ship.Interaction = null;
+                var interaction = new InteractionComponent
+                {
+                    Radius = 20.0f,
+                    Height = 10.0f,
+                    DurationMs = 0,
+                    Type = InteractionType.Transport,
+                };
+                ship.Interaction = pose.IsDwelling ? interaction : null;
                 ship.SetAimDirection(pose.AimDirection);
 
                 ship.Scoping ??= new ScopingComponent();
                 ship.Scoping.Global = route.GlobalScope;
                 ship.Scoping.Range = route.ScopeRange > 0.0f ? route.ScopeRange : ship.Scoping.Range;
 
-                _dropshipRouteShips.Add(new DropshipRouteShipRuntime(route, ship, loopLength, offsetDistance));
+                _dropshipRouteShips.Add(new DropshipRouteShipRuntime(plan, ship, interaction, timeOffsetSeconds)
+                {
+                    IsDwelling = pose.IsDwelling,
+                    StopIndex = pose.StopIndex,
+                });
             }
 
             _logger.Information("Spawned {ShipCount} dropship route ships for route {RouteId} ({RouteName})", route.ShipCount, route.Id, route.Name);
@@ -467,73 +485,434 @@ public class EntityManager
         {
             if (!_shard.Entities.ContainsKey(runtime.Ship.EntityId))
             {
+                ClearDropshipPassengers(runtime);
                 continue;
             }
 
-            double distance = ((currentTime / 1000.0d) * runtime.Route.SpeedUnitsPerSecond) + runtime.OffsetDistance;
-            var pose = CalculateDropshipRoutePose(runtime.Route, distance, runtime.LoopLength);
+            var pose = CalculateDropshipRoutePose(runtime.Plan, (currentTime / 1000.0d) + runtime.TimeOffsetSeconds);
+            bool arrivedAtStop = pose.IsDwelling && (!runtime.IsDwelling || runtime.StopIndex != pose.StopIndex);
+            bool departedStop = !pose.IsDwelling && runtime.IsDwelling;
+            runtime.IsDwelling = pose.IsDwelling;
+            runtime.StopIndex = pose.StopIndex;
+            runtime.Ship.Interaction = pose.IsDwelling ? runtime.Interaction : null;
             runtime.Ship.SetPosition(pose.Position);
             runtime.Ship.SetOrientation(pose.Orientation);
             runtime.Ship.SetAimDirection(pose.AimDirection);
             _shard.Physics.UpdateEntity(runtime.Ship);
-        }
-    }
 
-    private static float CalculateDropshipRouteLoopLength(DropshipRouteDef route)
-    {
-        float length = 0.0f;
-        for (int i = 0; i < route.Stops.Count; i++)
-        {
-            var from = GetDropshipRouteStopPosition(route, i);
-            var to = GetDropshipRouteStopPosition(route, (i + 1) % route.Stops.Count);
-            length += Vector3.Distance(from, to);
-        }
-
-        return length;
-    }
-
-    private static DropshipRoutePose CalculateDropshipRoutePose(DropshipRouteDef route, double distance, float loopLength)
-    {
-        double remaining = distance % loopLength;
-        if (remaining < 0.0d)
-        {
-            remaining += loopLength;
-        }
-
-        for (int i = 0; i < route.Stops.Count; i++)
-        {
-            var from = GetDropshipRouteStopPosition(route, i);
-            var to = GetDropshipRouteStopPosition(route, (i + 1) % route.Stops.Count);
-            var delta = to - from;
-            float segmentLength = delta.Length();
-            if (segmentLength <= 0.0f)
+            if (departedStop)
             {
+                RemoveDropshipInteraction(runtime.Ship);
+            }
+            else if (arrivedAtStop)
+            {
+                AnnounceDropshipInteraction(runtime.Ship);
+            }
+
+            UpdateDropshipPassengers(runtime, pose, arrivedAtStop);
+        }
+    }
+
+    public bool TryHandleDropshipInteraction(CharacterEntity character, BaseEntity interactionEntity)
+    {
+        if (character.AttachedToEntity is BaseEntity attachedEntity)
+        {
+            var attachedRuntime = _dropshipRouteShips.FirstOrDefault(candidate => candidate.Ship == attachedEntity);
+            if (attachedRuntime != null && attachedRuntime.Passengers.TryGetValue(character, out var attachedPassenger))
+            {
+                attachedPassenger.ExitRequested = true;
+                _logger.Information(
+                    "Dropship passenger {Character} requested exit from attached ship {ShipId} at next stop",
+                    character,
+                    attachedRuntime.Ship.EntityId);
+                return true;
+            }
+        }
+
+        var runtime = _dropshipRouteShips.FirstOrDefault(candidate => candidate.Ship == interactionEntity);
+        if (runtime == null)
+        {
+            return false;
+        }
+
+        if (runtime.Passengers.TryGetValue(character, out var passenger))
+        {
+            passenger.ExitRequested = true;
+            return true;
+        }
+
+        if (!runtime.IsDwelling
+            || character.AttachedToEntity != null
+            || Vector3.Distance(character.Position, runtime.Ship.Position) > runtime.Interaction.Radius)
+        {
+            return true;
+        }
+
+        runtime.Passengers[character] = new DropshipPassengerState(runtime.StopIndex);
+        _logger.Information(
+            "Boarding dropship passenger {Character} on ship {ShipId} at stop {StopIndex}",
+            character,
+            runtime.Ship.EntityId,
+            runtime.StopIndex);
+        character.SetPosition(runtime.Ship.Position);
+
+        if (character.IsPlayerControlled)
+        {
+            if (!_scopedPlayersByEntity[runtime.Ship.EntityId].Contains(character.Player))
+            {
+                ScopeIn(character.Player, runtime.Ship);
+            }
+
+            HideDropshipPassenger(character);
+        }
+
+        return true;
+    }
+
+    public bool TryRequestDropshipExit(CharacterEntity character, IEntity attachedEntity)
+    {
+        var runtime = _dropshipRouteShips.FirstOrDefault(candidate => candidate.Ship == attachedEntity);
+        if (runtime == null || !runtime.Passengers.TryGetValue(character, out var passenger))
+        {
+            return false;
+        }
+
+        passenger.ExitRequested = true;
+        return true;
+    }
+
+    private void UpdateDropshipPassengers(DropshipRouteShipRuntime runtime, DropshipRoutePose pose, bool arrivedAtStop)
+    {
+        foreach (var entry in runtime.Passengers.ToArray())
+        {
+            var character = entry.Key;
+            var passenger = entry.Value;
+            if (!_shard.Entities.TryGetValue(character.EntityId, out var entity) || entity != character)
+            {
+                character.ClearAttachedTo();
+                runtime.Passengers.TryRemove(character, out _);
                 continue;
             }
 
-            if (remaining <= segmentLength)
+            if (!passenger.IsAttached)
             {
-                float t = (float)(remaining / segmentLength);
-                var position = Vector3.Lerp(from, to, t);
-                var aimDirection = Vector3.Normalize(delta);
-                var orientation = CreateDropshipOrientation(delta, route.HeadingOffsetDegrees);
-                return new DropshipRoutePose(position, orientation, aimDirection);
+                character.SetAttachedTo(new AttachedToData
+                {
+                    Id1 = runtime.Ship.AeroEntityId,
+                    Id2 = runtime.Ship.AeroEntityId,
+                    Role = AttachedToData.AttachmentRoleType.ActivePassenger,
+                    Unk2 = 0,
+                    Unk3 = 1,
+                }, runtime.Ship, 0, Vector3.Zero);
+                passenger.IsAttached = true;
+                _logger.Information(
+                    "Attached dropship passenger {Character} to ship {ShipId} as active passenger",
+                    character,
+                    runtime.Ship.EntityId);
             }
 
-            remaining -= segmentLength;
-        }
+            character.SetPosition(pose.Position);
+            character.SetOrientation(CreateDropshipOrientation(pose.AimDirection, 0.0f));
 
-        var fallbackFrom = GetDropshipRouteStopPosition(route, 0);
-        var fallbackTo = GetDropshipRouteStopPosition(route, 1);
-        var fallbackDirection = Vector3.Normalize(fallbackTo - fallbackFrom);
-        return new DropshipRoutePose(fallbackFrom, CreateDropshipOrientation(fallbackDirection, route.HeadingOffsetDegrees), fallbackDirection);
+            if (arrivedAtStop && passenger.ExitRequested && passenger.BoardedStopIndex != pose.StopIndex)
+            {
+                DisembarkDropshipPassenger(runtime, character, pose);
+            }
+        }
     }
 
-    private static Vector3 GetDropshipRouteStopPosition(DropshipRouteDef route, int stopIndex)
+    private void ClearDropshipPassengers(DropshipRouteShipRuntime runtime)
+    {
+        foreach (var character in runtime.Passengers.Keys)
+        {
+            if (runtime.Passengers.TryRemove(character, out _))
+            {
+                character.ClearAttachedTo();
+            }
+        }
+    }
+
+    private void DisembarkDropshipPassenger(DropshipRouteShipRuntime runtime, CharacterEntity character, DropshipRoutePose pose)
+    {
+        if (!runtime.Passengers.TryRemove(character, out _))
+        {
+            return;
+        }
+
+        character.ClearAttachedTo();
+        var sideDirection = new Vector3(-pose.AimDirection.Y, pose.AimDirection.X, 0.0f);
+        sideDirection = NormalizeDropshipDirection(sideDirection, Vector3.UnitY);
+        character.SetPosition(pose.Position + (sideDirection * 8.0f) + Vector3.UnitZ);
+
+        if (!character.IsPlayerControlled)
+        {
+            return;
+        }
+
+        var response = new ExitingAttachment { Direction = sideDirection };
+        character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(response, character.EntityId);
+        ShowDropshipPassenger(character);
+    }
+
+    private void HideDropshipPassenger(CharacterEntity character)
+    {
+        foreach (var player in _shard.Clients.Values)
+        {
+            if (player != character.Player && _scopedPlayersByEntity[character.EntityId].Contains(player))
+            {
+                ScopeOut(player, character);
+            }
+        }
+    }
+
+    private void ShowDropshipPassenger(CharacterEntity character)
+    {
+        foreach (var player in _shard.Clients.Values)
+        {
+            if (player.CanReceiveGSS && !_scopedPlayersByEntity[character.EntityId].Contains(player))
+            {
+                ScopeIn(player, character);
+            }
+        }
+    }
+
+    private void RemoveDropshipInteraction(DeployableEntity ship)
+    {
+        var response = new RemoveInteractives { Entities = new[] { ship.AeroEntityId } };
+        foreach (var player in _scopedPlayersByEntity[ship.EntityId].ToArray())
+        {
+            player.NetChannels[ChannelType.ReliableGss].SendMessage(response, player.CharacterEntity.EntityId);
+        }
+    }
+
+    private void AnnounceDropshipInteraction(DeployableEntity ship)
+    {
+        var response = new AddOrUpdateInteractives
+        {
+            Entities = new[] { ship.AeroEntityId.Backing },
+            InteractionTypes = new[] { (byte)ship.Interaction.Type },
+            InteractionDurationsMs = new[] { ship.Interaction.DurationMs },
+        };
+
+        foreach (var player in _scopedPlayersByEntity[ship.EntityId].ToArray())
+        {
+            if (player.CharacterEntity != null && Vector3.Distance(player.CharacterEntity.Position, ship.Position) <= ship.Interaction.Radius)
+            {
+                player.NetChannels[ChannelType.ReliableGss].SendMessage(response, player.CharacterEntity.EntityId);
+            }
+        }
+    }
+
+    private static DropshipRoutePlan BuildDropshipRoutePlan(DropshipRouteDef route)
+    {
+        var cruises = new List<DropshipCruiseSegment>(route.Stops.Count);
+        for (int i = 0; i < route.Stops.Count; i++)
+        {
+            cruises.Add(BuildDropshipCruiseSegment(route, i));
+        }
+
+        var legs = new List<DropshipRouteLeg>(route.Stops.Count);
+        double cycleDurationSeconds = 0.0d;
+        for (int i = 0; i < route.Stops.Count; i++)
+        {
+            var cruise = cruises[i];
+            var padPosition = route.Stops[i].Position;
+            var nextPadPosition = route.Stops[(i + 1) % route.Stops.Count].Position;
+            double dwellDurationSeconds = Math.Max(0.0d, route.StopDurationSeconds);
+            double takeoffDurationSeconds = Vector3.Distance(padPosition, cruise.StartPosition) / route.SpeedUnitsPerSecond;
+            double cruiseDurationSeconds = cruise.Length / route.SpeedUnitsPerSecond;
+            double landingDurationSeconds = Vector3.Distance(cruise.EndPosition, nextPadPosition) / route.LandingSpeedUnitsPerSecond;
+            double durationSeconds = dwellDurationSeconds + takeoffDurationSeconds + cruiseDurationSeconds + landingDurationSeconds;
+            var incomingDirection = cruises[(i + route.Stops.Count - 1) % route.Stops.Count].EndDirection;
+
+            legs.Add(new DropshipRouteLeg(
+                i,
+                padPosition,
+                nextPadPosition,
+                incomingDirection,
+                cruise,
+                dwellDurationSeconds,
+                takeoffDurationSeconds,
+                cruiseDurationSeconds,
+                landingDurationSeconds,
+                durationSeconds));
+            cycleDurationSeconds += durationSeconds;
+        }
+
+        return new DropshipRoutePlan(route, legs, cycleDurationSeconds);
+    }
+
+    private static DropshipCruiseSegment BuildDropshipCruiseSegment(DropshipRouteDef route, int stopIndex)
+    {
+        var samples = new List<DropshipCruiseSample>(_dropshipCruiseSamples + 1);
+        float cumulativeLength = 0.0f;
+        var previousPosition = CalculateDropshipCruisePosition(route, stopIndex, 0.0f);
+        samples.Add(new DropshipCruiseSample(0.0f, 0.0f));
+
+        for (int sampleIndex = 1; sampleIndex <= _dropshipCruiseSamples; sampleIndex++)
+        {
+            float t = sampleIndex / (float)_dropshipCruiseSamples;
+            var position = CalculateDropshipCruisePosition(route, stopIndex, t);
+            cumulativeLength += Vector3.Distance(previousPosition, position);
+            samples.Add(new DropshipCruiseSample(t, cumulativeLength));
+            previousPosition = position;
+        }
+
+        var startPosition = CalculateDropshipCruisePosition(route, stopIndex, 0.0f);
+        var endPosition = CalculateDropshipCruisePosition(route, stopIndex, 1.0f);
+        var fallbackDirection = Vector3.Normalize(endPosition - startPosition);
+        var startDirection = NormalizeDropshipDirection(CalculateDropshipCruiseTangent(route, stopIndex, 0.0f), fallbackDirection);
+        var endDirection = NormalizeDropshipDirection(CalculateDropshipCruiseTangent(route, stopIndex, 1.0f), fallbackDirection);
+        return new DropshipCruiseSegment(stopIndex, samples, cumulativeLength, startPosition, endPosition, startDirection, endDirection);
+    }
+
+    private static DropshipRoutePose CalculateDropshipRoutePose(DropshipRoutePlan plan, double elapsedSeconds)
+    {
+        double remaining = elapsedSeconds % plan.CycleDurationSeconds;
+        if (remaining < 0.0d)
+        {
+            remaining += plan.CycleDurationSeconds;
+        }
+
+        foreach (var leg in plan.Legs)
+        {
+            if (remaining > leg.DurationSeconds)
+            {
+                remaining -= leg.DurationSeconds;
+                continue;
+            }
+
+            if (remaining <= leg.DwellDurationSeconds)
+            {
+                float progress = leg.DwellDurationSeconds > 0.0d ? (float)(remaining / leg.DwellDurationSeconds) : 1.0f;
+                progress = SmoothDropshipProgress(progress);
+                return CreateDropshipPose(
+                    leg.PadPosition,
+                    leg.IncomingDirection,
+                    leg.Cruise.StartDirection,
+                    progress,
+                    plan.Route.HeadingOffsetDegrees) with { IsDwelling = true, StopIndex = leg.StopIndex };
+            }
+
+            remaining -= leg.DwellDurationSeconds;
+            if (remaining <= leg.TakeoffDurationSeconds)
+            {
+                float progress = leg.TakeoffDurationSeconds > 0.0d ? (float)(remaining / leg.TakeoffDurationSeconds) : 1.0f;
+                progress = Math.Clamp(progress, 0.0f, 1.0f);
+                var position = Vector3.Lerp(leg.PadPosition, leg.Cruise.StartPosition, progress);
+                return CreateDropshipPose(position, leg.Cruise.StartDirection, plan.Route.HeadingOffsetDegrees) with { StopIndex = leg.StopIndex };
+            }
+
+            remaining -= leg.TakeoffDurationSeconds;
+            if (remaining <= leg.CruiseDurationSeconds)
+            {
+                float distance = (float)(remaining * plan.Route.SpeedUnitsPerSecond);
+                return CalculateDropshipCruisePose(plan.Route, leg.Cruise, distance) with { StopIndex = leg.StopIndex };
+            }
+
+            remaining -= leg.CruiseDurationSeconds;
+            float landingProgress = leg.LandingDurationSeconds > 0.0d ? (float)(remaining / leg.LandingDurationSeconds) : 1.0f;
+            landingProgress = Math.Clamp(landingProgress, 0.0f, 1.0f);
+            var landingPosition = Vector3.Lerp(leg.Cruise.EndPosition, leg.NextPadPosition, landingProgress);
+            return CreateDropshipPose(landingPosition, leg.Cruise.EndDirection, plan.Route.HeadingOffsetDegrees) with { StopIndex = (leg.StopIndex + 1) % plan.Legs.Count };
+        }
+
+        var fallbackLeg = plan.Legs[0];
+        return CreateDropshipPose(fallbackLeg.PadPosition, fallbackLeg.Cruise.StartDirection, plan.Route.HeadingOffsetDegrees) with { IsDwelling = true, StopIndex = fallbackLeg.StopIndex };
+    }
+
+    private static DropshipRoutePose CalculateDropshipCruisePose(DropshipRouteDef route, DropshipCruiseSegment cruise, float distance)
+    {
+        distance = Math.Clamp(distance, 0.0f, cruise.Length);
+        int sampleIndex = 1;
+        while (sampleIndex < cruise.Samples.Count && cruise.Samples[sampleIndex].Distance < distance)
+        {
+            sampleIndex++;
+        }
+
+        var previous = cruise.Samples[sampleIndex - 1];
+        var next = cruise.Samples[sampleIndex];
+        float sampleLength = next.Distance - previous.Distance;
+        float sampleProgress = sampleLength > 0.0f ? (distance - previous.Distance) / sampleLength : 0.0f;
+        float t = float.Lerp(previous.T, next.T, sampleProgress);
+        var position = CalculateDropshipCruisePosition(route, cruise.StopIndex, t);
+        var tangent = CalculateDropshipCruiseTangent(route, cruise.StopIndex, t);
+        var direction = NormalizeDropshipDirection(tangent, cruise.StartDirection);
+        return CreateDropshipPose(position, direction, route.HeadingOffsetDegrees);
+    }
+
+    private static Vector3 CalculateDropshipCruisePosition(DropshipRouteDef route, int stopIndex, float t)
+    {
+        int stopCount = route.Stops.Count;
+        var current = GetElevatedDropshipStopPosition(route, stopIndex);
+        var next = GetElevatedDropshipStopPosition(route, (stopIndex + 1) % stopCount);
+        if (stopCount == 2)
+        {
+            return Vector3.Lerp(current, next, t);
+        }
+
+        var previous = GetElevatedDropshipStopPosition(route, (stopIndex + stopCount - 1) % stopCount);
+        var afterNext = GetElevatedDropshipStopPosition(route, (stopIndex + 2) % stopCount);
+        float t2 = t * t;
+        float t3 = t2 * t;
+        return 0.5f * ((2.0f * current) + ((-previous + next) * t) + (((2.0f * previous) - (5.0f * current) + (4.0f * next) - afterNext) * t2) + ((-previous + (3.0f * current) - (3.0f * next) + afterNext) * t3));
+    }
+
+    private static Vector3 CalculateDropshipCruiseTangent(DropshipRouteDef route, int stopIndex, float t)
+    {
+        int stopCount = route.Stops.Count;
+        var current = GetElevatedDropshipStopPosition(route, stopIndex);
+        var next = GetElevatedDropshipStopPosition(route, (stopIndex + 1) % stopCount);
+        if (stopCount == 2)
+        {
+            return next - current;
+        }
+
+        var previous = GetElevatedDropshipStopPosition(route, (stopIndex + stopCount - 1) % stopCount);
+        var afterNext = GetElevatedDropshipStopPosition(route, (stopIndex + 2) % stopCount);
+        float t2 = t * t;
+        return 0.5f * ((-previous + next) + (2.0f * ((2.0f * previous) - (5.0f * current) + (4.0f * next) - afterNext) * t) + (3.0f * (-previous + (3.0f * current) - (3.0f * next) + afterNext) * t2));
+    }
+
+    private static Vector3 GetElevatedDropshipStopPosition(DropshipRouteDef route, int stopIndex)
     {
         var position = route.Stops[stopIndex].Position;
         position.Z += route.FlightAltitudeOffset;
         return position;
+    }
+
+    private static DropshipRoutePose CreateDropshipPose(Vector3 position, Vector3 direction, float headingOffsetDegrees)
+    {
+        direction = NormalizeDropshipDirection(direction, Vector3.UnitX);
+        return new DropshipRoutePose(position, CreateDropshipOrientation(direction, headingOffsetDegrees), direction);
+    }
+
+    private static DropshipRoutePose CreateDropshipPose(Vector3 position, Vector3 fromDirection, Vector3 toDirection, float progress, float headingOffsetDegrees)
+    {
+        var fromHeading = CreateDropshipOrientation(fromDirection, 0.0f);
+        var toHeading = CreateDropshipOrientation(toDirection, 0.0f);
+        var heading = Quaternion.Normalize(Quaternion.Slerp(fromHeading, toHeading, progress));
+        var aimDirection = Vector3.Transform(Vector3.UnitX, heading);
+        var headingOffset = Quaternion.CreateFromAxisAngle(Vector3.UnitZ, headingOffsetDegrees * MathF.PI / 180.0f);
+        return new DropshipRoutePose(position, Quaternion.Normalize(heading * headingOffset), aimDirection);
+    }
+
+    private static Vector3 NormalizeDropshipDirection(Vector3 direction, Vector3 fallback)
+    {
+        direction.Z = 0.0f;
+        if (direction.LengthSquared() <= 0.0001f)
+        {
+            direction = fallback;
+            direction.Z = 0.0f;
+        }
+
+        return Vector3.Normalize(direction);
+    }
+
+    private static float SmoothDropshipProgress(float progress)
+    {
+        progress = Math.Clamp(progress, 0.0f, 1.0f);
+        return progress * progress * (3.0f - (2.0f * progress));
     }
 
     private static Quaternion CreateDropshipOrientation(Vector3 direction, float headingOffsetDegrees)
@@ -634,6 +1013,10 @@ public class EntityManager
                     {
                         // Players local character should probably always be scoped in
                         shouldBeScoped = true;
+                    }
+                    else if (entity is CharacterEntity character && IsDropshipPassenger(character))
+                    {
+                        shouldBeScoped = false;
                     }
                     else if (entity == player.CharacterEntity.AttachedToEntity)
                     {
@@ -1933,10 +2316,65 @@ public class EntityManager
     }
 
     private sealed record DropshipRouteShipRuntime(
-        DropshipRouteDef Route,
+        DropshipRoutePlan Plan,
         DeployableEntity Ship,
-        float LoopLength,
-        float OffsetDistance);
+        InteractionComponent Interaction,
+        double TimeOffsetSeconds)
+    {
+        public ConcurrentDictionary<CharacterEntity, DropshipPassengerState> Passengers { get; } = new();
+        public bool IsDwelling { get; set; }
+        public int StopIndex { get; set; }
+    }
 
-    private readonly record struct DropshipRoutePose(Vector3 Position, Quaternion Orientation, Vector3 AimDirection);
+    private sealed record DropshipRoutePlan(
+        DropshipRouteDef Route,
+        List<DropshipRouteLeg> Legs,
+        double CycleDurationSeconds);
+
+    private sealed record DropshipRouteLeg(
+        int StopIndex,
+        Vector3 PadPosition,
+        Vector3 NextPadPosition,
+        Vector3 IncomingDirection,
+        DropshipCruiseSegment Cruise,
+        double DwellDurationSeconds,
+        double TakeoffDurationSeconds,
+        double CruiseDurationSeconds,
+        double LandingDurationSeconds,
+        double DurationSeconds);
+
+    private sealed record DropshipCruiseSegment(
+        int StopIndex,
+        List<DropshipCruiseSample> Samples,
+        float Length,
+        Vector3 StartPosition,
+        Vector3 EndPosition,
+        Vector3 StartDirection,
+        Vector3 EndDirection);
+
+    private readonly record struct DropshipCruiseSample(float T, float Distance);
+
+    private sealed class DropshipPassengerState
+    {
+        public DropshipPassengerState(int boardedStopIndex)
+        {
+            BoardedStopIndex = boardedStopIndex;
+        }
+
+        public int BoardedStopIndex { get; }
+        public bool IsAttached { get; set; }
+        public bool ExitRequested { get; set; }
+    }
+
+    private bool IsDropshipPassenger(CharacterEntity character)
+    {
+        return _dropshipRouteShips.Any(runtime => runtime.Passengers.ContainsKey(character));
+    }
+
+    private readonly record struct DropshipRoutePose(
+        Vector3 Position,
+        Quaternion Orientation,
+        Vector3 AimDirection,
+        bool IsDwelling = false,
+        int StopIndex = 0);
 }

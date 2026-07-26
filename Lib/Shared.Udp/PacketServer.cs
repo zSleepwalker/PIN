@@ -20,6 +20,7 @@ public abstract class PacketServer : IPacketSender
     protected BufferBlock<Packet?> OutgoingPackets;
     protected CancellationTokenSource Source;
     private const int CommandPollDelayMs = 25;
+    private const int _sioUdpConnectionReset = -1744830452;
 
     protected PacketServer(ushort port, ILogger logger)
     {
@@ -157,6 +158,12 @@ public abstract class PacketServer : IPacketSender
         ServerSocket.DontFragment = true;
         ServerSocket.ReceiveBufferSize = MTU * 100;
         ServerSocket.SendBufferSize = MTU * 100;
+
+        if (OperatingSystem.IsWindows())
+        {
+            ServerSocket.IOControl((IOControlCode)_sioUdpConnectionReset, new byte[4], null);
+        }
+
         ServerSocket.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.PacketInformation, true);
         ServerSocket.Bind(ListenEndpoint);
 
@@ -189,6 +196,10 @@ public abstract class PacketServer : IPacketSender
                     // Not 100% sure this needs to be cleared?
                     remoteEndPoint = new IPEndPoint(IPAddress.Any, 0);
                 }
+            }
+            catch (SocketException ex) when (ex.SocketErrorCode == SocketError.ConnectionReset)
+            {
+                Logger.Debug("Ignored UDP connection reset from a remote endpoint");
             }
             catch (Exception ex)
             {

@@ -396,6 +396,7 @@ public class CharacterInventory
             PersistLoadoutToDatabase(loadout);
         }
     }
+    
     public async Task RefreshFromDatabase()
     {
         var charId = (long)((NetworkPlayer)_player).CharacterId + 0xFE;
@@ -834,7 +835,6 @@ public class CharacterInventory
             itemChanges = itemChanges.Append(newItem).ToArray();
         }
 
-
         var update = new InventoryUpdate()
         {
             ClearExistingData = 0,
@@ -864,7 +864,6 @@ public class CharacterInventory
 
         NormalizeAndStoreLoadout(loadoutId);
 
-
         // Unequip old Item (if any)
         if (_loadouts[loadoutId].LoadoutConfigs[0].Items.Any((e) => e.SlotIndex == (byte)slot))
         {
@@ -880,7 +879,6 @@ public class CharacterInventory
                 _character.CurrentLoadout.SlottedItems[slot] = 0;
             }
 
-
             // Update CurrentLoadout
             _character.CurrentLoadout.SlottedItems[slot] = 0;
 
@@ -888,7 +886,6 @@ public class CharacterInventory
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items
                 .Where(e => e.SlotIndex != (byte)slot).ToArray();
         }
-
 
         // Equip new item (if any)
         if (guid != 0)
@@ -924,7 +921,6 @@ public class CharacterInventory
             // Update LoadoutConfig
             _loadouts[loadoutId].LoadoutConfigs[0].Items = _loadouts[loadoutId].LoadoutConfigs[0].Items.Append(new LoadoutConfig_Item() { ItemGUID = guid, SlotIndex = (byte)slot }).ToArray();
         }
-
 
         // Update StaticInfo when visuals are changed
         var equippedSdbId = (guid != 0) ? _items[guid].SdbId : 0;
@@ -1118,7 +1114,7 @@ public class CharacterInventory
     private static bool IsEmptyPlaceholderVisual(LoadoutConfig_Visual visual)
     {
         return visual.ItemSdbId == 0
-               && (byte)visual.VisualType == 0
+               && visual.VisualType == (LoadoutVisualType)0
                && visual.Data1 == 0
                && visual.Data2 == 0
                && (visual.Transform == null || visual.Transform.Length == 0);
@@ -1131,13 +1127,12 @@ public class CharacterInventory
             return false;
         }
 
-        return visual.VisualType is LoadoutConfig_Visual.LoadoutVisualType.Palette
-            or LoadoutConfig_Visual.LoadoutVisualType.Pattern
-            or LoadoutConfig_Visual.LoadoutVisualType.Decal
-            or LoadoutConfig_Visual.LoadoutVisualType.Glider
-            or LoadoutConfig_Visual.LoadoutVisualType.Vehicle;
+        return visual.VisualType is LoadoutVisualType.Palette
+            or LoadoutVisualType.Pattern
+            or LoadoutVisualType.Decal
+            or LoadoutVisualType.Glider
+            or LoadoutVisualType.Vehicle;
     }
-
 
     private byte GetInventoryTypeByItemTypeId(uint sdbId)
     {

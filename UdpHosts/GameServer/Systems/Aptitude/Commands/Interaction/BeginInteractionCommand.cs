@@ -19,7 +19,7 @@ public class BeginInteractionCommand : ICommand
         }
 
         var interactionEntity = context.Targets.Peek();
-        var abilityId = ((BaseEntity)interactionEntity).Interaction.StartedAbilityId;
+        var abilityId = ((BaseEntity)interactionEntity).Interaction?.StartedAbilityId ?? 0;
         if (abilityId != 0)
         {
             var actingEntity = context.Self;

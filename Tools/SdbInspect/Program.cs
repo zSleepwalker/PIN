@@ -270,7 +270,11 @@ void DumpGliderProfiles()
 
 void DumpDeployableInteract(Deployable dep)
 {
-    Console.WriteLine($"Type={dep.Id} InteractAbility={dep.InteractAbilityid} InteractCompleted={dep.InteractCompletedAbilityid} Constructed={dep.ConstructedAbilityid} Category={dep.DeployableCategory}");
+    var interactionAbility = dep.InteractAbilityid != 0 ? SDBInterface.GetAbilityData(dep.InteractAbilityid) : null;
+    var interactionRoot = interactionAbility != null ? SDBInterface.GetBaseCommandDef(interactionAbility.Chain) : null;
+    Console.WriteLine($"Type={dep.Id} Category={dep.DeployableCategory} NameId={dep.LocalizedNameId} VisualRec={dep.Visualrec} VisualGroup={dep.Visualgroup}:{dep.VisualgroupIdx} Behavior={dep.Behavior ?? "<none>"}");
+    Console.WriteLine($"  ServiceType={dep.ServiceType} ServiceTypeData={dep.ServiceTypeData} Function={dep.Function} InteractionType={dep.InteractionType} Radius={dep.InteractRadius} Height={dep.InteractHeight} DurationMs={dep.InteractionDurationMs} Scope={dep.ScopeRange}");
+    Console.WriteLine($"  InteractAbility={dep.InteractAbilityid} AbilityChain={interactionAbility?.Chain ?? 0} RootSubtype={interactionRoot?.Subtype ?? 0} RootNext={interactionRoot?.Next ?? 0} InteractCompleted={dep.InteractCompletedAbilityid} Constructed={dep.ConstructedAbilityid} Spawn={dep.SpawnAbilityid}");
 }
 
 void ListTables(SDB sdbInstance, IReadOnlyCollection<string> knownTableNames, string? pattern)

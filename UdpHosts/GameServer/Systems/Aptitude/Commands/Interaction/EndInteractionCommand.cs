@@ -30,6 +30,11 @@ public class EndInteractionCommand : ICommand
             character.Player.NetChannels[ChannelType.ReliableGss].SendMessage(message, character.EntityId);
         }
 
+        if (context.Shard.EntityMan.TryHandleDropshipInteraction(character, interactionEntity))
+        {
+            return true;
+        }
+
         if (interactionEntity.Encounter is { Instance: IInteractionHandler encounter })
         {
             encounter.OnInteraction(character, interactionEntity);
@@ -40,7 +45,7 @@ public class EndInteractionCommand : ICommand
             context.Shard.EncounterMan.Factory.SpawnEncounter(spawnData, character);
         }
 
-        var abilityId = interactionEntity.Interaction.CompletedAbilityId;
+        var abilityId = interactionEntity.Interaction?.CompletedAbilityId ?? 0;
         if (abilityId != 0)
         {
             context.Shard.Abilities.HandleActivateAbility(
@@ -52,7 +57,7 @@ public class EndInteractionCommand : ICommand
                 context.ExecutionId);
         }
 
-        var interactionType = interactionEntity.Interaction.Type;
+        var interactionType = interactionEntity.Interaction?.Type ?? InteractionType.Generic;
 
         // if (hack is DeployableEntity { Turret: not null } deployable)
         // {
